@@ -5,7 +5,7 @@ import datetime as dt
 import pickle
 
 import logging
-
+from benders_exp.utils import setup_logger
 from benders_exp.timing import TimingMPC
 from benders_exp.state import State
 from benders_exp.ambient import Ambient
@@ -21,15 +21,7 @@ def main():
     USE_STORED_NLP_REL = False
     STORE_RESULTS = True
 
-    logger = logging.getLogger()
-    logger.setLevel(logging.WARNING)
-    formatter = logging.Formatter(
-        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    )
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    ch.setFormatter(formatter)
-
+    setup_logger()
     if not os.path.exists(RESULTS_FOLDER):
         os.mkdir(RESULTS_FOLDER)
 

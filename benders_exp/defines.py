@@ -16,7 +16,7 @@ _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 
 RESULTS_FOLDER = path.join(SOURCE_FOLDER, "../results/standard")
 
-NLP_OPTIONS = {
+NLP_OPTIONS_GENERAL = {
     "ipopt.linear_solver": "ma27",
     # self._nlpsolver_options["ipopt.mumps_mem_percent"] = 10000
     # self._nlpsolver_options["ipopt.mumps_pivtol"] = 0.001
