@@ -1,11 +1,15 @@
-from benders_exp.nlpsolver import NLPSolverMPCBaseClass
-from benders_exp.dmiqp import DMiqp
+import logging
 import numpy as np
 import casadi as ca
 import scipy.sparse as ssp
 
+from benders_exp.nlpsolver import NLPSolverMPCBaseClass
+from benders_exp.dmiqp import DMiqp
+
 CASADI_CONTINOUS = 0
 CASADI_BINARY = 1
+
+logger = logging.getLogger(__name__)
 
 
 class NLPSolverBin2(NLPSolverMPCBaseClass):
@@ -84,6 +88,35 @@ def filter(lst):
 class BendersMILP(DMiqp):
     """Create benders MILP"""
 
+    @property
+    def x(self) -> np.ndarray:
+        try:
+            return np.array(self.solution["x"])
+        except AttributeError:
+            msg = "Optimal solution not available yet, call solve() first."
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+    @property
+    def obj(self) -> np.ndarray:
+        try:
+            return self.qp.obj
+            return self.solution["f"]
+        except AttributeError:
+            msg = "Objective value not available yet, call solve() first."
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+    @property
+    def solve_successful(self):
+        try:
+            return self._stats["success"]
+        except AttributeError:
+            msg = "Solver return status not available yet, call solve() first."
+            logger.error(msg)
+            raise RuntimeError(msg)
+
+
     def _assemble_problem(self, b_fixed: bool) -> None:
         """Create the problem."""
         A = [self._A]
@@ -148,14 +181,12 @@ class BendersMILP(DMiqp):
         ubx[self.idx_sb] = 1.0
         # ubx[self._nw:] = 1.0 # TBD!
 
-        breakpoint()
-
         qpproblem = {'a': ca.DM(A).sparsity(), 'h': ca.DM.eye(q.shape[0]).sparsity()}
 
         qpproblem = {
             # 'h':
             'a': ca.DM(A).sparsity(),
-            'g': q,
+            'h': ca.DM(self.H).sparsity(),
         }
         self.solver = ca.conic('S', 'gurobi', qpproblem, {
             'discrete': vtype,
@@ -170,13 +201,16 @@ class BendersMILP(DMiqp):
             "lba": lb,
             "uba": ub,
             "g": q,
-            "h": ca.DM.zeros(q.shape[0], q.shape[0]),
+            "h": 0 * ca.DM(self.H),
             'a': ca.DM(A),
         }
 
     def _solve_problem(self, gap: float) -> None:
-        self.solution = self.solver(**self.qpsolver_args)
-        self.stats = self.solver.stats()
+        self.solution = self.solver(**self._qpsolver_args)
+        self._stats = self.solver.stats()
 
     def _collect_solver_stats(self):
-        pass
+        self.solver_stats = {
+            "runtime": self._stats["t_wall_solver"],
+            "return_status": self._stats["return_status"],
+        }

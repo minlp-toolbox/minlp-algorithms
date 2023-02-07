@@ -79,17 +79,14 @@ def main():
     predictor.solve(n_steps=0)
 
     logger.info("Simulator setup.")
-    # nlpsolver_rel = NLPSolverBin2(
-    #     timing=timing,
-    #     ambient=ambient,
-    #     previous_solver=simulator,
-    #     predictor=predictor,
-    #     solver_name="nlpsolver_rel",
-    # )
-    # nlpsolver_rel.solve()
-    with open("/home/air15973/workspace/PHD/python/benders-experiments/"
-              "results/standard/nlpsolver_rel.pickle", 'rb') as f:
-        nlpsolver_rel = pickle.load(f)
+    nlpsolver_rel = NLPSolverBin2(
+        timing=timing,
+        ambient=ambient,
+        previous_solver=simulator,
+        predictor=predictor,
+        solver_name="nlpsolver_rel",
+    )
+    nlpsolver_rel.solve()
 
     binapprox_miqp = BinaryApproximation(
         timing=timing,

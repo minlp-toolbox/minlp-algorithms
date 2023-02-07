@@ -510,6 +510,8 @@ class BinaryApproximation(NLPSetupMPC):
         elif method == "milp":
             self._setup_milp(use_reduced_miqp=use_reduced_miqp)
             self._set_dwell_times_miqp(b_fixed=b_fixed)
+            # TODO: Remove voronoi:
+            self._set_voronoi_miqp(voronoi=voronoi)
             self._set_binary_controls_if_fixed(b_fixed=b_fixed)
             self._set_warm_start(warm_start=warm_start)
             self._solve_miqp(gap=gap, b_fixed=b_fixed)
