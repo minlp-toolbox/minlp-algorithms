@@ -2,6 +2,7 @@ from benders_exp.nlpsolver import NLPSolverMPCBaseClass
 from benders_exp.dmiqp import DMiqp
 import numpy as np
 import casadi as ca
+import scipy.sparse as ssp
 
 CASADI_CONTINOUS = 0
 CASADI_BINARY = 1
@@ -85,33 +86,44 @@ class BendersMILP(DMiqp):
 
     def _assemble_problem(self, b_fixed: bool) -> None:
         """Create the problem."""
+        A = [self._A]
+        lb = [self._lb]
+        ub = [self._ub]
+
         x0 = np.squeeze(self._wlin)
 
-        A = np.vstack(filter([
-            self._A, self._A_vb, self._A_mutc, self._A_mdtc
-        ]))
-        lb = np.hstack(filter([
-            self._lb, self._lb_vb, self._lb_mutc, self._lb_mdtc
-        ]))
+        for A_k in [self._A_vb, self._A_mutc, self._A_mdtc, self._A_v]:
+            if A_k is not None:
+                A.append(A_k)
+        A = ssp.vstack(A)
 
-        ub = np.hstack(filter([
-            self._ub, self._ub_vb, self._ub_mutc, self._ub_mdtc
-        ]))
+        for lb_k in [self._lb_vb, self._lb_mutc, self._lb_mdtc, self._lb_v]:
+            if lb_k is not None:
+                lb.append(lb_k)
+        lb = np.hstack(lb)
+
+        for ub_k in [self._ub_vb, self._ub_mutc, self._ub_mdtc, self._ub_v]:
+            if ub_k is not None:
+                ub.append(ub_k)
+        ub = np.hstack(ub)
 
         if self._A_msc is not None:
-            A0 = np.csc_matrix(
+
+            A0 = ssp.csc_matrix(
                 (A.shape[0], self._A_msc.shape[1] - A.shape[1]), dtype=int
             )
 
-            A = np.csc_matrix(np.vstack([np.hstack([A, A0]), self._A_msc]))
+            A = ssp.csc_matrix(ssp.vstack([ssp.hstack([A, A0]), self._A_msc]))
 
             lb = np.hstack([lb, self._lb_msc])
             ub = np.hstack([ub, self._ub_msc])
 
             x0 = np.hstack([x0, np.zeros(A.shape[1] - x0.shape[0])])
 
+        self.H.resize((A.shape[1], A.shape[1]))
+
         # self.H.resize((A.shape[1], A.shape[1]))
-        q = np.append(self._q, np.zeros(A.shape[1] - self._nw))
+        q = self._q  # np.append(self._q, np.zeros(A.shape[1] - self._nw))
 
         vtype = np.empty(A.shape[1], dtype=object)
         vtype[:] = CASADI_CONTINOUS
@@ -136,9 +148,13 @@ class BendersMILP(DMiqp):
         ubx[self.idx_sb] = 1.0
         # ubx[self._nw:] = 1.0 # TBD!
 
+        breakpoint()
+
+        qpproblem = {'a': ca.DM(A).sparsity(), 'h': ca.DM.eye(q.shape[0]).sparsity()}
+
         qpproblem = {
             # 'h':
-            'a': A,
+            'a': ca.DM(A).sparsity(),
             'g': q,
         }
         self.solver = ca.conic('S', 'gurobi', qpproblem, {
@@ -151,8 +167,11 @@ class BendersMILP(DMiqp):
             "x0": x0,
             "lbx": lbx,
             "ubx": ubx,
-            "lbg": lb,
-            "ubg": ub,
+            "lba": lb,
+            "uba": ub,
+            "g": q,
+            "h": ca.DM.zeros(q.shape[0], q.shape[0]),
+            'a': ca.DM(A),
         }
 
     def _solve_problem(self, gap: float) -> None:
