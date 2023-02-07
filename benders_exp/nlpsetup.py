@@ -6,7 +6,7 @@ import casadi as ca
 import subprocess
 from benders_exp.defines import _PATH_TO_NLP_SOURCE, _PATH_TO_NLP_OBJECT
 
-from system import System
+from benders_exp.system import System
 
 import logging
 
