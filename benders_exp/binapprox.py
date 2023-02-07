@@ -7,10 +7,8 @@ import numpy as np
 import casadi as ca
 import dmiqp
 
-from nlpsetup import NLPSetupMPC
-from voronoi import Voronoi
-
-import scipy.sparse as ssp
+from benders_exp.nlpsetup import NLPSetupMPC
+from benders_exp.voronoi import Voronoi
 
 import logging
 

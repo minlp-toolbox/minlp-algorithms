@@ -6,6 +6,7 @@ import casadi as ca
 import subprocess
 
 from collections import OrderedDict
+from benders_exp.defines import _PATH_TO_ODE_FILE
 
 import logging
 
@@ -15,7 +16,6 @@ logger = logging.getLogger(__name__)
 class System(object):
 
     _ODE_FILENAME = "ode.casadi"
-    _PATH_TO_ODE_FILE = "lib/"
 
     _CXX_COMPILERS = ["clang", "gcc"]
     _CXX_FLAGS = ["-fPIC", "-v", "-shared", "-fno-omit-frame-pointer"]
@@ -823,19 +823,17 @@ class System(object):
 
     def _setup_directory(self):
 
-        if not os.path.exists(self._PATH_TO_ODE_FILE):
-            os.mkdir(self._PATH_TO_ODE_FILE)
+        if not os.path.exists(_PATH_TO_ODE_FILE):
+            os.mkdir(_PATH_TO_ODE_FILE)
 
     def _save_ode_to_file(self):
-
-        __dirname__ = os.path.dirname(os.path.abspath(__file__))
 
         f = ca.Function("f", [self.x, ca.veccat(self.c, self.u, self.b)], [self.f])
         f.save(self._ODE_FILENAME)
 
         os.rename(
             self._ODE_FILENAME,
-            os.path.join(__dirname__, self._PATH_TO_ODE_FILE, self._ODE_FILENAME),
+            os.path.join(_PATH_TO_ODE_FILE, self._ODE_FILENAME),
         )
 
     def generate_ode_file(self):
@@ -851,10 +849,8 @@ class System(object):
 
     def _load_ode_from_file(self):
 
-        __dirname__ = os.path.dirname(os.path.abspath(__file__))
-
         path_to_ode_object = os.path.join(
-            __dirname__, self._PATH_TO_ODE_FILE, self._ODE_FILENAME
+            _PATH_TO_ODE_FILE, self._ODE_FILENAME
         )
 
         f = ca.Function.load(path_to_ode_object)

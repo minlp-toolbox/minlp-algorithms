@@ -13,7 +13,8 @@ import gurobipy as gp
 
 import logging
 
-from voronoi import Voronoi
+from benders_exp.voronoi import Voronoi
+from benders_exp.defines import _PATH_TO_NLP_OBJECT
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -23,7 +24,6 @@ class DMiqp:
 
     _DEFAULT_LOGFILE_LOCATION = "/tmp/gurobi.log"
 
-    _PATH_TO_NLP_OBJECT = "lib/"
 
     @property
     def x(self) -> np.ndarray:
@@ -165,7 +165,7 @@ class DMiqp:
 
         path_to_qp_file = os.path.join(
             __dirname__,
-            self._PATH_TO_NLP_OBJECT,
+            _PATH_TO_NLP_OBJECT,
             f"{qp_component+qp_file_suffix}.casadi",
         )
 
@@ -182,7 +182,7 @@ class DMiqp:
         for idx in ["idx_b", "idx_sb"]:
 
             path_to_idx_file = os.path.join(
-                __dirname__, self._PATH_TO_NLP_OBJECT, f"{idx+idx_file_suffix}.txt"
+                __dirname__, _PATH_TO_NLP_OBJECT, f"{idx+idx_file_suffix}.txt"
             )
 
             setattr(self, idx, np.loadtxt(path_to_idx_file).astype(int))

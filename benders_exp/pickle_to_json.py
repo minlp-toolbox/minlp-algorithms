@@ -4,8 +4,7 @@ import pickle
 import glob
 import json
 import numpy as np
-
-PICKLE_FOLDER = "results/voronoi"
+from benders_exp.defines import PICKLE_FOLDER
 
 sol_pkl_list = glob.glob(os.path.join(PICKLE_FOLDER, "*.pickle"))
 

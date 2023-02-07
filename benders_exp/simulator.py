@@ -7,6 +7,7 @@ import casadi as ca
 from system import System
 
 import logging
+from benders_exp.defines import _PATH_TO_ODE_OBJECT
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 class Simulator(System):
 
     _ODE_OBJECT_FILENAME = "ode.so"
-    _PATH_TO_ODE_OBJECT = "lib/"
+    _PATH_TO_ODE_OBJECT = _PATH_TO_ODE_OBJECT
 
     @property
     def time_grid(self):

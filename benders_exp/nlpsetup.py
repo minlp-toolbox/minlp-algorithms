@@ -4,8 +4,7 @@ import os
 import numpy as np
 import casadi as ca
 import subprocess
-
-import pdb
+from benders_exp.defines import _PATH_TO_NLP_SOURCE, _PATH_TO_NLP_OBJECT
 
 from system import System
 
@@ -16,10 +15,8 @@ logger = logging.getLogger(__name__)
 
 class NLPSetupBaseClass(System):
 
-    _PATH_TO_NLP_SOURCE = "src/"
-    _PATH_TO_NLP_OBJECT = "lib/"
 
-    _CXX_COMPILERS = ["gcc-11"]
+    _CXX_COMPILERS = ["gcc-11", 'gcc']
     _CXX_FLAGS = ["-fPIC", "-v", "-shared", "-fno-omit-frame-pointer"]
     _CXX_FLAG_NO_OPT = ["-O0"]
     _CXX_FLAG_OPT = ["-O1"]
@@ -39,11 +36,11 @@ class NLPSetupBaseClass(System):
 
     def _setup_directories(self):
 
-        if not os.path.exists(self._PATH_TO_NLP_OBJECT):
-            os.mkdir(self._PATH_TO_NLP_OBJECT)
+        if not os.path.exists(_PATH_TO_NLP_OBJECT):
+            os.mkdir(_PATH_TO_NLP_OBJECT)
 
-        if not os.path.exists(self._PATH_TO_NLP_SOURCE):
-            os.mkdir(self._PATH_TO_NLP_SOURCE)
+        if not os.path.exists(_PATH_TO_NLP_SOURCE):
+            os.mkdir(_PATH_TO_NLP_SOURCE)
 
     def _export_nlp_to_c_code(self):
 
@@ -55,7 +52,7 @@ class NLPSetupBaseClass(System):
         os.rename(
             self._NLP_SOURCE_FILENAME,
             os.path.join(
-                __dirname__, self._PATH_TO_NLP_SOURCE, self._NLP_SOURCE_FILENAME
+                __dirname__, _PATH_TO_NLP_SOURCE, self._NLP_SOURCE_FILENAME
             ),
         )
 
@@ -92,10 +89,10 @@ class NLPSetupBaseClass(System):
         __dirname__ = os.path.dirname(os.path.abspath(__file__))
 
         path_to_nlp_source_code = os.path.join(
-            __dirname__, self._PATH_TO_NLP_SOURCE, self._NLP_SOURCE_FILENAME
+            __dirname__, _PATH_TO_NLP_SOURCE, self._NLP_SOURCE_FILENAME
         )
         path_to_nlp_object = os.path.join(
-            __dirname__, self._PATH_TO_NLP_OBJECT, self._NLP_OBJECT_FILENAME
+            __dirname__, _PATH_TO_NLP_OBJECT, self._NLP_OBJECT_FILENAME
         )
 
         if not os.path.isfile(path_to_nlp_object) or overwrite_existing_object:
@@ -776,7 +773,7 @@ class NLPSetupMPC(NLPSetupBaseClass):
             os.rename(
                 f"{qp_component}.casadi",
                 os.path.join(
-                    __dirname__, self._PATH_TO_NLP_OBJECT, f"{qp_component}.casadi"
+                    __dirname__, _PATH_TO_NLP_OBJECT, f"{qp_component}.casadi"
                 ),
             )
 
@@ -787,7 +784,7 @@ class NLPSetupMPC(NLPSetupBaseClass):
         for idx in ["idx_b", "idx_b_red", "idx_sb", "idx_sb_red"]:
 
             np.savetxt(
-                os.path.join(__dirname__, self._PATH_TO_NLP_OBJECT, f"{idx}.txt"),
+                os.path.join(__dirname__, _PATH_TO_NLP_OBJECT, f"{idx}.txt"),
                 getattr(self, idx),
             )
 
