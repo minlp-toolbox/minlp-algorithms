@@ -10,3 +10,18 @@ _PATH_TO_NLP_SOURCE = path.join(SOURCE_FOLDER, "../.src/")
 _PATH_TO_NLP_OBJECT = path.join(SOURCE_FOLDER, "../.lib/")
 _PATH_TO_ODE_OBJECT = path.join(SOURCE_FOLDER, "../.lib/")
 _PATH_TO_ODE_FILE = _PATH_TO_ODE_OBJECT
+
+
+_DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
+
+RESULTS_FOLDER = path.join(SOURCE_FOLDER, "../results/standard")
+
+NLP_OPTIONS = {
+    "ipopt.linear_solver": "ma27",
+    # self._nlpsolver_options["ipopt.mumps_mem_percent"] = 10000
+    # self._nlpsolver_options["ipopt.mumps_pivtol"] = 0.001
+    "ipopt.print_level": 5,
+    "ipopt.file_print_level": 5,
+    "ipopt.max_cpu_time": 3600.0,
+    "ipopt.max_iter": 600000
+}

@@ -9,7 +9,7 @@ import casadi as ca
 
 from system import System
 from benders_exp.nlpsetup import NLPSetupMPC
-from benders_exp.defines improt _PATH_TO_NLP_OBJECT
+from benders_exp.defines import _PATH_TO_NLP_OBJECT, NLP_OPTIONS
 
 from abc import ABCMeta, abstractmethod
 
@@ -172,21 +172,10 @@ class NLPSolverMPCBaseClass(NLPSetupMPC, metaclass=ABCMeta):
     def _setup_general_solver_options(self):
 
         self._nlpsolver_options = {}
-
-        self._nlpsolver_options["ipopt.linear_solver"] = "ma57"
-
-        self._nlpsolver_options["ipopt.mumps_mem_percent"] = 10000
-        self._nlpsolver_options["ipopt.mumps_pivtol"] = 0.001
-
-        self._nlpsolver_options["ipopt.print_level"] = 5
-
         self._nlpsolver_options["ipopt.output_file"] = os.path.join(
             self._LOGFILE_LOCATION, self._solver_name + ".log"
         )
-        self._nlpsolver_options["ipopt.file_print_level"] = 5
-
-        self._nlpsolver_options["ipopt.max_cpu_time"] = 3600.0
-        self._nlpsolver_options["ipopt.max_iter"] = 600000
+        self._nlpsolver_options.update(NLP_OPTIONS)
 
     @abstractmethod
     def _setup_additional_nlpsolver_options(self):

@@ -14,11 +14,10 @@ from benders_exp.simulator import Simulator
 from benders_exp.predictor import Predictor
 from benders_exp.nlpsolver import NLPSolverRel, NLPSolverBin
 from benders_exp.binapprox import BinaryApproximation
+from benders_exp.defines import RESULTS_FOLDER
 
 
 def main():
-    RESULTS_FOLDER = "results/standard"
-
     USE_STORED_NLP_REL = False
     STORE_RESULTS = True
 

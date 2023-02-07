@@ -161,10 +161,7 @@ class DMiqp:
         if self._use_reduced_miqp:
             qp_file_suffix = "_red"
 
-        __dirname__ = os.path.dirname(os.path.abspath(__file__))
-
         path_to_qp_file = os.path.join(
-            __dirname__,
             _PATH_TO_NLP_OBJECT,
             f"{qp_component+qp_file_suffix}.casadi",
         )
@@ -177,12 +174,10 @@ class DMiqp:
         if self._use_reduced_miqp:
             idx_file_suffix = "_red"
 
-        __dirname__ = os.path.dirname(os.path.abspath(__file__))
-
         for idx in ["idx_b", "idx_sb"]:
 
             path_to_idx_file = os.path.join(
-                __dirname__, _PATH_TO_NLP_OBJECT, f"{idx+idx_file_suffix}.txt"
+                _PATH_TO_NLP_OBJECT, f"{idx+idx_file_suffix}.txt"
             )
 
             setattr(self, idx, np.loadtxt(path_to_idx_file).astype(int))
