@@ -514,7 +514,7 @@ class DMiqp:
                 self._lb_v = self._voronoi.lb_v
                 self._ub_v = self._voronoi.ub_v
 
-    def _assemble_problem(self, b_fixed: bool) -> None:
+    def _assemble_problem(self, b_fixed: bool, gap=None) -> None:
 
         A = [self._A]
         lb = [self._lb]
@@ -645,7 +645,7 @@ class DMiqp:
         self._set_min_up_time_constraints()
         self._set_min_down_time_constraints()
         self._set_voronoi_cut()
-        self._assemble_problem(b_fixed=b_fixed)
+        self._assemble_problem(b_fixed=b_fixed, gap=gap)
 
         self._solve_problem(gap=gap)
         self._collect_solver_stats()

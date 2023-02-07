@@ -116,8 +116,7 @@ class BendersMILP(DMiqp):
             logger.error(msg)
             raise RuntimeError(msg)
 
-
-    def _assemble_problem(self, b_fixed: bool) -> None:
+    def _assemble_problem(self, b_fixed: bool, gap=0.05) -> None:
         """Create the problem."""
         A = [self._A]
         lb = [self._lb]
@@ -190,7 +189,7 @@ class BendersMILP(DMiqp):
         }
         self.solver = ca.conic('S', 'gurobi', qpproblem, {
             'discrete': vtype,
-            "gurobi": {"MIPGap": 0.05}
+            "gurobi": {"MIPGap": gap}
         })
 
         self._qpsolver_args = {
