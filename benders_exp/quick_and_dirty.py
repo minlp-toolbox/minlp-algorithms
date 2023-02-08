@@ -19,6 +19,8 @@ from benders_exp.timing import TimingMPC
 import casadi as ca
 
 
+WITH_JIT = False
+
 @dataclass
 class Stats:
     """Collect stats."""
@@ -122,29 +124,6 @@ def extract():
     nlpsolver_rel._set_nlpsolver_bounds_and_initials()
 
     nlp_args = nlpsolver_rel._nlpsolver_args
-    # print(nlpsolver_rel._nlpsolver_args)
-    # print(f"{nlpsolver_rel._nlpsolver_args['lbx'].shape=}")
-    # print(f"{nlpsetup_mpc.nlp['x'].shape=}")
-
-    # x = nlp
-    # Hessian, gradient_f = ca.hessian(nlpsetup_mpc.nlp['f'], nlpsetup_mpc.nlp['x'])
-    # jacobian_g = ca.jacobian(nlpsetup_mpc.nlp['g'], nlpsetup_mpc.nlp['x'])
-
-    # nlpsol = ca.nlpsol("nlpsol", "ipopt", nlpsetup_mpc.nlp, {
-    #     "jit": True
-    # })
-    # nlpsetup_mpc.nlp['f']
-    # nlpsetup_mpc.nlp['g']
-    # bin_x = nlpsetup_mpc.nlp['x'][binary_values]
-    # x = nlpsetup_mpc.nlp['x']
-    # qpsol = ca.qpsol("qpsolver", "gurobi", {
-    #     "f": 1/ 2 * x.T @ H @ x + q.T @ x
-    #     "g": a
-    # }
-
-    # breakpoint()
-    # result = nlpsol(**nlp_args)
-    # stats = nlpsol.stats()
     problem = MinlpProblem(*nlpsetup_mpc.nlp, idx_x_bin=binary_values)
     data = MinlpData(**nlp_args, solved=True)
     return problem, data
@@ -211,7 +190,7 @@ class NlpSolver(SolverClass):
             options = {"ipopt.print_level": 0, "verbose": False}
 
         self.idx_x_bin = problem.idx_x_bin
-        options.update({"jit": True})
+        options.update({"jit": WITH_JIT})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": problem.f, "g": problem.g, "x": problem.x, "p": problem.p
         }, options)
@@ -247,16 +226,16 @@ class BendersMasterMILP(SolverClass):
             [problem.x, problem.p], [ca.gradient(
                 problem.f, problem.x
             )[problem.idx_x_bin]],
-            {"jit": True}
+            {"jit": WITH_JIT}
         )
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
-            {"jit": True}
+            {"jit": WITH_JIT}
         )
         self.jac_g = ca.Function(
             "jac_g", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
-            {"jit": True}
+            {"jit": WITH_JIT}
         )
         self.idx_x_bin = problem.idx_x_bin
         self.nr_x_bin = len(problem.idx_x_bin)
@@ -301,6 +280,46 @@ class BendersMasterMILP(SolverClass):
         nlpdata_out.prev_solution = solution
         nlpdata_out.solved = self.collect_stats()[0]
         return nlpdata_out
+
+
+class FeasibilityNLP(SolverClass):
+    """Create benders master problem."""
+
+    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+        """Create benders master MILP."""
+        super(BendersMasterMILP, self).__init___(problem, stats)
+        if options is None:
+            options = {}
+
+        self.nr_g = problem.g.shape[0]
+        s_lbg = ca.SX.sym("s_lbg", self.nr_g)
+        s_ubg = ca.SX.sym("s_ubg", self.nr_g)
+        lbg = ca.SX.sym("lbg", self.nr_g)
+        ubg = ca.SX.sym("ubg", self.nr_g)
+        g = ca.vertcat(
+            problem.g - ubg - s_ubg,
+            -(problem.g - lbg + s_lbg)
+        )
+        self.lbg = - np.inf * np.ones((self.nr_g * 2, 1))
+        self.ubg = np.zeros((self.nr_g * 2, 1))
+        f = ca.sum1(s_lbg) + ca.sum1(s_ubg)
+        x = ca.vertcat(problem.x, s_lbg, s_ubg)
+        p = ca.vertcat(problem.p, lbg, ubg)
+
+        self.idx_x_bin = problem.idx_x_bin
+        options.update({"jit": WITH_JIT})
+        self.solver = ca.nlpsol("nlpsol", "ipopt", {
+            "f": f, "g": g, "x": x, "p": p
+        }, options)
+
+    def solve(self, nlpdata: MinlpData) -> MinlpData:
+        """solve."""
+        self.solver(
+            x0=ca.vertcat(nlpdata.x_sol, np.zeros((self.nr_g *2, 1))),
+            lbx=ca.vertcat(nlpdata.lbx, np.zeros((self.nr_g * 2, 1))),
+            ubx=ca.vertcat(nlpdata.lbx, ca.inf * np.ones((self.nr_g * 2, 1))),
+            lbg="", # TODO
+        )
 
 
 def benders_algorithm(problem, data, stats):
@@ -349,6 +368,7 @@ def idea_algorithm(problem, data, stats):
 if __name__ == "__main__":
     if len(argv) == 1:
         print("Usage: enter mode: benders, idea, ...")
+        exit(1)
 
     mode = argv[1]
 
