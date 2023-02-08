@@ -1,5 +1,7 @@
 """Quick and dirty implementation."""
 
+from sys import argv
+from copy import copy
 from dataclasses import dataclass
 import datetime as dt
 from typing import List, Dict, Any, Optional
@@ -170,6 +172,14 @@ def create_dummy_problem(p_val=[1000, 3]):
     return problem, data
 
 
+def make_bounded(problem: MinlpProblem, new_inf=1e8):
+    """Make bounded."""
+    problem.lbx[problem.lbx < -new_inf] = -new_inf
+    problem.ubx[problem.ubx > new_inf] = new_inf
+    problem.lbg[problem.lbg < -new_inf] = -new_inf
+    problem.ubg[problem.ubg > new_inf] = new_inf
+
+
 class SolverClass:
     """Create solver class."""
 
@@ -184,7 +194,10 @@ class SolverClass:
     def collect_stats(self):
         """Collect statistics."""
         stats = self.solver.stats()
-        self.stats.runtime += stats["t_wall_total"]
+        if "t_wall_total" in stats:
+            self.stats.runtime += stats["t_wall_total"]
+        else:
+            self.stats.runtime += stats["t_wall_solver"]
         return stats["success"], stats
 
 
@@ -195,7 +208,7 @@ class NlpSolver(SolverClass):
         """Create NLP problem."""
         super(NlpSolver, self).__init___(problem, stats)
         if options is None:
-            options = {}
+            options = {"ipopt.print_level": 0, "verbose": False}
 
         self.idx_x_bin = problem.idx_x_bin
         options.update({"jit": True})
@@ -208,8 +221,8 @@ class NlpSolver(SolverClass):
         lbx = nlpdata.lbx.copy()
         ubx = nlpdata.ubx.copy()
         if set_x_bin:
-            lbx[nlpdata.idx_x_bin] = nlpdata.x_sol[nlpdata.idx_x_bin]
-            ubx[nlpdata.idx_x_bin] = nlpdata.x_sol[nlpdata.idx_x_bin]
+            lbx[self.idx_x_bin] = nlpdata.x_sol[self.idx_x_bin, 0]
+            ubx[self.idx_x_bin] = nlpdata.x_sol[self.idx_x_bin, 0]
 
         nlpdata.prev_solution = self.solver(
             p=nlpdata.p, x0=nlpdata.x_sol,
@@ -281,17 +294,17 @@ class BendersMasterMILP(SolverClass):
             lbg=-ca.inf * np.ones(self.nr_g),
             ubg=np.zeros(self.nr_g)
         )
-        x_full = nlpdata.x_sol.copy()
+        x_full = nlpdata.x_sol.full()
         x_full[self.idx_x_bin] = solution['x'][:-1]
         solution['x'] = x_full
-        nlpdata_out = nlpdata.copy()
+        nlpdata_out = copy(nlpdata)
         nlpdata_out.prev_solution = solution
+        nlpdata_out.solved = self.collect_stats()[0]
         return nlpdata_out
 
 
-if __name__ == "__main__":
-    problem, data = create_dummy_problem()
-    stats = Stats({})
+def benders_algorithm(problem, data, stats):
+    """Create benders algorithm."""
     nlp = NlpSolver(problem, stats)
     benders_milp = BendersMasterMILP(problem, stats)
     data = nlp.solve(data)
@@ -320,3 +333,29 @@ if __name__ == "__main__":
         elif data.obj_val < ub:
             ub = data.obj_val
             x_star = x_bar
+
+        print(f"{ub=} {lb=}")
+
+    return data, x_star
+
+
+def idea_algorithm(problem, data, stats):
+    """Create benders algorithm."""
+    # nlp = NlpSolver(problem, stats)
+    # TODO
+    return data, data.obj_val
+
+
+if __name__ == "__main__":
+    if len(argv) == 1:
+        print("Usage: enter mode: benders, idea, ...")
+
+    mode = argv[1]
+
+    problem, data = create_dummy_problem()
+    make_bounded(data)
+    stats = Stats({})
+    if mode == "benders":
+        benders_algorithm(problem, data, stats)
+    elif mode == "idea":
+        idea_algorithm(problem, data,  stats)
