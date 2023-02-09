@@ -212,6 +212,27 @@ def make_bounded(problem: MinlpProblem, new_inf=1e3):
     problem.ubx[problem.ubx > new_inf] = new_inf
 
 
+def make_single_bounded(problem: MinlpProblem, data: MinlpData):
+    """Make single bounded g."""
+    new_g = []
+    new_lb = []
+    for i in range(problem.g.shape[0]):
+        if not np.isinf(-data.lbg[i]):
+            new_lb.append(data.lbg[i])
+            new_g.append(problem.g[i])
+        if not np.isinf(data.ubg[i]):
+            new_lb.append(-data.ubg[i])
+            new_g.append(-problem.g[i])
+
+    new_g = ca.vertcat(*new_g)
+    new_lb = np.array(new_lb)
+    new_ub = np.inf * np.ones(new_lb.shape)
+    problem.g = new_g
+    data.ubg = new_ub
+    data.lbg = new_lb
+    return problem, data
+
+
 class SolverClass:
     """Create solver class."""
 
@@ -450,13 +471,28 @@ def idea_algorithm(problem, data, stats):
 
 if __name__ == "__main__":
     if len(argv) == 1:
-        print("Usage: enter mode: benders, idea, ...")
+        print("Usage: mode problem")
+        print("Available modes are: benders, idea, ...")
+        print("Available problems are: dummy, dummy2, orig, ...")
         exit(1)
 
     mode = argv[1]
+    if len(argv) > 2:
+        problem = argv[2]
+    else:
+        problem = "dummy"
 
-    problem, data = create_dummy_problem()
+    if problem == "dummy":
+        problem, data = create_dummy_problem()
+    elif problem == "dummy2":
+        problem, data = create_dummy_problem_2()
+    elif problem == "orig":
+        problem, data = extract()
+    else:
+        raise Exception(f"No {problem=}")
+
     make_bounded(data)
+    problem, data = make_single_bounded(problem, data)
     stats = Stats({})
     if mode == "benders":
         data, x_star = benders_algorithm(problem, data, stats)
