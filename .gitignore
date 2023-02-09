@@ -5,3 +5,4 @@ __pycache__/
 
 # Ignore results
 results/*
+jit_tmp*

@@ -20,7 +20,8 @@ from benders_exp.timing import TimingMPC
 import casadi as ca
 
 
-WITH_JIT = False
+WITH_JIT = True
+WITH_LOGGING = True
 CASADI_VAR = ca.MX
 
 fig = plt.figure()
@@ -157,8 +158,10 @@ def extract():
     nlpsolver_rel._set_nlpsolver_bounds_and_initials()
 
     nlp_args = nlpsolver_rel._nlpsolver_args
-    problem = MinlpProblem(*nlpsetup_mpc.nlp, idx_x_bin=binary_values)
+    problem = MinlpProblem(**nlpsetup_mpc.nlp, idx_x_bin=binary_values)
     data = MinlpData(**nlp_args, solved=True)
+    data.ubx[problem.idx_x_bin] = 1
+    data.lbx[problem.idx_x_bin] = 0
     return problem, data
 
 
@@ -206,7 +209,7 @@ def create_dummy_problem_2():
     return problem, data
 
 
-def make_bounded(problem: MinlpProblem, new_inf=1e3):
+def make_bounded(problem: MinlpProblem, new_inf=1e10):
     """Make bounded."""
     problem.lbx[problem.lbx < -new_inf] = -new_inf
     problem.ubx[problem.ubx > new_inf] = new_inf
@@ -261,8 +264,11 @@ class NlpSolver(SolverClass):
         """Create NLP problem."""
         super(NlpSolver, self).__init___(problem, stats)
         if options is None:
-            options = {"ipopt.print_level": 0,
-                       "verbose": False, "print_time": 0}
+            if WITH_LOGGING:
+                options = {}
+            else:
+                options = {"ipopt.print_level": 0,
+                           "verbose": False, "print_time": 0}
 
         self.idx_x_bin = problem.idx_x_bin
         options.update({"jit": WITH_JIT})
@@ -278,12 +284,16 @@ class NlpSolver(SolverClass):
             lbx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
             ubx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
 
-        nlpdata.prev_solution = self.solver(
-            p=nlpdata.p, x0=nlpdata.x_sol,
+        new_sol = self.solver(
+            p=nlpdata.p, x0=nlpdata.x0,
             lbx=lbx, ubx=ubx,
             lbg=nlpdata.lbg, ubg=nlpdata.ubg
         )
         nlpdata.solved = self.collect_stats()[0]
+        if not nlpdata.solved:
+            print("NLP not solved")
+        else:
+            nlpdata.prev_solution = new_sol
         return nlpdata
 
 
@@ -294,8 +304,11 @@ class BendersMasterMILP(SolverClass):
         """Create benders master MILP."""
         super(BendersMasterMILP, self).__init___(problem, stats)
         if options is None:
-            options = {"verbose": False,
-                       "print_time": 0, "gurobi.output_flag": 0}
+            if WITH_LOGGING:
+                options = {}
+            else:
+                options = {"verbose": False,
+                           "print_time": 0, "gurobi.output_flag": 0}
 
         self.grad_f_x_bin = ca.Function(
             "gradient_f_x_bin",
@@ -379,8 +392,12 @@ class FeasibilityNLP(SolverClass):
         """Create benders master MILP."""
         super(FeasibilityNLP, self).__init___(problem, stats)
         if options is None:
-            options = {
-            }  # "ipopt.print_level": 0, "verbose": False, "print_time": 0}
+            if WITH_LOGGING:
+                options = {}
+            else:
+                options = {
+                    "ipopt.print_level": 0, "verbose": False, "print_time": 0
+                }
 
         self.nr_g = problem.g.shape[0]
         s_lbg = CASADI_VAR.sym("s_lbg", self.nr_g)
@@ -418,6 +435,8 @@ class FeasibilityNLP(SolverClass):
             p=ca.vertcat(nlpdata.p, nlpdata.lbg)
         )
         nlpdata.solved = self.collect_stats()[0]
+        if not nlpdata.solved:
+            print("MILP not solved")
         return nlpdata
 
 
@@ -474,13 +493,16 @@ if __name__ == "__main__":
         print("Usage: mode problem")
         print("Available modes are: benders, idea, ...")
         print("Available problems are: dummy, dummy2, orig, ...")
-        exit(1)
 
-    mode = argv[1]
+    if len(argv) > 1:
+        mode = argv[1]
+    else:
+        mode = "benders"
+
     if len(argv) > 2:
         problem = argv[2]
     else:
-        problem = "dummy"
+        problem = "orig"
 
     if problem == "dummy":
         problem, data = create_dummy_problem()
