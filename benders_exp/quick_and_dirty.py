@@ -189,11 +189,11 @@ def create_dummy_problem(p_val=[1000, 3]):
     p = CASADI_VAR.sym("p", 2)
     f = (x[0] - 4.1)**2 + (x[1] - 4.0)**2 + x[2] * p[0]
     g = ca.vertcat(
-        x[2],
-        -(x[0]**2 + x[1]**2 - x[2] - p[1]**2)
+        -x[2],
+        (x[0]**2 + x[1]**2 - x[2] - p[1]**2)
     )
-    ubg = np.array([ca.inf, ca.inf])
-    lbg = np.array([0, 0])
+    lbg = -np.array([ca.inf, ca.inf])
+    ubg = np.array([0, 0])
     lbx = -1e3 * np.ones((3,))
     ubx = np.array([ca.inf, ca.inf, ca.inf])
 
@@ -225,10 +225,12 @@ def create_dummy_problem_2():
     return problem, data
 
 
-def make_bounded(problem: MinlpProblem, new_inf=1e10):
+def make_bounded(problem: MinlpProblem, new_inf=1e5):
     """Make bounded."""
     problem.lbx[problem.lbx < -new_inf] = -new_inf
     problem.ubx[problem.ubx > new_inf] = new_inf
+    problem.lbg[problem.lbg < -1e9] = -1e9
+    problem.ubg[problem.ubg > 1e9] = 1e9
 
 
 def make_single_bounded(problem: MinlpProblem, data: MinlpData):
@@ -383,7 +385,8 @@ class BendersMasterMILP(SolverClass):
         else:  # Not feasible solution
             h_k = self.g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
             jac_h_k = self.jac_g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
-            g_k = nlpdata.lam_g_sol.T @ (h_k + jac_h_k @ (self._x_bin - nlpdata.x_sol[self.idx_x_bin]))
+            lam_g = nlpdata.lam_g_sol[:self.g_shape_orig] - nlpdata.lam_g_sol[self.g_shape_orig:]
+            g_k = lam_g.T @ (h_k + jac_h_k @ (self._x_bin - nlpdata.x_sol[self.idx_x_bin]))
 
         if WITH_PLOT:
             visualize_cut(g_k, self._x_bin, self._nu)
@@ -429,16 +432,17 @@ class FeasibilityNLP(SolverClass):
         self.nr_g = problem.g.shape[0]
         s_lbg = CASADI_VAR.sym("s_lbg", self.nr_g)
         lbg = CASADI_VAR.sym("lbg", self.nr_g)
-        h = problem.g - lbg  # > 0
+        ubg = CASADI_VAR.sym("ubg", self.nr_g)
 
         g = ca.vertcat(
-            h + s_lbg
+            problem.g - lbg + s_lbg,
+            ubg + s_lbg - problem.g
         )
-        self.lbg = np.zeros((self.nr_g, 1))
-        self.ubg = ca.inf * np.ones((self.nr_g, 1))
+        self.lbg = np.zeros((self.nr_g * 2, 1))
+        self.ubg = ca.inf * np.ones((self.nr_g * 2, 1))
         f = ca.sum1(s_lbg)
         x = ca.vertcat(problem.x, s_lbg)
-        p = ca.vertcat(problem.p, lbg)
+        p = ca.vertcat(problem.p, lbg, ubg)
 
         self.idx_x_bin = problem.idx_x_bin
         options.update({"jit": WITH_JIT})
@@ -449,6 +453,7 @@ class FeasibilityNLP(SolverClass):
 
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """solve."""
+        print("FEASIBILITY")
         lbx = deepcopy(nlpdata.lbx)
         ubx = deepcopy(nlpdata.ubx)
         lbx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
@@ -456,13 +461,13 @@ class FeasibilityNLP(SolverClass):
 
         nlpdata.prev_solution = self.solver(
             x0=ca.vertcat(
-                nlpdata.x_sol[:nlpdata.x0.shape[0]], np.zeros((self.nr_g, 1))
+                nlpdata.x_sol[:nlpdata.x0.shape[0]], np.zeros((self.nr_g * 1, 1))
             ),
-            lbx=ca.vertcat(lbx, np.zeros((self.nr_g, 1))),
-            ubx=ca.vertcat(ubx, ca.inf * np.ones((self.nr_g, 1))),
+            lbx=ca.vertcat(lbx, np.zeros((self.nr_g * 1, 1))),
+            ubx=ca.vertcat(ubx, ca.inf * np.ones((self.nr_g * 1, 1))),
             lbg=self.lbg,
             ubg=self.ubg,
-            p=ca.vertcat(nlpdata.p, nlpdata.lbg)
+            p=ca.vertcat(nlpdata.p, nlpdata.lbg, nlpdata.ubg)
         )
         nlpdata.solved = self.collect_stats()[0]
         if not nlpdata.solved:
