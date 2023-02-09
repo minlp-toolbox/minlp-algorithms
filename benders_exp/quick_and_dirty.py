@@ -1,5 +1,6 @@
 """Quick and dirty implementation."""
 
+from os import path
 import matplotlib.pyplot as plt
 from sys import argv
 from copy import copy, deepcopy
@@ -8,9 +9,8 @@ import datetime as dt
 from typing import List, Dict, Any, Optional
 import numpy as np
 
-# from benders_exp.nlpsolver import NLPSolverRel, NLPSolverBin
+from benders_exp.nlpsolver import NLPSolverRel  # NLPSolverBin
 from benders_exp.ambient import Ambient
-from benders_exp.casadisolver import NLPSolverBin2
 # from benders_exp.defines import RESULTS_FOLDER
 from benders_exp.nlpsetup import NLPSetupMPC
 from benders_exp.predictor import Predictor
@@ -20,9 +20,17 @@ from benders_exp.timing import TimingMPC
 import casadi as ca
 
 
-WITH_JIT = True
+WITH_JIT = False
 WITH_LOGGING = True
 CASADI_VAR = ca.MX
+IPOPT_SETTINGS = {
+    "ipopt.linear_solver": "ma27",
+    "ipopt.max_cpu_time": 3600.0,
+    "ipopt.max_iter": 600000
+}
+SOURCE_FOLDER = path.dirname(path.abspath(__file__))
+_PATH_TO_NLP_OBJECT = path.join(SOURCE_FOLDER, "../.lib/")
+_NLP_OBJECT_FILENAME = "nlp_mpc.so"
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -130,7 +138,7 @@ def extract():
 
     binary_values = []
     binary_values.extend(nlpsetup_mpc.idx_b)
-    # binary_values.extend(nlpsetup_mpc.idx_sb)
+    binary_values.extend(nlpsetup_mpc.idx_sb)
     # binary_values.extend(nlpsetup_mpc.idx_sb)
     # binary_values.extend(nlpsetup_mpc.idx_sb_red)
 
@@ -143,7 +151,7 @@ def extract():
     )
     predictor.solve(n_steps=0)
 
-    nlpsolver_rel = NLPSolverBin2(
+    nlpsolver_rel = NLPSolverRel(
         timing=timing,
         ambient=ambient,
         previous_solver=simulator,
@@ -161,10 +169,10 @@ def extract():
     problem = MinlpProblem(**nlpsetup_mpc.nlp, idx_x_bin=binary_values)
     data = MinlpData(**nlp_args, solved=True)
 
-    data.ubx[problem.idx_x_bin] = 1
-    data.lbx[problem.idx_x_bin] = 0
-    data.ubx[nlpsetup_mpc.idx_sb] = 1
-    data.lbx[nlpsetup_mpc.idx_sb] = 0
+    # data.ubx = nlpsolver_rel.x_max
+    # data.lbx = nlpsolver_rel.x_min
+    # data.ubx[nlpsetup_mpc.idx_sb] = 1
+    # data.lbx[nlpsetup_mpc.idx_sb] = 0
     return problem, data
 
 
@@ -220,13 +228,14 @@ def make_bounded(problem: MinlpProblem, new_inf=1e10):
 
 def make_single_bounded(problem: MinlpProblem, data: MinlpData):
     """Make single bounded g."""
+    new_inf = 1e10
     new_g = []
     new_lb = []
     for i in range(problem.g.shape[0]):
-        if not np.isinf(-data.lbg[i]):
+        if data.lbg[i] > -new_inf:
             new_lb.append(data.lbg[i])
             new_g.append(problem.g[i])
-        if not np.isinf(data.ubg[i]):
+        if data.ubg[i] < new_inf:
             new_lb.append(-data.ubg[i])
             new_g.append(-problem.g[i])
 
@@ -275,9 +284,18 @@ class NlpSolver(SolverClass):
 
         self.idx_x_bin = problem.idx_x_bin
         options.update({"jit": WITH_JIT})
+        options.update(IPOPT_SETTINGS)
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": problem.f, "g": problem.g, "x": problem.x, "p": problem.p
         }, options)
+
+        # path_to_nlp_object = path.join(
+        #     _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
+        # )
+
+        # self.solver = ca.nlpsol(
+        #     "nlp", "ipopt", path_to_nlp_object, options
+        # )
 
     def solve(self, nlpdata: MinlpData, set_x_bin=False) -> MinlpData:
         """Solve NLP."""
@@ -288,7 +306,7 @@ class NlpSolver(SolverClass):
             ubx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
 
         new_sol = self.solver(
-            p=nlpdata.p, x0=nlpdata.x0,
+            p=nlpdata.p, x0=nlpdata.x_sol[:nlpdata.x0.shape[0]],
             lbx=lbx, ubx=ubx,
             lbg=nlpdata.lbg, ubg=nlpdata.ubg
         )
@@ -418,6 +436,7 @@ class FeasibilityNLP(SolverClass):
 
         self.idx_x_bin = problem.idx_x_bin
         options.update({"jit": WITH_JIT})
+        options.update(IPOPT_SETTINGS)
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": f, "g": g, "x": x, "p": p
         }, options)
@@ -430,7 +449,9 @@ class FeasibilityNLP(SolverClass):
         ubx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
 
         nlpdata.prev_solution = self.solver(
-            x0=ca.vertcat(nlpdata.x_sol, np.zeros((self.nr_g, 1))),
+            x0=ca.vertcat(
+                nlpdata.x_sol[:nlpdata.x0.shape[0]], np.zeros((self.nr_g, 1))
+            ),
             lbx=ca.vertcat(lbx, np.zeros((self.nr_g, 1))),
             ubx=ca.vertcat(ubx, ca.inf * np.ones((self.nr_g, 1))),
             lbg=self.lbg,
@@ -445,10 +466,14 @@ class FeasibilityNLP(SolverClass):
 
 def benders_algorithm(problem, data, stats):
     """Create benders algorithm."""
+    print("Setup NLP solver...")
     nlp = NlpSolver(problem, stats)
+    print("Setup FNLP solver...")
     fnlp = FeasibilityNLP(problem, stats)
+    print("Setup MILP solver...")
     benders_milp = BendersMasterMILP(problem, stats)
 
+    print("Solver initialized.")
     # Benders algorithm
     lb = -ca.inf
     ub = ca.inf
@@ -517,6 +542,7 @@ if __name__ == "__main__":
         raise Exception(f"No {problem=}")
 
     make_bounded(data)
+    print("Problem loaded")
     problem, data = make_single_bounded(problem, data)
     stats = Stats({})
     if mode == "benders":

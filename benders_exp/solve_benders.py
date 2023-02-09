@@ -88,15 +88,15 @@ def main():
     )
     nlpsolver_rel.solve()
 
-    binapprox_miqp = BinaryApproximation(
-        timing=timing,
-        previous_solver=nlpsolver_rel,  # nlpsolver_rel,
-        predictor=predictor,
-        solver_name="binapprox_miqp",
-    )
-    binapprox_miqp.solve(
-        method="milp", use_reduced_miqp=True, warm_start=False, gap=0.5
-    )
+    # binapprox_miqp = BinaryApproximation(
+    #     timing=timing,
+    #     previous_solver=nlpsolver_rel,  # nlpsolver_rel,
+    #     predictor=predictor,
+    #     solver_name="binapprox_miqp",
+    # )
+    # binapprox_miqp.solve(
+    #     method="milp", use_reduced_miqp=True, warm_start=False, gap=0.5
+    # )
 
 
 if __name__ == "__main__":
