@@ -18,9 +18,11 @@ from benders_exp.simulator import Simulator
 from benders_exp.state import State
 from benders_exp.timing import TimingMPC
 import casadi as ca
+from benders_exp.utils import tic, toc
 
 
-WITH_JIT = True
+ORIGINAL = None
+WITH_JIT = False
 WITH_LOGGING = True
 WITH_PLOT = False
 CASADI_VAR = ca.MX
@@ -231,7 +233,7 @@ def make_bounded(problem: MinlpProblem, new_inf=1e10):
 
 def make_single_bounded(problem: MinlpProblem, data: MinlpData):
     """Make single bounded g."""
-    new_inf = 1e10
+    new_inf = 1e5
     new_g = []
     new_lb = []
     for i in range(problem.g.shape[0]):
@@ -288,17 +290,17 @@ class NlpSolver(SolverClass):
         self.idx_x_bin = problem.idx_x_bin
         options.update({"jit": WITH_JIT})
         options.update(IPOPT_SETTINGS)
-        self.solver = ca.nlpsol("nlpsol", "ipopt", {
-            "f": problem.f, "g": problem.g, "x": problem.x, "p": problem.p
-        }, options)
+        # self.solver = ca.nlpsol("nlpsol", "ipopt", {
+        #     "f": problem.f, "g": problem.g, "x": problem.x, "p": problem.p
+        # }, options)
 
-        # path_to_nlp_object = path.join(
-        #     _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
-        # )
+        path_to_nlp_object = path.join(
+            _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
+        )
 
-        # self.solver = ca.nlpsol(
-        #     "nlp", "ipopt", path_to_nlp_object, options
-        # )
+        self.solver = ca.nlpsol(
+            "nlp", "ipopt", path_to_nlp_object, options
+        )
 
     def solve(self, nlpdata: MinlpData, set_x_bin=False) -> MinlpData:
         """Solve NLP."""
@@ -311,7 +313,7 @@ class NlpSolver(SolverClass):
         new_sol = self.solver(
             p=nlpdata.p, x0=nlpdata.x_sol[:nlpdata.x0.shape[0]],
             lbx=lbx, ubx=ubx,
-            lbg=nlpdata.lbg, ubg=nlpdata.ubg
+            lbg=ORIGINAL.lbg, ubg=ORIGINAL.ubg
         )
         nlpdata.solved = self.collect_stats()[0]
         if not nlpdata.solved:
@@ -470,12 +472,17 @@ class FeasibilityNLP(SolverClass):
 
 def benders_algorithm(problem, data, stats):
     """Create benders algorithm."""
+    tic()
+    toc()
     print("Setup NLP solver...")
     nlp = NlpSolver(problem, stats)
+    toc()
     print("Setup FNLP solver...")
     fnlp = FeasibilityNLP(problem, stats)
+    toc()
     print("Setup MILP solver...")
     benders_milp = BendersMasterMILP(problem, stats)
+    t_load = toc()
 
     print("Solver initialized.")
     # Benders algorithm
@@ -488,6 +495,7 @@ def benders_algorithm(problem, data, stats):
     x_star = x_bar
     prev_feasible = True
     while lb + tolerance < ub and feasible:
+        toc()
         # Solve MILP-BENDERS and set lower bound:
         data = benders_milp.solve(data, prev_feasible=prev_feasible)
         feasible = data.solved
@@ -510,6 +518,8 @@ def benders_algorithm(problem, data, stats):
         print(f"{ub=} {lb=}")
         print(f"{x_bar=}")
 
+    t_total = toc()
+    print(f"{t_total=} of with calc: {t_total - t_load}")
     return data, x_star
 
 
@@ -543,13 +553,15 @@ if __name__ == "__main__":
         problem, data = create_dummy_problem_2()
     elif problem == "orig":
         problem, data = extract()
-        new_inf = 1e10
+        new_inf = 1e5
     else:
         raise Exception(f"No {problem=}")
 
+    ORIGINAL = deepcopy(data)
+
     make_bounded(data, new_inf=new_inf)
     print("Problem loaded")
-    problem, data = make_single_bounded(problem, data)
+    # problem, data = make_single_bounded(problem, data)
     stats = Stats({})
     if mode == "benders":
         data, x_star = benders_algorithm(problem, data, stats)
