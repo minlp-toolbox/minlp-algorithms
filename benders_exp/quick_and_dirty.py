@@ -130,9 +130,9 @@ def extract():
 
     binary_values = []
     binary_values.extend(nlpsetup_mpc.idx_b)
-    binary_values.extend(nlpsetup_mpc.idx_b_red)
-    binary_values.extend(nlpsetup_mpc.idx_sb)
-    binary_values.extend(nlpsetup_mpc.idx_sb_red)
+    # binary_values.extend(nlpsetup_mpc.idx_sb)
+    # binary_values.extend(nlpsetup_mpc.idx_sb)
+    # binary_values.extend(nlpsetup_mpc.idx_sb_red)
 
     predictor = Predictor(
         timing=timing,
@@ -160,8 +160,11 @@ def extract():
     nlp_args = nlpsolver_rel._nlpsolver_args
     problem = MinlpProblem(**nlpsetup_mpc.nlp, idx_x_bin=binary_values)
     data = MinlpData(**nlp_args, solved=True)
+
     data.ubx[problem.idx_x_bin] = 1
     data.lbx[problem.idx_x_bin] = 0
+    data.ubx[nlpsetup_mpc.idx_sb] = 1
+    data.lbx[nlpsetup_mpc.idx_sb] = 0
     return problem, data
 
 
