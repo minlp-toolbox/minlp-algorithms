@@ -12,10 +12,10 @@ from benders_exp.ambient import Ambient
 
 from benders_exp.simulator import Simulator
 from benders_exp.predictor import Predictor
-# from benders_exp.nlpsolver import NLPSolverRel, NLPSolverBin
+from benders_exp.nlpsolver import NLPSolverBin
 from benders_exp.binapprox import BinaryApproximation
 from benders_exp.defines import RESULTS_FOLDER
-from benders_exp.casadisolver import NLPSolverBin2, BendersMILP
+# from benders_exp.casadisolver import NLPSolverBin2, BendersMILP
 
 setup_logger()
 logger = logging.getLogger(__name__)
@@ -78,8 +78,9 @@ def main():
     )
     predictor.solve(n_steps=0)
 
-    logger.info("Simulator setup.")
-    nlpsolver_rel = NLPSolverBin2(
+    logger.info("Sim ulator setup.")
+    # simulator.b_data
+    nlpsolver_rel = NLPSolverBin(
         timing=timing,
         ambient=ambient,
         previous_solver=simulator,

@@ -545,6 +545,7 @@ class NLPSolverMPCBaseClass(NLPSetupMPC, metaclass=ABCMeta):
             )
         )
 
+        breakpoint()
         self.nlp_solution = self._nlpsolver(**self._nlpsolver_args)
         self._solver_wall_time = self._nlpsolver.stats()["t_wall_total"]
 

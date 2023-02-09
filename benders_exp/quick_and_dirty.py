@@ -21,15 +21,26 @@ import casadi as ca
 from benders_exp.utils import tic, toc
 
 
-ORIGINAL = None
 WITH_JIT = False
-WITH_LOGGING = True
+WITH_LOGGING = False
 WITH_PLOT = False
 CASADI_VAR = ca.MX
 IPOPT_SETTINGS = {
+    # "ipopt.tol": 1e-2,
+    # "ipopt.dual_inf_tol": 2,
+    # "ipopt.constr_viol_tol": 1e-3,
+    # "ipopt.compl_inf_tol": 1e-3,
     "ipopt.linear_solver": "ma27",
     "ipopt.max_cpu_time": 3600.0,
-    "ipopt.max_iter": 600000
+    "ipopt.max_iter": 6000,
+    "ipopt.acceptable_tol": 0.2,
+    "ipopt.acceptable_iter": 8,
+    "ipopt.acceptable_constr_viol_tol": 10.0,
+    "ipopt.acceptable_dual_inf_tol": 10.0,
+    "ipopt.acceptable_compl_inf_tol": 10.0,
+    "ipopt.acceptable_obj_change_tol": 1e-1,
+    "ipopt.mu_strategy": "adaptive",
+    "ipopt.mu_target": 1e-4,
 }
 SOURCE_FOLDER = path.dirname(path.abspath(__file__))
 _PATH_TO_NLP_OBJECT = path.join(SOURCE_FOLDER, "../.lib/")
@@ -80,10 +91,10 @@ class MinlpData:
 
     p: List[float]
     x0: ca.DM
-    lbx: ca.DM
-    ubx: ca.DM
-    lbg: ca.DM
-    ubg: ca.DM
+    _lbx: ca.DM
+    _ubx: ca.DM
+    _lbg: ca.DM
+    _ubg: ca.DM
     solved: bool
     prev_solution: Optional[Dict[str, Any]] = None
 
@@ -115,6 +126,26 @@ class MinlpData:
         """Get lambda g solution."""
         return self._sol['lam_x']
 
+    @property
+    def lbx(self):
+        """Get lbx."""
+        return deepcopy(self._lbx)
+
+    @property
+    def ubx(self):
+        """Get ubx."""
+        return deepcopy(self._ubx)
+
+    @property
+    def lbg(self):
+        """Get lbx."""
+        return deepcopy(self._lbg)
+
+    @property
+    def ubg(self):
+        """Get ubx."""
+        return deepcopy(self._ubg)
+
 
 def to_0d(array):
     """To zero dimensions."""
@@ -143,7 +174,7 @@ def extract():
 
     binary_values = []
     binary_values.extend(nlpsetup_mpc.idx_b)
-    binary_values.extend(nlpsetup_mpc.idx_sb)
+    # binary_values.extend(nlpsetup_mpc.idx_sb)
     # binary_values.extend(nlpsetup_mpc.idx_sb)
     # binary_values.extend(nlpsetup_mpc.idx_sb_red)
 
@@ -172,12 +203,13 @@ def extract():
 
     nlp_args = nlpsolver_rel._nlpsolver_args
     problem = MinlpProblem(**nlpsetup_mpc.nlp, idx_x_bin=binary_values)
-    data = MinlpData(**nlp_args, solved=True)
+    data = MinlpData(x0=nlp_args['x0'],
+                     _lbx=nlp_args['lbx'],
+                     _ubx=nlp_args['ubx'],
+                     _lbg=nlp_args['lbg'],
+                     _ubg=nlp_args['ubg'],
+                     p=nlp_args['p'], solved=True)
 
-    # data.ubx = nlpsolver_rel.x_max
-    # data.lbx = nlpsolver_rel.x_min
-    # data.ubx[nlpsetup_mpc.idx_sb] = 1
-    # data.lbx[nlpsetup_mpc.idx_sb] = 0
     return problem, data
 
 
@@ -198,8 +230,8 @@ def create_dummy_problem(p_val=[1000, 3]):
     ubx = np.array([ca.inf, ca.inf, ca.inf])
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
-    data = MinlpData(x0=x0, ubx=ubx, lbx=lbx,
-                     ubg=ubg, lbg=lbg, p=p_val, solved=True)
+    data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
+                     _ubg=ubg, _lbg=lbg, p=p_val, solved=True)
     return problem, data
 
 
@@ -220,8 +252,8 @@ def create_dummy_problem_2():
     ubx = np.array([ca.inf, ca.inf])
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
-    data = MinlpData(x0=x0, ubx=ubx, lbx=lbx,
-                     ubg=ubg, lbg=lbg, p=[3], solved=True)
+    data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
+                     _ubg=ubg, _lbg=lbg, p=[3], solved=True)
     return problem, data
 
 
@@ -231,28 +263,6 @@ def make_bounded(problem: MinlpProblem, new_inf=1e5):
     problem.ubx[problem.ubx > new_inf] = new_inf
     problem.lbg[problem.lbg < -1e9] = -1e9
     problem.ubg[problem.ubg > 1e9] = 1e9
-
-
-def make_single_bounded(problem: MinlpProblem, data: MinlpData):
-    """Make single bounded g."""
-    new_inf = 1e5
-    new_g = []
-    new_lb = []
-    for i in range(problem.g.shape[0]):
-        if data.lbg[i] > -new_inf:
-            new_lb.append(data.lbg[i])
-            new_g.append(problem.g[i])
-        if data.ubg[i] < new_inf:
-            new_lb.append(-data.ubg[i])
-            new_g.append(-problem.g[i])
-
-    new_g = ca.vertcat(*new_g)
-    new_lb = np.array(new_lb)
-    new_ub = np.inf * np.ones(new_lb.shape)
-    problem.g = new_g
-    data.ubg = new_ub
-    data.lbg = new_lb
-    return problem, data
 
 
 class SolverClass:
@@ -277,9 +287,14 @@ class SolverClass:
 
 
 class NlpSolver(SolverClass):
-    """Create NLP solver."""
+    """
+    Create NLP solver.
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    This solver solves the NLP problem. This is either relaxed or
+    the binaries are fixed.
+    """
+
+    def __init__(self, problem: MinlpProblem, stats: Stats, options=None, is_orig=False):
         """Create NLP problem."""
         super(NlpSolver, self).__init___(problem, stats)
         if options is None:
@@ -290,32 +305,35 @@ class NlpSolver(SolverClass):
                            "verbose": False, "print_time": 0}
 
         self.idx_x_bin = problem.idx_x_bin
-        options.update({"jit": WITH_JIT})
         options.update(IPOPT_SETTINGS)
-        # self.solver = ca.nlpsol("nlpsol", "ipopt", {
-        #     "f": problem.f, "g": problem.g, "x": problem.x, "p": problem.p
-        # }, options)
 
-        path_to_nlp_object = path.join(
-            _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
-        )
+        if is_orig:
+            # TODO: Clutter!
+            path_to_nlp_object = path.join(
+                _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
+            )
 
-        self.solver = ca.nlpsol(
-            "nlp", "ipopt", path_to_nlp_object, options
-        )
+            self.solver = ca.nlpsol(
+                "nlp", "ipopt", path_to_nlp_object, options
+            )
+        else:
+            options.update({"jit": WITH_JIT})
+            self.solver = ca.nlpsol("nlpsol", "ipopt", {
+                "f": problem.f, "g": problem.g, "x": problem.x, "p": problem.p
+            }, options)
 
     def solve(self, nlpdata: MinlpData, set_x_bin=False) -> MinlpData:
         """Solve NLP."""
-        lbx = deepcopy(nlpdata.lbx)
-        ubx = deepcopy(nlpdata.ubx)
+        lbx = nlpdata.lbx
+        ubx = nlpdata.ubx
         if set_x_bin:
             lbx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
             ubx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
 
         new_sol = self.solver(
-            p=nlpdata.p, x0=nlpdata.x_sol[:nlpdata.x0.shape[0]],
+            p=nlpdata.p, x0=nlpdata.x0,  # _sol[:nlpdata.x0.shape[0]],
             lbx=lbx, ubx=ubx,
-            lbg=ORIGINAL.lbg, ubg=ORIGINAL.ubg
+            lbg=nlpdata.lbg, ubg=nlpdata.ubg
         )
         nlpdata.solved = self.collect_stats()[0]
         if not nlpdata.solved:
@@ -374,19 +392,23 @@ class BendersMasterMILP(SolverClass):
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """solve."""
         if prev_feasible:
-            grad_f_k = self.grad_f_x_bin(nlpdata.x_sol[:self.x_shape], nlpdata.p)
+            grad_f_k = self.grad_f_x_bin(
+                nlpdata.x_sol[:self.x_shape], nlpdata.p)
             jac_g_k = self.jac_g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
             lambda_k = grad_f_k - jac_g_k.T @ -nlpdata.lam_g_sol
             f_k = self.f(nlpdata.x_sol[:self.x_shape], nlpdata.p)
             g_k = (
-                f_k + lambda_k.T @ (self._x_bin - nlpdata.x_sol[self.idx_x_bin])
+                f_k + lambda_k.T @ (self._x_bin -
+                                    nlpdata.x_sol[self.idx_x_bin])
                 - self._nu
             )
         else:  # Not feasible solution
             h_k = self.g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
             jac_h_k = self.jac_g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
-            lam_g = nlpdata.lam_g_sol[:self.g_shape_orig] - nlpdata.lam_g_sol[self.g_shape_orig:]
-            g_k = lam_g.T @ (h_k + jac_h_k @ (self._x_bin - nlpdata.x_sol[self.idx_x_bin]))
+            lam_g = nlpdata.lam_g_sol[:self.g_shape_orig] - \
+                nlpdata.lam_g_sol[self.g_shape_orig:]
+            g_k = lam_g.T @ (h_k + jac_h_k @ (self._x_bin -
+                             nlpdata.x_sol[self.idx_x_bin]))
 
         if WITH_PLOT:
             visualize_cut(g_k, self._x_bin, self._nu)
@@ -401,7 +423,7 @@ class BendersMasterMILP(SolverClass):
 
         solution = self.solver(
             x0=ca.vertcat(nlpdata.x_sol[self.idx_x_bin], nlpdata.obj_val),
-            lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -ca.inf),
+            lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -1e5),
             ubx=ca.vertcat(nlpdata.ubx[self.idx_x_bin], ca.inf),
             lbg=-ca.inf * np.ones(self.nr_g),
             ubg=np.zeros(self.nr_g)
@@ -461,7 +483,8 @@ class FeasibilityNLP(SolverClass):
 
         nlpdata.prev_solution = self.solver(
             x0=ca.vertcat(
-                nlpdata.x_sol[:nlpdata.x0.shape[0]], np.zeros((self.nr_g * 1, 1))
+                nlpdata.x_sol[:nlpdata.x0.shape[0]
+                              ], np.zeros((self.nr_g * 1, 1))
             ),
             lbx=ca.vertcat(lbx, np.zeros((self.nr_g * 1, 1))),
             ubx=ca.vertcat(ubx, ca.inf * np.ones((self.nr_g * 1, 1))),
@@ -475,12 +498,12 @@ class FeasibilityNLP(SolverClass):
         return nlpdata
 
 
-def benders_algorithm(problem, data, stats):
+def benders_algorithm(problem, data, stats, is_orig=False):
     """Create benders algorithm."""
     tic()
     toc()
     print("Setup NLP solver...")
-    nlp = NlpSolver(problem, stats)
+    nlp = NlpSolver(problem, stats, is_orig=is_orig)
     toc()
     print("Setup FNLP solver...")
     fnlp = FeasibilityNLP(problem, stats)
@@ -562,14 +585,13 @@ if __name__ == "__main__":
     else:
         raise Exception(f"No {problem=}")
 
-    ORIGINAL = deepcopy(data)
-
-    make_bounded(data, new_inf=new_inf)
+    # make_bounded(data, new_inf=new_inf)
     print("Problem loaded")
-    # problem, data = make_single_bounded(problem, data)
     stats = Stats({})
     if mode == "benders":
-        data, x_star = benders_algorithm(problem, data, stats)
+        data, x_star = benders_algorithm(
+            problem, data, stats, is_orig=(problem == "orig")
+        )
     elif mode == "idea":
         data, x_star = idea_algorithm(problem, data,  stats)
 
