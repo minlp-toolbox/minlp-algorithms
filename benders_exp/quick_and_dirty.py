@@ -20,8 +20,9 @@ from benders_exp.timing import TimingMPC
 import casadi as ca
 
 
-WITH_JIT = False
+WITH_JIT = True
 WITH_LOGGING = True
+WITH_PLOT = False
 CASADI_VAR = ca.MX
 IPOPT_SETTINGS = {
     "ipopt.linear_solver": "ma27",
@@ -32,8 +33,10 @@ SOURCE_FOLDER = path.dirname(path.abspath(__file__))
 _PATH_TO_NLP_OBJECT = path.join(SOURCE_FOLDER, "../.lib/")
 _NLP_OBJECT_FILENAME = "nlp_mpc.so"
 
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+
+if WITH_PLOT:
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
 
 
 @dataclass
@@ -380,7 +383,8 @@ class BendersMasterMILP(SolverClass):
             jac_h_k = self.jac_g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
             g_k = nlpdata.lam_g_sol.T @ (h_k + jac_h_k @ (self._x_bin - nlpdata.x_sol[self.idx_x_bin]))
 
-        # visualize_cut(g_k, self._x_bin, self._nu)
+        if WITH_PLOT:
+            visualize_cut(g_k, self._x_bin, self._nu)
 
         self._g = ca.vertcat(self._g, g_k)
         self.nr_g += 1
@@ -532,16 +536,18 @@ if __name__ == "__main__":
     else:
         problem = "orig"
 
+    new_inf = 1e3
     if problem == "dummy":
         problem, data = create_dummy_problem()
     elif problem == "dummy2":
         problem, data = create_dummy_problem_2()
     elif problem == "orig":
         problem, data = extract()
+        new_inf = 1e10
     else:
         raise Exception(f"No {problem=}")
 
-    make_bounded(data)
+    make_bounded(data, new_inf=new_inf)
     print("Problem loaded")
     problem, data = make_single_bounded(problem, data)
     stats = Stats({})
@@ -551,4 +557,5 @@ if __name__ == "__main__":
         data, x_star = idea_algorithm(problem, data,  stats)
 
     print(x_star)
-    plt.show()
+    if WITH_PLOT:
+        plt.show()
