@@ -12,7 +12,7 @@ from benders_exp.ambient import Ambient
 
 from benders_exp.simulator import Simulator
 from benders_exp.predictor import Predictor
-from benders_exp.nlpsolver import NLPSolverBin
+from benders_exp.nlpsolver import NLPSolverRel, NLPSolverBin
 from benders_exp.binapprox import BinaryApproximation
 from benders_exp.defines import RESULTS_FOLDER
 # from benders_exp.casadisolver import NLPSolverBin2, BendersMILP

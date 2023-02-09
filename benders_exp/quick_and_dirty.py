@@ -157,6 +157,7 @@ def to_0d(array):
 
 def extract():
     """Extract original problem."""
+
     startup_time = dt.datetime.fromisoformat("2010-08-19 06:00:00+02:00")
     timing = TimingMPC(startup_time=startup_time)
 
@@ -169,15 +170,6 @@ def extract():
     simulator = Simulator(timing=timing, ambient=ambient, state=state)
     simulator.solve()
 
-    nlpsetup_mpc = NLPSetupMPC(timing=timing)
-    nlpsetup_mpc._setup_nlp(True)
-
-    binary_values = []
-    binary_values.extend(nlpsetup_mpc.idx_b)
-    # binary_values.extend(nlpsetup_mpc.idx_sb)
-    # binary_values.extend(nlpsetup_mpc.idx_sb)
-    # binary_values.extend(nlpsetup_mpc.idx_sb_red)
-
     predictor = Predictor(
         timing=timing,
         ambient=ambient,
@@ -187,6 +179,7 @@ def extract():
     )
     predictor.solve(n_steps=0)
 
+    # simulator.b_data
     nlpsolver_rel = NLPSolverRel(
         timing=timing,
         ambient=ambient,
@@ -194,6 +187,16 @@ def extract():
         predictor=predictor,
         solver_name="nlpsolver_rel",
     )
+
+    nlpsetup_mpc = NLPSetupMPC(timing=timing)
+    nlpsetup_mpc._setup_nlp(True)
+
+    binary_values = []
+    binary_values.extend(nlpsetup_mpc.idx_b)
+    # binary_values.extend(nlpsetup_mpc.idx_sb)
+    # binary_values.extend(nlpsetup_mpc.idx_sb)
+    # binary_values.extend(nlpsetup_mpc.idx_sb_red)
+
     nlpsolver_rel._store_previous_binary_solution()
     nlpsolver_rel._setup_nlpsolver()
     nlpsolver_rel._set_states_bounds()
@@ -371,8 +374,8 @@ class BendersMasterMILP(SolverClass):
             "g", [problem.x, problem.p], [problem.g],
             {"jit": WITH_JIT}
         )
-        self.jac_g = ca.Function(
-            "jac_g", [problem.x, problem.p],
+        self.jac_g_bin = ca.Function(
+            "jac_g_bin", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
             {"jit": WITH_JIT}
         )
@@ -389,12 +392,12 @@ class BendersMasterMILP(SolverClass):
         self.g_shape_orig = problem.g.shape[0]
         self.x_shape = max(problem.x.shape)
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
-        """solve."""
+    def _generate_cut_equation(self, nlpdata, prev_feasible):
+        """Generate a cut."""
         if prev_feasible:
             grad_f_k = self.grad_f_x_bin(
                 nlpdata.x_sol[:self.x_shape], nlpdata.p)
-            jac_g_k = self.jac_g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
+            jac_g_k = self.jac_g_bin(nlpdata.x_sol[:self.x_shape], nlpdata.p)
             lambda_k = grad_f_k - jac_g_k.T @ -nlpdata.lam_g_sol
             f_k = self.f(nlpdata.x_sol[:self.x_shape], nlpdata.p)
             g_k = (
@@ -404,11 +407,17 @@ class BendersMasterMILP(SolverClass):
             )
         else:  # Not feasible solution
             h_k = self.g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
-            jac_h_k = self.jac_g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
+            jac_h_k = self.jac_g_bin(nlpdata.x_sol[:self.x_shape], nlpdata.p)
             lam_g = nlpdata.lam_g_sol[:self.g_shape_orig] - \
                 nlpdata.lam_g_sol[self.g_shape_orig:]
             g_k = lam_g.T @ (h_k + jac_h_k @ (self._x_bin -
                              nlpdata.x_sol[self.idx_x_bin]))
+
+        return g_k
+
+    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
+        """solve."""
+        g_k = self._generate_cut_equation(nlpdata, prev_feasible)
 
         if WITH_PLOT:
             visualize_cut(g_k, self._x_bin, self._nu)
@@ -431,10 +440,75 @@ class BendersMasterMILP(SolverClass):
         x_full = nlpdata.x_sol.full()[:self.x_shape]
         x_full[self.idx_x_bin] = solution['x'][:-1]
         solution['x'] = x_full
-        nlpdata_out = copy(nlpdata)
-        nlpdata_out.prev_solution = solution
-        nlpdata_out.solved = self.collect_stats()[0]
-        return nlpdata_out
+        nlpdata.prev_solution = solution
+        nlpdata.solved = self.collect_stats()[0]
+        return nlpdata
+
+
+class BendersConstraintMILP(BendersMasterMILP):
+    """
+    Create benders constraint MILP.
+
+    By an idea of Moritz D. and Andrea R.
+    Given the ordered sequence of integer solutions:
+        Y := {y1, y2, ..., yN}
+    such that J(y1) >= J(y2) >= ... >= J(yN) we define the
+    benders polyhedral B := {y in R^n_y:
+        J(y_i) + Nabla J(yi) T (y - yi) <= J(y_N),
+        forall i = 1,...,N-1
+    }
+
+    This milp solves:
+        min F(y,z| y_bar, z_bar)
+        s.t ub >= H_L(y,z| y_bar, z_bar) >= lb
+        with y in B
+
+    For this implementation, since the original formulation implements:
+        J(y_i) + Nabla J(yi) T (y - yi) <= nu,
+        meaning: nu == J(y_N)
+    """
+
+    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+        """Create the benders constraint MILP."""
+        super(BendersConstraintMILP, self).__init___(problem, stats, options)
+        self.jac_g = ca.Function(
+            "jac_g", [problem.x, problem.p],
+            [ca.jacobian(problem.g, problem.x)],
+            {"jit": WITH_JIT}
+        )
+        self.y_N_val = ca.inf
+
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, integer=False) -> MinlpData:
+        """Solve."""
+        # TODO: Fix shape!
+        # J(y_i) + Nablda J(yi)
+        g_k = self._generate_cut_equation(nlpdata, prev_feasible)
+        self._g = ca.vertcat(self._g, g_k)
+        self.nr_g += 1
+        if integer:
+            self.y_N_val = min(self.y_N_val, nlpdata.obj_val)
+
+        f_lin = self.grad_f_x(nlpdata.x_sol[:self.x_shape], nlpdata.p)
+        g_lin = self.g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
+        jac_g = self.jac_g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
+        self.solver = ca.qpsol(f"benders_constraint{self.nr_g}", "gurobi", {
+            "f": f_lin.T * self.x,
+            "g": ca.vertcat(
+                g_lin + jac_g @ self.x,
+                g_k
+            ),
+            "x": self.x, "p": self._nu
+        })
+        nlpdata.prev_solution = self.solver(
+            x0=nlpdata.obj_val,
+            lbx=nlpdata.lbx, ubx=nlpdata.ubx,
+            lbg=ca.vertcat(nlpdata.lbg, -ca.inf * np.ones(self.nr_g)),
+            ubg=ca.vertcat(nlpdata.ubg, np.zeros(self.nr_g)),
+            p=self.y_N_val
+        )
+
+        nlpdata.solved = self.collect_stats()[0]
+        return nlpdata
 
 
 class FeasibilityNLP(SolverClass):
@@ -553,6 +627,52 @@ def benders_algorithm(problem, data, stats, is_orig=False):
 
 def idea_algorithm(problem, data, stats):
     """Create benders algorithm."""
+    tic()
+    toc()
+    print("Setup NLP solver...")
+    nlp = NlpSolver(problem, stats, is_orig=is_orig)
+    toc()
+    print("Setup FNLP solver...")
+    fnlp = FeasibilityNLP(problem, stats)
+    toc()
+    print("Setup MILP solver...")
+    benders_milp = BendersCutMILP(problem, stats)
+    t_load = toc()
+
+    print("Solver initialized.")
+    # Benders algorithm
+    lb = -ca.inf
+    ub = ca.inf
+    tolerance = 0.04
+    feasible = True
+    data = nlp.solve(data)
+    x_bar = data.x_sol
+    x_star = x_bar
+    prev_feasible = True
+    while lb + tolerance < ub and feasible:
+        toc()
+        # Solve MILP-BENDERS and set lower bound:
+        data = benders_milp.solve(data, prev_feasible=prev_feasible)
+        feasible = data.solved
+        lb = data.obj_val
+        # x_hat = data.x_sol
+
+        # Obtain new linearization point for NLP:
+        data = nlp.solve(data, set_x_bin=True)
+        x_bar = data.x_sol
+        prev_feasible = data.solved
+        if not prev_feasible:
+            data = fnlp.solve(data)
+            x_bar = data.x_sol
+            print("Infeasible")
+        elif data.obj_val < ub:
+            ub = data.obj_val
+            x_star = x_bar
+            print("Feasible")
+
+        print(f"{ub=} {lb=}")
+        print(f"{x_bar=}")
+
     # nlp = NlpSolver(problem, stats)
     # TODO
     return data, data.obj_val
