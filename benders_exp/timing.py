@@ -193,8 +193,8 @@ class TimingMPC(TimingBaseClass):
         self.dt_day = 900
         self.dt_night = 2 * self.dt_day
 
-        self.N_day = 4 * 4
-        self.N_night = 4 * 2
+        self.N_day = 17 * 4
+        self.N_night = 7 * 2
 
         self.N_short_term = 2
 
