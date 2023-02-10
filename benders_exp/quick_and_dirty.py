@@ -370,12 +370,7 @@ class BendersMasterMILP(SolverClass):
     def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
         """Create benders master MILP."""
         super(BendersMasterMILP, self).__init___(problem, stats)
-        if options is None:
-            if WITH_LOGGING:
-                options = {}
-            else:
-                options = {"verbose": False,
-                           "print_time": 0, "gurobi.output_flag": 0}
+        self.setup_common(problem, options)
 
         self.grad_f_x_sub = ca.Function(
             "gradient_f_x_bin",
@@ -384,6 +379,22 @@ class BendersMasterMILP(SolverClass):
             )[problem.idx_x_bin]],
             {"jit": WITH_JIT}
         )
+        self.jac_g_sub = ca.Function(
+            "jac_g_bin", [problem.x, problem.p],
+            [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
+            {"jit": WITH_JIT}
+        )
+        self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
+
+    def setup_common(self, problem: MinlpProblem, options):
+        """Set up common data."""
+        if options is None:
+            if WITH_LOGGING:
+                options = {}
+            else:
+                options = {"verbose": False,
+                           "print_time": 0, "gurobi.output_flag": 0}
+
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
             {"jit": WITH_JIT}
@@ -392,14 +403,9 @@ class BendersMasterMILP(SolverClass):
             "g", [problem.x, problem.p], [problem.g],
             {"jit": WITH_JIT}
         )
-        self.jac_g_sub = ca.Function(
-            "jac_g_bin", [problem.x, problem.p],
-            [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
-            {"jit": WITH_JIT}
-        )
+
         self.idx_x_bin = problem.idx_x_bin
         self.nr_x_bin = len(problem.idx_x_bin)
-        self._x_bin = CASADI_VAR.sym("x_bin", self.nr_x_bin)
         self._nu = CASADI_VAR.sym("nu", 1)
         self._g = np.array([])
         self.nr_g = 0
@@ -407,8 +413,8 @@ class BendersMasterMILP(SolverClass):
         self.options["discrete"] = [1] * (self.nr_x_bin + 1)
         self.options["discrete"][-1] = 0
         self.options["gurobi.MIPGap"] = 0.05
-        self.g_shape_orig = problem.g.shape[0]
-        self.x_shape = max(problem.x.shape)
+        self.nr_g_orig = problem.g.shape[0]
+        self.nr_x_orig = problem.x.shape[0]
 
     def _generate_cut_equation(self, x, x_sol, x_sol_sub_set, lam_g, p, prev_feasible):
         """
@@ -434,7 +440,7 @@ class BendersMasterMILP(SolverClass):
         else:  # Not feasible solution
             h_k = self.g(x_sol, p)
             jac_h_k = self.jac_g(x_sol, p)
-            lam_g = lam_g[:self.g_shape_orig] - lam_g[self.g_shape_orig:]
+            lam_g = lam_g[:self.nr_g_orig] - lam_g[self.nr_g_orig:]
             g_k = lam_g.T @ (h_k + jac_h_k @ (x - x_sol_sub_set))
 
         return g_k
@@ -442,22 +448,22 @@ class BendersMasterMILP(SolverClass):
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """solve."""
         g_k = self._generate_cut_equation(
-            self._x_bin, nlpdata.x_sol[:self.x_shape], nlpdata.x_sol[self.idx_x_bin],
+            self._x, nlpdata.x_sol[:self.nr_x_orig], nlpdata.x_sol[self.idx_x_bin],
             nlpdata.lam_g_sol, nlpdata.p, prev_feasible
         )
 
-
         if WITH_PLOT:
-            visualize_cut(g_k, self._x_bin, self._nu)
+            visualize_cut(g_k, self._x, self._nu)
 
         self._g = ca.vertcat(self._g, g_k)
         self.nr_g += 1
 
         self.solver = ca.qpsol(f"benders{self.nr_g}", "gurobi", {
             "f": self._nu, "g": self._g,
-            "x": ca.vertcat(self._x_bin, self._nu),
+            "x": ca.vertcat(self._x, self._nu),
         }, self.options)
 
+        # This solver solves only to the binary variables (_x)!
         solution = self.solver(
             x0=ca.vertcat(nlpdata.x_sol[self.idx_x_bin], nlpdata.obj_val),
             lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -1e5),
@@ -465,7 +471,7 @@ class BendersMasterMILP(SolverClass):
             lbg=-ca.inf * np.ones(self.nr_g),
             ubg=np.zeros(self.nr_g)
         )
-        x_full = nlpdata.x_sol.full()[:self.x_shape]
+        x_full = nlpdata.x_sol.full()[:self.nr_x_orig]
         x_full[self.idx_x_bin] = solution['x'][:-1]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
@@ -502,44 +508,61 @@ class BendersConstraintMILP(BendersMasterMILP):
 
     def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
         """Create the benders constraint MILP."""
-        super(BendersConstraintMILP, self).__init___(problem, stats, options)
-        self.jac_g = ca.Function(
+        super(BendersConstraintMILP, self).__init__(problem, stats, options)
+        self.setup_common(problem, options)
+
+        self.grad_f_x_sub = ca.Function(
+            "gradient_f_x",
+            [problem.x, problem.p], [ca.gradient(
+                problem.f, problem.x
+            )],
+            {"jit": WITH_JIT}
+        )
+        self.jac_g_sub = ca.Function(
             "jac_g", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)],
             {"jit": WITH_JIT}
         )
-        self.y_N_val = ca.inf
+        self._x = CASADI_VAR.sym("x", self.nr_x_orig)
+        self.y_N_val = 5000
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True, integer=False) -> MinlpData:
         """Solve."""
-        # TODO: Fix shape!
-        # J(y_i) + Nablda J(yi)
-        g_k = self._generate_cut_equation(nlpdata, prev_feasible)
+        # Create a new cut
+        x_sol = nlpdata.x_sol[:self.nr_x_orig]
+        g_k = self._generate_cut_equation(
+            self._x, x_sol, x_sol, nlpdata.lam_g_sol, nlpdata.p, prev_feasible
+        )
         self._g = ca.vertcat(self._g, g_k)
         self.nr_g += 1
+
+        # If the upper bound improved, decrease it:
         if integer:
             self.y_N_val = min(self.y_N_val, nlpdata.obj_val)
 
-        f_lin = self.grad_f_x(nlpdata.x_sol[:self.x_shape], nlpdata.p)
-        g_lin = self.g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
-        jac_g = self.jac_g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
-        self.solver = ca.qpsol(f"benders_constraint{self.nr_g}", "gurobi", {
-            "f": f_lin.T * self.x,
-            "g": ca.vertcat(
-                g_lin + jac_g @ self.x,
-                g_k
-            ),
-            "x": self.x, "p": self._nu
-        })
-        nlpdata.prev_solution = self.solver(
-            x0=nlpdata.obj_val,
-            lbx=nlpdata.lbx, ubx=nlpdata.ubx,
-            lbg=ca.vertcat(nlpdata.lbg, -ca.inf * np.ones(self.nr_g)),
-            ubg=ca.vertcat(nlpdata.ubg, np.zeros(self.nr_g)),
-            p=self.y_N_val
-        )
+        f_lin = self.grad_f_x_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
+        g_lin = self.g(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
+        jac_g = self.jac_g_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
 
-        nlpdata.solved = self.collect_stats()[0]
+        self.solver = ca.qpsol(f"benders_constraint{self.nr_g}", "gurobi", {
+            "f": f_lin.T @ self._x,
+            "g": ca.vertcat(
+                g_lin + jac_g @ self._x,
+                self._g
+            ),
+            "x": self._x, "p": self._nu
+        }, self.options)
+
+        nlpdata.prev_solution = self.solver(
+            x0=nlpdata.x_sol,
+            lbx=nlpdata.lbx, ubx=nlpdata.ubx,
+            lbg=ca.vertcat(nlpdata.lbg, -ca.inf * np.ones((self.nr_g, 1))),
+            ubg=ca.vertcat(nlpdata.ubg, np.zeros((self.nr_g, 1))),
+            p=[self.y_N_val]
+        )
+        nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x_orig]
+
+        nlpdata.solved, stats = self.collect_stats()
         self.stats["milp_bconstraint.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
@@ -602,7 +625,7 @@ class FeasibilityNLP(SolverClass):
             ubg=self.ubg,
             p=ca.vertcat(nlpdata.p, nlpdata.lbg, nlpdata.ubg)
         )
-        nlpdata.solved = self.collect_stats()[0]
+        nlpdata.solved, stats = self.collect_stats()
         self.stats["fnlp.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
