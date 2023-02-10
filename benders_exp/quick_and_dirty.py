@@ -41,6 +41,7 @@ IPOPT_SETTINGS = {
     "ipopt.acceptable_obj_change_tol": 1e-1,
     "ipopt.mu_strategy": "adaptive",
     "ipopt.mu_target": 1e-4,
+    "ipopt.print_level": 1,
 }
 
 
@@ -235,11 +236,11 @@ def create_dummy_problem(p_val=[1000, 3]):
     p = CASADI_VAR.sym("p", 2)
     f = (x[0] - 4.1)**2 + (x[1] - 4.0)**2 + x[2] * p[0]
     g = ca.vertcat(
-        -x[2],
-        (x[0]**2 + x[1]**2 - x[2] - p[1]**2)
+        x[2],
+        -(x[0]**2 + x[1]**2 - x[2] - p[1]**2)
     )
-    lbg = -np.array([ca.inf, ca.inf])
-    ubg = np.array([0, 0])
+    ubg = np.array([ca.inf, ca.inf])
+    lbg = np.array([0, 0])
     lbx = -1e3 * np.ones((3,))
     ubx = np.array([ca.inf, ca.inf, ca.inf])
 
@@ -439,7 +440,7 @@ class BendersMasterMILP(SolverClass):
             )
         else:  # Not feasible solution
             h_k = self.g(x_sol, p)
-            jac_h_k = self.jac_g(x_sol, p)
+            jac_h_k = self.jac_g_sub(x_sol, p)
             lam_g = lam_g[:self.nr_g_orig] - lam_g[self.nr_g_orig:]
             g_k = lam_g.T @ (h_k + jac_h_k @ (x - x_sol_sub_set))
 
@@ -524,7 +525,7 @@ class BendersConstraintMILP(BendersMasterMILP):
             {"jit": WITH_JIT}
         )
         self._x = CASADI_VAR.sym("x", self.nr_x_orig)
-        self.y_N_val = 5000
+        self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True, integer=False) -> MinlpData:
         """Solve."""
@@ -537,27 +538,37 @@ class BendersConstraintMILP(BendersMasterMILP):
         self.nr_g += 1
 
         # If the upper bound improved, decrease it:
-        if integer:
+        if integer and prev_feasible:
+            print(f"NEW BOUND {self.y_N_val}")
             self.y_N_val = min(self.y_N_val, nlpdata.obj_val)
 
         f_lin = self.grad_f_x_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         g_lin = self.g(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         jac_g = self.jac_g_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
 
+        # TODO: When linearizing the bounds, remember they are two sided!
+        # we need to tkae the other bounds into account as well
         self.solver = ca.qpsol(f"benders_constraint{self.nr_g}", "gurobi", {
             "f": f_lin.T @ self._x,
             "g": ca.vertcat(
-                g_lin + jac_g @ self._x,
+                g_lin + jac_g @ self._x,  # TODO: Check sign error?
                 self._g
             ),
             "x": self._x, "p": self._nu
         }, self.options)
 
         nlpdata.prev_solution = self.solver(
-            x0=nlpdata.x_sol,
+            x0=x_sol,
             lbx=nlpdata.lbx, ubx=nlpdata.ubx,
-            lbg=ca.vertcat(nlpdata.lbg, -ca.inf * np.ones((self.nr_g, 1))),
-            ubg=ca.vertcat(nlpdata.ubg, np.zeros((self.nr_g, 1))),
+            lbg=ca.vertcat(
+                nlpdata.lbg,
+                -ca.inf * np.ones(self.nr_g)
+            ),
+            ubg=ca.vertcat(
+                ca.inf * np.ones(self.nr_g_orig),
+                # NEED TO TAKE INTO ACCOUNT: nlpdata.ubg,
+                np.zeros(self.nr_g)
+            ),
             p=[self.y_N_val]
         )
         nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x_orig]
@@ -712,10 +723,11 @@ def idea_algorithm(problem, data, stats, is_orig=False):
     x_bar = data.x_sol
     x_star = x_bar
     prev_feasible = True
+    is_integer = False
     while lb + tolerance < ub and feasible:
         toc()
         # Solve MILP-BENDERS and set lower bound:
-        data = benders_milp.solve(data, prev_feasible=prev_feasible)
+        data = benders_milp.solve(data, prev_feasible=prev_feasible, integer=is_integer)
         feasible = data.solved
         lb = data.obj_val
         # x_hat = data.x_sol
@@ -733,6 +745,7 @@ def idea_algorithm(problem, data, stats, is_orig=False):
             x_star = x_bar
             print("Feasible")
 
+        is_integer = True
         print(f"{ub=} {lb=}")
         print(f"{x_bar=}")
 
