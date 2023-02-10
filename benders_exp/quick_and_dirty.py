@@ -18,7 +18,7 @@ from benders_exp.simulator import Simulator
 from benders_exp.state import State
 from benders_exp.timing import TimingMPC
 import casadi as ca
-from benders_exp.utils import tic, toc
+from benders_exp.utils import tic, toc, DebugCallBack
 
 
 WITH_JIT = False
@@ -309,6 +309,11 @@ class NlpSolver(SolverClass):
 
         self.idx_x_bin = problem.idx_x_bin
         options.update(IPOPT_SETTINGS)
+        # self.callback = DebugCallBack(
+        #     'mycallback', problem.x.shape[0],
+        #     problem.g.shape[0], problem.p.shape[0]
+        # )
+        # self.callback.add_to_solver_opts(options, 50)
 
         if is_orig:
             # TODO: Clutter!
@@ -338,6 +343,8 @@ class NlpSolver(SolverClass):
             lbx=lbx, ubx=ubx,
             lbg=nlpdata.lbg, ubg=nlpdata.ubg
         )
+        # self.callback.save(new_sol["x"])
+
         nlpdata.solved = self.collect_stats()[0]
         if not nlpdata.solved:
             print("NLP not solved")
