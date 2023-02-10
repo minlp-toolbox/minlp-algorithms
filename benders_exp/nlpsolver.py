@@ -7,9 +7,9 @@ import pytz
 import numpy as np
 import casadi as ca
 
-from system import System
 from benders_exp.nlpsetup import NLPSetupMPC
-from benders_exp.defines import _PATH_TO_NLP_OBJECT, NLP_OPTIONS_GENERAL
+from benders_exp.defines import _PATH_TO_NLP_OBJECT, NLP_OPTIONS_GENERAL, \
+        _NLP_OBJECT_FILENAME
 
 from abc import ABCMeta, abstractmethod
 
@@ -222,7 +222,7 @@ class NLPSolverMPCBaseClass(NLPSetupMPC, metaclass=ABCMeta):
     def _setup_nlpsolver(self):
 
         path_to_nlp_object = os.path.join(
-            _PATH_TO_NLP_OBJECT, self._NLP_OBJECT_FILENAME
+            _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
         )
 
         self._nlpsolver = ca.nlpsol(

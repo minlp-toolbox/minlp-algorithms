@@ -4,7 +4,8 @@ import os
 import numpy as np
 import casadi as ca
 import subprocess
-from benders_exp.defines import _PATH_TO_NLP_SOURCE, _PATH_TO_NLP_OBJECT
+from benders_exp.defines import _PATH_TO_NLP_SOURCE, _PATH_TO_NLP_OBJECT, \
+        _NLP_SOURCE_FILENAME, _NLP_OBJECT_FILENAME
 
 from benders_exp.system import System
 
@@ -47,12 +48,12 @@ class NLPSetupBaseClass(System):
         __dirname__ = os.path.dirname(os.path.abspath(__file__))
 
         nlpsolver = ca.nlpsol("nlpsol", "ipopt", self.nlp)
-        nlpsolver.generate_dependencies(self._NLP_SOURCE_FILENAME)
+        nlpsolver.generate_dependencies(_NLP_SOURCE_FILENAME)
 
         os.rename(
-            self._NLP_SOURCE_FILENAME,
+            _NLP_SOURCE_FILENAME,
             os.path.join(
-                __dirname__, _PATH_TO_NLP_SOURCE, self._NLP_SOURCE_FILENAME
+                __dirname__, _PATH_TO_NLP_SOURCE, _NLP_SOURCE_FILENAME
             ),
         )
 
@@ -89,10 +90,10 @@ class NLPSetupBaseClass(System):
         __dirname__ = os.path.dirname(os.path.abspath(__file__))
 
         path_to_nlp_source_code = os.path.join(
-            __dirname__, _PATH_TO_NLP_SOURCE, self._NLP_SOURCE_FILENAME
+            __dirname__, _PATH_TO_NLP_SOURCE, _NLP_SOURCE_FILENAME
         )
         path_to_nlp_object = os.path.join(
-            __dirname__, _PATH_TO_NLP_OBJECT, self._NLP_OBJECT_FILENAME
+            __dirname__, _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
         )
 
         if not os.path.isfile(path_to_nlp_object) or overwrite_existing_object:
@@ -166,9 +167,6 @@ class NLPSetupBaseClass(System):
 
 
 class NLPSetupMPC(NLPSetupBaseClass):
-
-    _NLP_SOURCE_FILENAME = "nlp_mpc.c"
-    _NLP_OBJECT_FILENAME = "nlp_mpc.so"
 
     def __init__(self, timing):
 

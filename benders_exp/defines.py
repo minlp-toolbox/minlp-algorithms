@@ -11,6 +11,9 @@ _PATH_TO_NLP_OBJECT = path.join(SOURCE_FOLDER, "../.lib/")
 _PATH_TO_ODE_OBJECT = path.join(SOURCE_FOLDER, "../.lib/")
 _PATH_TO_ODE_FILE = _PATH_TO_ODE_OBJECT
 
+_NLP_SOURCE_FILENAME = "nlp_mpc.c"
+_NLP_OBJECT_FILENAME = "nlp_mpc.so"
+
 
 _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 

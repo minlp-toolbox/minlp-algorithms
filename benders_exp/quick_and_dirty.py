@@ -3,7 +3,7 @@
 from os import path
 import matplotlib.pyplot as plt
 from sys import argv
-from copy import copy, deepcopy
+from copy import deepcopy
 from dataclasses import dataclass
 import datetime as dt
 from typing import List, Dict, Any, Optional
@@ -11,18 +11,18 @@ import numpy as np
 
 from benders_exp.nlpsolver import NLPSolverRel  # NLPSolverBin
 from benders_exp.ambient import Ambient
-# from benders_exp.defines import RESULTS_FOLDER
+from benders_exp.defines import _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
 from benders_exp.nlpsetup import NLPSetupMPC
 from benders_exp.predictor import Predictor
 from benders_exp.simulator import Simulator
 from benders_exp.state import State
 from benders_exp.timing import TimingMPC
 import casadi as ca
-from benders_exp.utils import tic, toc, DebugCallBack
+from benders_exp.utils import tic, toc  # , DebugCallBack
 
 
 WITH_JIT = False
-WITH_LOGGING = False
+WITH_LOGGING = True
 WITH_PLOT = False
 CASADI_VAR = ca.MX
 IPOPT_SETTINGS = {
@@ -42,9 +42,6 @@ IPOPT_SETTINGS = {
     "ipopt.mu_strategy": "adaptive",
     "ipopt.mu_target": 1e-4,
 }
-SOURCE_FOLDER = path.dirname(path.abspath(__file__))
-_PATH_TO_NLP_OBJECT = path.join(SOURCE_FOLDER, "../.lib/")
-_NLP_OBJECT_FILENAME = "nlp_mpc.so"
 
 
 if WITH_PLOT:
@@ -57,7 +54,22 @@ class Stats:
     """Collect stats."""
 
     data: Dict[str, float]
-    runtime: float = 0
+
+    def __getitem__(self, key):
+        """Get attribute."""
+        if key not in self.data:
+            return 0
+        return self.data[key]
+
+    def __setitem__(self, key, value):
+        """Set item."""
+        self.data[key] = value
+
+    def print(self):
+        """Print statistics."""
+        print("Statistics")
+        for k, v in data:
+            print(f"\t{k}: {v}")
 
 
 @dataclass
@@ -157,7 +169,6 @@ def to_0d(array):
 
 def extract():
     """Extract original problem."""
-
     startup_time = dt.datetime.fromisoformat("2010-08-19 06:00:00+02:00")
     timing = TimingMPC(startup_time=startup_time)
 
@@ -282,10 +293,6 @@ class SolverClass:
     def collect_stats(self):
         """Collect statistics."""
         stats = self.solver.stats()
-        # if "t_wall_total" in stats:
-        #     self.stats.runtime += stats["t_wall_total"]
-        # else:
-        #     self.stats.runtime += stats["t_wall_solver"]
         return stats["success"], stats
 
 
@@ -345,7 +352,11 @@ class NlpSolver(SolverClass):
         )
         # self.callback.save(new_sol["x"])
 
-        nlpdata.solved = self.collect_stats()[0]
+        nlpdata.solved, stats = self.collect_stats()
+        self.stats["nlp.time"] += sum(
+            [v for k, v in stats.items() if "t_proc" in k]
+        )
+        self.stats["nlp.iter"] += stats["iter_count"]
         if not nlpdata.solved:
             print("NLP not solved")
         else:
@@ -449,6 +460,10 @@ class BendersMasterMILP(SolverClass):
         solution['x'] = x_full
         nlpdata.prev_solution = solution
         nlpdata.solved = self.collect_stats()[0]
+        self.stats["milp_benders.time"] += sum(
+            [v for k, v in stats.items() if "t_proc" in k]
+        )
+        self.stats["milp_benders.iter"] += stats["iter_count"]
         return nlpdata
 
 
@@ -515,6 +530,10 @@ class BendersConstraintMILP(BendersMasterMILP):
         )
 
         nlpdata.solved = self.collect_stats()[0]
+        self.stats["milp_bconstraint.time"] += sum(
+            [v for k, v in stats.items() if "t_proc" in k]
+        )
+        self.stats["milp_bconstraint.iter"] += stats["iter_count"]
         return nlpdata
 
 
@@ -574,6 +593,10 @@ class FeasibilityNLP(SolverClass):
             p=ca.vertcat(nlpdata.p, nlpdata.lbg, nlpdata.ubg)
         )
         nlpdata.solved = self.collect_stats()[0]
+        self.stats["fnlp.time"] += sum(
+            [v for k, v in stats.items() if "t_proc" in k]
+        )
+        self.stats["fnlp.iter"] += stats["iter_count"]
         if not nlpdata.solved:
             print("MILP not solved")
         return nlpdata
@@ -632,7 +655,7 @@ def benders_algorithm(problem, data, stats, is_orig=False):
     return data, x_star
 
 
-def idea_algorithm(problem, data, stats):
+def idea_algorithm(problem, data, stats, is_orig=False):
     """Create benders algorithm."""
     tic()
     toc()
@@ -643,8 +666,8 @@ def idea_algorithm(problem, data, stats):
     fnlp = FeasibilityNLP(problem, stats)
     toc()
     print("Setup MILP solver...")
-    benders_milp = BendersCutMILP(problem, stats)
-    t_load = toc()
+    benders_milp = BendersConstraintMILP(problem, stats)
+    toc(reset=True)
 
     print("Solver initialized.")
     # Benders algorithm
@@ -680,9 +703,7 @@ def idea_algorithm(problem, data, stats):
         print(f"{ub=} {lb=}")
         print(f"{x_bar=}")
 
-    # nlp = NlpSolver(problem, stats)
-    # TODO
-    return data, data.obj_val
+    return data, x_star
 
 
 if __name__ == "__main__":
@@ -722,6 +743,7 @@ if __name__ == "__main__":
     elif mode == "idea":
         data, x_star = idea_algorithm(problem, data,  stats)
 
+    stats.print()
     print(x_star)
     if WITH_PLOT:
         plt.show()
