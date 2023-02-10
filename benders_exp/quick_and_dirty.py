@@ -68,7 +68,7 @@ class Stats:
     def print(self):
         """Print statistics."""
         print("Statistics")
-        for k, v in data:
+        for k, v in self.data.items():
             print(f"\t{k}: {v}")
 
 
@@ -377,7 +377,7 @@ class BendersMasterMILP(SolverClass):
                 options = {"verbose": False,
                            "print_time": 0, "gurobi.output_flag": 0}
 
-        self.grad_f_x_bin = ca.Function(
+        self.grad_f_x_sub = ca.Function(
             "gradient_f_x_bin",
             [problem.x, problem.p], [ca.gradient(
                 problem.f, problem.x
@@ -392,7 +392,7 @@ class BendersMasterMILP(SolverClass):
             "g", [problem.x, problem.p], [problem.g],
             {"jit": WITH_JIT}
         )
-        self.jac_g_bin = ca.Function(
+        self.jac_g_sub = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
             {"jit": WITH_JIT}
@@ -410,32 +410,42 @@ class BendersMasterMILP(SolverClass):
         self.g_shape_orig = problem.g.shape[0]
         self.x_shape = max(problem.x.shape)
 
-    def _generate_cut_equation(self, nlpdata, prev_feasible):
-        """Generate a cut."""
+    def _generate_cut_equation(self, x, x_sol, x_sol_sub_set, lam_g, p, prev_feasible):
+        """
+        Generate a cut.
+
+        :param x: optimization variable
+        :param x_sol: Complete x_solution
+        :param x_sol_sub_set: Subset of the x solution to optimize the MILP to
+        :param lam_g: Lambda g solution
+        :param p: parameters
+        :param prev_feasible: If the previous solution was feasible
+        :return: g_k the new cutting plane (should be > 0)
+        """
         if prev_feasible:
-            grad_f_k = self.grad_f_x_bin(
-                nlpdata.x_sol[:self.x_shape], nlpdata.p)
-            jac_g_k = self.jac_g_bin(nlpdata.x_sol[:self.x_shape], nlpdata.p)
-            lambda_k = grad_f_k - jac_g_k.T @ -nlpdata.lam_g_sol
-            f_k = self.f(nlpdata.x_sol[:self.x_shape], nlpdata.p)
+            grad_f_k = self.grad_f_x_sub(x_sol, p)
+            jac_g_k = self.jac_g_sub(x_sol, p)
+            lambda_k = grad_f_k - jac_g_k.T @ - lam_g
+            f_k = self.f(x_sol, p)
             g_k = (
-                f_k + lambda_k.T @ (self._x_bin -
-                                    nlpdata.x_sol[self.idx_x_bin])
+                f_k + lambda_k.T @ (x - x_sol_sub_set)
                 - self._nu
             )
         else:  # Not feasible solution
-            h_k = self.g(nlpdata.x_sol[:self.x_shape], nlpdata.p)
-            jac_h_k = self.jac_g_bin(nlpdata.x_sol[:self.x_shape], nlpdata.p)
-            lam_g = nlpdata.lam_g_sol[:self.g_shape_orig] - \
-                nlpdata.lam_g_sol[self.g_shape_orig:]
-            g_k = lam_g.T @ (h_k + jac_h_k @ (self._x_bin -
-                             nlpdata.x_sol[self.idx_x_bin]))
+            h_k = self.g(x_sol, p)
+            jac_h_k = self.jac_g(x_sol, p)
+            lam_g = lam_g[:self.g_shape_orig] - lam_g[self.g_shape_orig:]
+            g_k = lam_g.T @ (h_k + jac_h_k @ (x - x_sol_sub_set))
 
         return g_k
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """solve."""
-        g_k = self._generate_cut_equation(nlpdata, prev_feasible)
+        g_k = self._generate_cut_equation(
+            self._x_bin, nlpdata.x_sol[:self.x_shape], nlpdata.x_sol[self.idx_x_bin],
+            nlpdata.lam_g_sol, nlpdata.p, prev_feasible
+        )
+
 
         if WITH_PLOT:
             visualize_cut(g_k, self._x_bin, self._nu)
@@ -459,7 +469,7 @@ class BendersMasterMILP(SolverClass):
         x_full[self.idx_x_bin] = solution['x'][:-1]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
-        nlpdata.solved = self.collect_stats()[0]
+        nlpdata.solved, stats = self.collect_stats()
         self.stats["milp_benders.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
