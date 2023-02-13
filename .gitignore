@@ -2,3 +2,7 @@ __pycache__/
 .src/
 .lib/
 *.egg-info/
+
+# Ignore results
+results/*
+jit_tmp*

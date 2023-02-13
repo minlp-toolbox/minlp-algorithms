@@ -5,10 +5,11 @@ import time
 import datetime as dt
 import numpy as np
 import casadi as ca
-import dmiqp
+from benders_exp import dmiqp
 
 from benders_exp.nlpsetup import NLPSetupMPC
 from benders_exp.voronoi import Voronoi
+from benders_exp.casadisolver import BendersMILP
 
 import logging
 
@@ -151,7 +152,8 @@ class BinaryApproximation(NLPSetupMPC):
         try:
             return self._voronoi
         except:
-            logger.warning("voronoi data not available, returning nan instead.")
+            logger.warning(
+                "voronoi data not available, returning nan instead.")
             return np.nan
 
     @property
@@ -279,6 +281,34 @@ class BinaryApproximation(NLPSetupMPC):
 
         self._dmiqp.set_parameter_data(self._previous_solver.P_data)
 
+    def _setup_milp(self, use_reduced_miqp: bool) -> None:
+        self._dmiqp = BendersMILP(use_reduced_miqp=use_reduced_miqp)
+        self._dmiqp.set_logfile_location(
+            os.path.join(self._LOGFILE_LOCATION, self._solver_name + ".log")
+        )
+
+        if use_reduced_miqp:
+
+            self._dmiqp.set_lin_point(self._previous_solver.v_r_opt)
+            self._dmiqp.set_constraint_bounds(
+                lbg=self._previous_solver.lbg_r, ubg=self._previous_solver.ubg_r
+            )
+            self._dmiqp.set_variable_bounds(
+                self._previous_solver.V_r_min, self._previous_solver.V_r_max
+            )
+
+        else:
+
+            self._dmiqp.set_lin_point(self._previous_solver.v_opt)
+            self._dmiqp.set_constraint_bounds(
+                lbg=self._previous_solver.lbg, ubg=self._previous_solver.ubg
+            )
+            self._dmiqp.set_variable_bounds(
+                self._previous_solver.V_min, self._previous_solver.V_max
+            )
+
+        self._dmiqp.set_parameter_data(self._previous_solver.P_data)
+
     def _set_dwell_times_ba(self, b_fixed: bool) -> None:
 
         if not b_fixed:
@@ -299,11 +329,13 @@ class BinaryApproximation(NLPSetupMPC):
             self._dmiqp.set_dwell_times(
                 time_steps=self._timing.time_steps,
                 min_up_times=np.asarray(
-                    self.p_op["acm"]["min_up_time"] + self.p_op["hp"]["min_up_time"]
+                    self.p_op["acm"]["min_up_time"] +
+                    self.p_op["hp"]["min_up_time"]
                 )
                 - 1e-3,
                 min_down_times=np.asarray(
-                    self.p_op["acm"]["min_down_time"] + self.p_op["hp"]["min_down_time"]
+                    self.p_op["acm"]["min_down_time"] +
+                    self.p_op["hp"]["min_down_time"]
                 )
                 - 1e-3,
                 remaining_min_up_time=self._timing.remaining_min_up_time,
@@ -334,7 +366,8 @@ class BinaryApproximation(NLPSetupMPC):
 
         self._b_data = self._binapprox.b_bin[: self.nb, :].T
 
-        logger.info(f"{self._solver_name} finished after {combina.solution_time} s")
+        logger.info(
+            f"{self._solver_name} finished after {combina.solution_time} s")
 
     def _set_warm_start(self, warm_start: bool, shift: bool = False):
 
@@ -345,7 +378,7 @@ class BinaryApproximation(NLPSetupMPC):
                 b_data_ws[
                     : self._timing.N - self._timing.N_short_term, :
                 ] = b_data_prev = self._previous_solver.b_data_prev[
-                    self._timing.N_short_term :, :
+                    self._timing.N_short_term:, :
                 ]
             else:
                 b_data_ws = self._previous_solver.b_data_prev
@@ -371,7 +404,8 @@ class BinaryApproximation(NLPSetupMPC):
 
         self._dmiqp.solve(gap=gap, b_fixed=b_fixed)
 
-        logger.info(f"{self._solver_name} finished after {self._dmiqp.solver_stats} s")
+        logger.info(
+            f"{self._solver_name} finished after {self._dmiqp.solver_stats} s")
 
     def _collect_solver_stats(self):
 
@@ -410,32 +444,32 @@ class BinaryApproximation(NLPSetupMPC):
 
             for k in range(self._timing.N):
 
-                x_opt.append(v_opt[offset : offset + self.nx])
+                x_opt.append(v_opt[offset: offset + self.nx])
                 offset += self.nx
 
                 if not use_reduced_miqp:
                     for j in range(1, self.d + 1):
                         offset += self.nx
 
-                b_opt.append(v_opt[offset : offset + self.nb])
+                b_opt.append(v_opt[offset: offset + self.nb])
                 offset += self.nb
 
-                s_ac_lb_opt.append(v_opt[offset : offset + self.n_s_ac_lb])
+                s_ac_lb_opt.append(v_opt[offset: offset + self.n_s_ac_lb])
                 offset += self.n_s_ac_lb
 
-                s_ac_ub_opt.append(v_opt[offset : offset + self.n_s_ac_ub])
+                s_ac_ub_opt.append(v_opt[offset: offset + self.n_s_ac_ub])
                 offset += self.n_s_ac_ub
 
-                s_x_opt.append(v_opt[offset : offset + self.nx - self.nx_aux])
+                s_x_opt.append(v_opt[offset: offset + self.nx - self.nx_aux])
                 offset += self.nx - self.nx_aux
 
-                s_ppsc_opt.append(v_opt[offset : offset + 1])
+                s_ppsc_opt.append(v_opt[offset: offset + 1])
                 offset += 1
 
-                u_opt.append(v_opt[offset : offset + self.nu])
+                u_opt.append(v_opt[offset: offset + self.nu])
                 offset += self.nu
 
-            x_opt.append(v_opt[offset : offset + self.nx])
+            x_opt.append(v_opt[offset: offset + self.nx])
             offset += self.nx
 
             self.v_opt = v_opt
@@ -473,6 +507,16 @@ class BinaryApproximation(NLPSetupMPC):
             self._collect_solver_stats()
             self._collect_nlp_results(use_reduced_miqp=use_reduced_miqp)
             self._set_j_qp()
+        elif method == "milp":
+            self._setup_milp(use_reduced_miqp=use_reduced_miqp)
+            self._set_dwell_times_miqp(b_fixed=b_fixed)
+            # TODO: Remove voronoi:
+            self._set_voronoi_miqp(voronoi=voronoi)
+            self._set_binary_controls_if_fixed(b_fixed=b_fixed)
+            self._set_warm_start(warm_start=warm_start)
+            self._solve_miqp(gap=gap, b_fixed=b_fixed)
+            self._collect_solver_stats()
+            self._collect_nlp_results(use_reduced_miqp=use_reduced_miqp)
         else:
             self._setup_ba()
             self._set_dwell_times_ba(b_fixed=b_fixed)

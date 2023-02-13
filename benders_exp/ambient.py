@@ -8,6 +8,7 @@ import datetime as dt
 from system import System
 
 from abc import ABCMeta, abstractmethod
+from benders_exp.defines import _DATA_FOLDER
 
 import logging
 
@@ -15,8 +16,6 @@ logger = logging.getLogger(__name__)
 
 
 class Ambient(System):
-
-    _DATA_FOLDER = "data"
 
     @property
     def time_grid(self):
@@ -50,7 +49,7 @@ class Ambient(System):
     def _load_forecast_data(self, method="csv"):
 
         self._df_ambient = pd.read_csv(
-            os.path.join(self._DATA_FOLDER, "forecast.csv"), index_col=0
+            os.path.join(_DATA_FOLDER, "forecast.csv"), index_col=0
         )
         self._df_ambient.index = pd.DatetimeIndex(self._df_ambient.index)
 

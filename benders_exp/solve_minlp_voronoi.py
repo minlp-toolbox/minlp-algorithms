@@ -8,16 +8,16 @@ import pickle
 
 from benders_exp.ambient import Ambient
 from benders_exp.binapprox import BinaryApproximation
-from benders_exp.nlpsolver import NLPSolverBin, NLPSolverRel
 from benders_exp.predictor import Predictor
 from benders_exp.simulator import Simulator
 from benders_exp.state import State
 from benders_exp.timing import TimingMPC
 from benders_exp.voronoi import Voronoi
+from benders_exp.casadisolver import NLPSolverBin2
 
 
 def main(args):
-    RESULTS_FOLDER = "results/voronoi"
+    RESULTS_FOLDER = "../results/voronoi"
 
     USE_STORED_NLP_REL = False
     STORE_RESULTS = True
@@ -67,7 +67,7 @@ def main(args):
 
     else:
 
-        nlpsolver_rel = NLPSolverRel(
+        nlpsolver_rel = NLPSolverBin2(
             timing=timing,
             ambient=ambient,
             previous_solver=simulator,
@@ -126,13 +126,8 @@ def main(args):
             ) as f:
                 nlpsolver_bin_miqp = pickle.load(f)
         else:
-            nlpsolver_bin_miqp = NLPSolverBin(
-                timing=timing,
-                ambient=ambient,
-                previous_solver=binapprox_miqp,
-                predictor=predictor,
-                solver_name=f"nlpsolver_bin_miqp_{args.weight}_{args.strategy}_iter_{n_iter}",
-            )
+            nlpsolver_bin_miqp = nlpsolver_rel
+            nlpsolver_rel.update(binapprox_miqp)
             nlpsolver_bin_miqp.solve()
 
         if STORE_RESULTS:

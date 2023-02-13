@@ -409,10 +409,12 @@ class System(object):
         Qdot_ac_lt = (
             iota_qdot(ca.veccat(T_amb + self.p["dT_rc"], T_hts[0], T_lts)) * 1e3
         )
+        # Better would be to limit COP_ac!
         COP_ac = iota_cop(ca.veccat(T_amb + self.p["dT_rc"], T_hts[0], T_lts))
 
+        # TODO: Possible error
         T_ac_ht = T_hts[0] - (
-            (Qdot_ac_lt / COP_ac) / (self.p["mdot_ac_ht"] * self.p["c_w"])
+            (Qdot_ac_lt) / ca.fmax(COP_ac, 1e-6) / (self.p["mdot_ac_ht"] * self.p["c_w"])
         )
         T_ac_lt = T_lts - (Qdot_ac_lt / (self.p["mdot_ac_lt"] * self.p["c_w"]))
 
@@ -433,6 +435,7 @@ class System(object):
 
         mdot_ssc = self.p["mdot_ssc_max"] * v_pssc
 
+        # Parameter hts:
         m_hts = (self.p["V_hts"] * self.p["rho_w"]) / T_hts.numel()
 
         mdot_hts_t_s = mdot_ssc - b_ac * self.p["mdot_ac_ht"]

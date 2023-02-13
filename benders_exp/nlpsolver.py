@@ -7,9 +7,9 @@ import pytz
 import numpy as np
 import casadi as ca
 
-from system import System
 from benders_exp.nlpsetup import NLPSetupMPC
-from benders_exp.defines improt _PATH_TO_NLP_OBJECT
+from benders_exp.defines import _PATH_TO_NLP_OBJECT, NLP_OPTIONS_GENERAL, \
+        _NLP_OBJECT_FILENAME
 
 from abc import ABCMeta, abstractmethod
 
@@ -172,21 +172,10 @@ class NLPSolverMPCBaseClass(NLPSetupMPC, metaclass=ABCMeta):
     def _setup_general_solver_options(self):
 
         self._nlpsolver_options = {}
-
-        self._nlpsolver_options["ipopt.linear_solver"] = "ma57"
-
-        self._nlpsolver_options["ipopt.mumps_mem_percent"] = 10000
-        self._nlpsolver_options["ipopt.mumps_pivtol"] = 0.001
-
-        self._nlpsolver_options["ipopt.print_level"] = 5
-
         self._nlpsolver_options["ipopt.output_file"] = os.path.join(
             self._LOGFILE_LOCATION, self._solver_name + ".log"
         )
-        self._nlpsolver_options["ipopt.file_print_level"] = 5
-
-        self._nlpsolver_options["ipopt.max_cpu_time"] = 3600.0
-        self._nlpsolver_options["ipopt.max_iter"] = 600000
+        self._nlpsolver_options.update(NLP_OPTIONS_GENERAL)
 
     @abstractmethod
     def _setup_additional_nlpsolver_options(self):
@@ -233,7 +222,7 @@ class NLPSolverMPCBaseClass(NLPSetupMPC, metaclass=ABCMeta):
     def _setup_nlpsolver(self):
 
         path_to_nlp_object = os.path.join(
-            _PATH_TO_NLP_OBJECT, self._NLP_OBJECT_FILENAME
+            _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
         )
 
         self._nlpsolver = ca.nlpsol(
@@ -691,6 +680,7 @@ class NLPSolverBin(NLPSolverMPCBaseClass):
 
         self._reset_binary_control_bounds()
         self._set_nlpsolver_bounds_and_initials()
+
 
 
 class NLPSolverRel(NLPSolverMPCBaseClass):
