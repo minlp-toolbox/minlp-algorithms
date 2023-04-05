@@ -78,7 +78,7 @@ def main():
     )
     predictor.solve(n_steps=0)
 
-    logger.info("Sim ulator setup.")
+    logger.info("Simulator setup.")
     # simulator.b_data
     nlpsolver_rel = NLPSolverBin(
         timing=timing,

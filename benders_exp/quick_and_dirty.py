@@ -25,22 +25,22 @@ WITH_JIT = False
 WITH_LOGGING = True
 WITH_PLOT = False
 CASADI_VAR = ca.MX
-IPOPT_SETTINGS = {
-    # "ipopt.tol": 1e-2,
-    # "ipopt.dual_inf_tol": 2,
-    # "ipopt.constr_viol_tol": 1e-3,
-    # "ipopt.compl_inf_tol": 1e-3,
+IPOPT_SETTINGS = { # First settings for dummy experiments, second part for thermal control problem
+    "ipopt.tol": 1e-2,
+    "ipopt.dual_inf_tol": 2,
+    "ipopt.constr_viol_tol": 1e-3,
+    "ipopt.compl_inf_tol": 1e-3,
     "ipopt.linear_solver": "ma27",
-    "ipopt.max_cpu_time": 3600.0,
-    "ipopt.max_iter": 6000,
-    "ipopt.acceptable_tol": 0.2,
-    "ipopt.acceptable_iter": 8,
-    "ipopt.acceptable_constr_viol_tol": 10.0,
-    "ipopt.acceptable_dual_inf_tol": 10.0,
-    "ipopt.acceptable_compl_inf_tol": 10.0,
-    "ipopt.acceptable_obj_change_tol": 1e-1,
-    "ipopt.mu_strategy": "adaptive",
-    "ipopt.mu_target": 1e-4,
+    # "ipopt.max_cpu_time": 3600.0,
+    # "ipopt.max_iter": 6000,
+    # "ipopt.acceptable_tol": 0.2,
+    # "ipopt.acceptable_iter": 8,
+    # "ipopt.acceptable_constr_viol_tol": 10.0,
+    # "ipopt.acceptable_dual_inf_tol": 10.0,
+    # "ipopt.acceptable_compl_inf_tol": 10.0,
+    # "ipopt.acceptable_obj_change_tol": 1e-1,
+    # "ipopt.mu_strategy": "adaptive",
+    # "ipopt.mu_target": 1e-4,
     "ipopt.print_level": 1,
 }
 
@@ -229,7 +229,10 @@ def extract():
 
 
 def create_dummy_problem(p_val=[1000, 3]):
-    """Create a dummy problem."""
+    """
+        Create a dummy problem.
+        This problem corresponds to the tutorial example in the GN-Voronoi paper.
+    """
     x = CASADI_VAR.sym("x", 3)
     x0 = np.array([0, 4, 100])
     idx_x_bin = [0, 1]
@@ -480,7 +483,7 @@ class BendersMasterMILP(SolverClass):
         self.stats["milp_benders.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["milp_benders.iter"] += stats["iter_count"]
+        self.stats["milp_benders.iter"] += -stats["iter_count"]
         return nlpdata
 
 
@@ -488,7 +491,7 @@ class BendersConstraintMILP(BendersMasterMILP):
     """
     Create benders constraint MILP.
 
-    By an idea of Moritz D. and Andrea R.
+    By an idea of Moritz D. and Andrea G.
     Given the ordered sequence of integer solutions:
         Y := {y1, y2, ..., yN}
     such that J(y1) >= J(y2) >= ... >= J(yN) we define the
