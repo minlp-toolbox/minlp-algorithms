@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import datetime as dt
 from typing import List, Dict, Any, Optional
 import numpy as np
+from abc import ABC, abstractmethod
 
 from benders_exp.nlpsolver import NLPSolverRel  # NLPSolverBin
 from benders_exp.ambient import Ambient
@@ -283,7 +284,7 @@ def make_bounded(problem: MinlpProblem, new_inf=1e5):
     problem.ubg[problem.ubg > 1e9] = 1e9
 
 
-class SolverClass:
+class SolverClass(ABC):
     """Create solver class."""
 
     def __init___(self, problem: MinlpProblem, stats: Stats, options=None):
@@ -291,6 +292,7 @@ class SolverClass:
         self.stats = stats
         self.solver = None
 
+    @abstractmethod
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve the problem."""
 
@@ -360,7 +362,7 @@ class NlpSolver(SolverClass):
         self.stats["nlp.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["nlp.iter"] += stats["iter_count"]
+        self.stats["nlp.iter"] += -stats["iter_count"]
         if not nlpdata.solved:
             print("NLP not solved")
         else:
@@ -542,15 +544,15 @@ class BendersConstraintMILP(BendersMasterMILP):
 
         # If the upper bound improved, decrease it:
         if integer and prev_feasible:
-            print(f"NEW BOUND {self.y_N_val}")
             self.y_N_val = min(self.y_N_val, nlpdata.obj_val)
+            print(f"NEW BOUND {self.y_N_val}")
 
         f_lin = self.grad_f_x_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         g_lin = self.g(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         jac_g = self.jac_g_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
 
         # TODO: When linearizing the bounds, remember they are two sided!
-        # we need to tkae the other bounds into account as well
+        # we need to take the other bounds into account as well
         self.solver = ca.qpsol(f"benders_constraint{self.nr_g}", "gurobi", {
             "f": f_lin.T @ self._x,
             "g": ca.vertcat(
@@ -580,7 +582,7 @@ class BendersConstraintMILP(BendersMasterMILP):
         self.stats["milp_bconstraint.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["milp_bconstraint.iter"] += stats["iter_count"]
+        self.stats["milp_bconstraint.iter"] += -stats["iter_count"]
         return nlpdata
 
 
@@ -643,7 +645,7 @@ class FeasibilityNLP(SolverClass):
         self.stats["fnlp.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["fnlp.iter"] += stats["iter_count"]
+        self.stats["fnlp.iter"] += -stats["iter_count"]
         if not nlpdata.solved:
             print("MILP not solved")
         return nlpdata
