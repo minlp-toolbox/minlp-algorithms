@@ -246,7 +246,8 @@ def create_dummy_problem(p_val=[1000, 3]):
     ubg = np.array([ca.inf, ca.inf])
     lbg = np.array([0, 0])
     lbx = -1e3 * np.ones((3,))
-    ubx = np.array([ca.inf, ca.inf, ca.inf])
+    ubx = 1e3 * np.ones((3,))
+    # ubx = np.array([ca.inf, ca.inf, ca.inf])
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
@@ -362,7 +363,7 @@ class NlpSolver(SolverClass):
         self.stats["nlp.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["nlp.iter"] += stats["iter_count"]
+        self.stats["nlp.iter"] += max(0, stats["iter_count"])
         if not nlpdata.solved:
             print("NLP not solved")
         else:
@@ -485,7 +486,7 @@ class BendersMasterMILP(SolverClass):
         self.stats["milp_benders.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["milp_benders.iter"] += stats["iter_count"]
+        self.stats["milp_benders.iter"] += max(0, stats["iter_count"])
         return nlpdata
 
 
@@ -529,6 +530,8 @@ class BendersConstraintMILP(BendersMasterMILP):
             [ca.jacobian(problem.g, problem.x)],
             {"jit": WITH_JIT}
         )
+        self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [ca.hessian(problem.f, problem.x)[0]])
+
         self._x = CASADI_VAR.sym("x", self.nr_x_orig)
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
 
@@ -537,11 +540,8 @@ class BendersConstraintMILP(BendersMasterMILP):
         # Create a new cut
         x_sol = nlpdata.x_sol[:self.nr_x_orig]
         g_k = self._generate_cut_equation(
-            self._x, x_sol, x_sol, nlpdata.lam_g_sol, nlpdata.p, prev_feasible
+            self._x[self.idx_x_bin], x_sol, x_sol[self.idx_x_bin], nlpdata.lam_g_sol, nlpdata.p, prev_feasible
         )
-        self._g = ca.vertcat(self._g, g_k)
-        self.nr_g += 1
-
         # If the upper bound improved, decrease it:
         if integer and prev_feasible:
             self.y_N_val = min(self.y_N_val, nlpdata.obj_val)
@@ -550,10 +550,12 @@ class BendersConstraintMILP(BendersMasterMILP):
         f_lin = self.grad_f_x_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         g_lin = self.g(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         jac_g = self.jac_g_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
+        f_hess = self.f_hess(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
 
         # TODO: When linearizing the bounds, remember they are two sided!
         # we need to take the other bounds into account as well
         self.solver = ca.qpsol(f"benders_constraint{self.nr_g}", "gurobi", {
+            # "f": f_lin.T @ self._x + 0.5 * self._x.T @ f_hess @ self._x, #TODO: add a flag to solve the qp
             "f": f_lin.T @ self._x,
             "g": ca.vertcat(
                 g_lin + jac_g @ self._x,  # TODO: Check sign error?
@@ -570,8 +572,9 @@ class BendersConstraintMILP(BendersMasterMILP):
                 -ca.inf * np.ones(self.nr_g)
             ),
             ubg=ca.vertcat(
-                ca.inf * np.ones(self.nr_g_orig),
+                # ca.inf * np.ones(self.nr_g_orig),
                 #TODO: NEED TO TAKE INTO ACCOUNT: nlpdata.ubg,
+                nlpdata.ubg, #TODO: verify correctness
                 np.zeros(self.nr_g)
             ),
             p=[self.y_N_val]
@@ -582,7 +585,9 @@ class BendersConstraintMILP(BendersMasterMILP):
         self.stats["milp_bconstraint.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["milp_bconstraint.iter"] += stats["iter_count"]
+        self.stats["milp_bconstraint.iter"] += max(0, stats["iter_count"])
+        self._g = ca.vertcat(self._g, g_k)
+        self.nr_g += 1
         return nlpdata
 
 
@@ -645,7 +650,7 @@ class FeasibilityNLP(SolverClass):
         self.stats["fnlp.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["fnlp.iter"] += stats["iter_count"]
+        self.stats["fnlp.iter"] += max(0, stats["iter_count"])
         if not nlpdata.solved:
             print("MILP not solved")
         return nlpdata
@@ -724,11 +729,11 @@ def idea_algorithm(problem, data, stats, is_orig=False):
     ub = ca.inf
     tolerance = 0.04
     feasible = True
-    data = nlp.solve(data)
+    data = nlp.solve(data, set_x_bin=True) #TODO: setting x_bin to start the algorithm with a integer solution, no guarantees about its feasibility!
     x_bar = data.x_sol
     x_star = x_bar
-    prev_feasible = True
-    is_integer = False
+    prev_feasible = True #TODO: check feasibility of nlp.solve(...)
+    is_integer = True
     while lb + tolerance < ub and feasible:
         toc()
         # Solve MILP-BENDERS and set lower bound:
