@@ -362,7 +362,7 @@ class NlpSolver(SolverClass):
         self.stats["nlp.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["nlp.iter"] += -stats["iter_count"]
+        self.stats["nlp.iter"] += stats["iter_count"]
         if not nlpdata.solved:
             print("NLP not solved")
         else:
@@ -378,14 +378,14 @@ class BendersMasterMILP(SolverClass):
         super(BendersMasterMILP, self).__init___(problem, stats)
         self.setup_common(problem, options)
 
-        self.grad_f_x_sub = ca.Function(
+        self.grad_f_x_sub_bin = ca.Function(
             "gradient_f_x_bin",
             [problem.x, problem.p], [ca.gradient(
                 problem.f, problem.x
             )[problem.idx_x_bin]],
             {"jit": WITH_JIT}
         )
-        self.jac_g_sub = ca.Function(
+        self.jac_g_sub_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
             {"jit": WITH_JIT}
@@ -435,8 +435,8 @@ class BendersMasterMILP(SolverClass):
         :return: g_k the new cutting plane (should be > 0)
         """
         if prev_feasible:
-            grad_f_k = self.grad_f_x_sub(x_sol, p)
-            jac_g_k = self.jac_g_sub(x_sol, p)
+            grad_f_k = self.grad_f_x_sub_bin(x_sol, p)
+            jac_g_k = self.jac_g_sub_bin(x_sol, p)
             lambda_k = grad_f_k - jac_g_k.T @ - lam_g
             f_k = self.f(x_sol, p)
             g_k = (
@@ -445,7 +445,7 @@ class BendersMasterMILP(SolverClass):
             )
         else:  # Not feasible solution
             h_k = self.g(x_sol, p)
-            jac_h_k = self.jac_g_sub(x_sol, p)
+            jac_h_k = self.jac_g_sub_bin(x_sol, p)
             lam_g = lam_g[:self.nr_g_orig] - lam_g[self.nr_g_orig:]
             g_k = lam_g.T @ (h_k + jac_h_k @ (x - x_sol_sub_set))
 
@@ -485,7 +485,7 @@ class BendersMasterMILP(SolverClass):
         self.stats["milp_benders.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["milp_benders.iter"] += -stats["iter_count"]
+        self.stats["milp_benders.iter"] += stats["iter_count"]
         return nlpdata
 
 
@@ -498,12 +498,12 @@ class BendersConstraintMILP(BendersMasterMILP):
         Y := {y1, y2, ..., yN}
     such that J(y1) >= J(y2) >= ... >= J(yN) we define the
     benders polyhedral B := {y in R^n_y:
-        J(y_i) + Nabla J(yi) T (y - yi) <= J(y_N),
+        J(y_i) + Nabla J(y_i)^T (y - y_i) <= J(y_N),
         forall i = 1,...,N-1
     }
 
-    This milp solves:
-        min F(y,z| y_bar, z_bar)
+    This MILP solves:
+        min F(y, z | y_bar, z_bar)
         s.t ub >= H_L(y,z| y_bar, z_bar) >= lb
         with y in B
 
@@ -571,7 +571,7 @@ class BendersConstraintMILP(BendersMasterMILP):
             ),
             ubg=ca.vertcat(
                 ca.inf * np.ones(self.nr_g_orig),
-                # NEED TO TAKE INTO ACCOUNT: nlpdata.ubg,
+                #TODO: NEED TO TAKE INTO ACCOUNT: nlpdata.ubg,
                 np.zeros(self.nr_g)
             ),
             p=[self.y_N_val]
@@ -582,7 +582,7 @@ class BendersConstraintMILP(BendersMasterMILP):
         self.stats["milp_bconstraint.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["milp_bconstraint.iter"] += -stats["iter_count"]
+        self.stats["milp_bconstraint.iter"] += stats["iter_count"]
         return nlpdata
 
 
@@ -645,7 +645,7 @@ class FeasibilityNLP(SolverClass):
         self.stats["fnlp.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["fnlp.iter"] += -stats["iter_count"]
+        self.stats["fnlp.iter"] += stats["iter_count"]
         if not nlpdata.solved:
             print("MILP not solved")
         return nlpdata
