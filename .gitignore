@@ -1,7 +1,10 @@
-__pycache__/
+*/__pycache__/
 .src/
 .lib/
 *.egg-info/
+.DS_Store
+.python-version
+.vscode/
 
 # Ignore results
 results/*
