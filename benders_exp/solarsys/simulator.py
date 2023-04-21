@@ -4,10 +4,9 @@ import datetime as dt
 import numpy as np
 import casadi as ca
 
-from system import System
-
 import logging
 from benders_exp.solarsys.defines import _PATH_TO_ODE_OBJECT
+from benders_exp.solarsys.system import System
 
 logger = logging.getLogger(__name__)
 

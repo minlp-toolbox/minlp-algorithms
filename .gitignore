@@ -1,4 +1,4 @@
-*/__pycache__/
+__pycache__/
 .src/
 .lib/
 *.egg-info/
@@ -9,3 +9,4 @@
 # Ignore results
 results/*
 jit_tmp*
+

@@ -4,11 +4,10 @@ import os
 import numpy as np
 import pandas as pd
 import datetime as dt
-
-from system import System
-
 from abc import ABCMeta, abstractmethod
-from benders_exp.solarsys.defines import _DATA_FOLDER
+
+from benders_exp.defines import _DATA_FOLDER
+from benders_exp.solarsys.system import System
 
 import logging
 
