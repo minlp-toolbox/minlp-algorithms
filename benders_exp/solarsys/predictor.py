@@ -3,7 +3,7 @@
 import numpy as np
 import casadi as ca
 
-from system import System
+from benders_exp.solarsys.system import System
 
 import logging
 

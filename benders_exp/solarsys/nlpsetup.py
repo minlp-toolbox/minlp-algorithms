@@ -4,10 +4,10 @@ import os
 import numpy as np
 import casadi as ca
 import subprocess
-from benders_exp.defines import _PATH_TO_NLP_SOURCE, _PATH_TO_NLP_OBJECT, \
+from benders_exp.solarsys.defines import _PATH_TO_NLP_SOURCE, _PATH_TO_NLP_OBJECT, \
         _NLP_SOURCE_FILENAME, _NLP_OBJECT_FILENAME
 
-from benders_exp.system import System
+from benders_exp.solarsys.system import System
 
 import logging
 

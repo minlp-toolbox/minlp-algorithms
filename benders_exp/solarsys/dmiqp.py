@@ -13,8 +13,8 @@ import gurobipy as gp
 
 import logging
 
-from benders_exp.voronoi import Voronoi
-from benders_exp.defines import _PATH_TO_NLP_OBJECT
+from benders_exp.solarsys.voronoi import Voronoi
+from benders_exp.solarsys.defines import _PATH_TO_NLP_OBJECT
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

@@ -4,7 +4,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from system import System
+from benders_exp.solarsys.system import System
 
 logger = logging.getLogger(__name__)
 

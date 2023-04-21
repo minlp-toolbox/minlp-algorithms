@@ -7,7 +7,7 @@ import casadi as ca
 from system import System
 
 import logging
-from benders_exp.defines import _PATH_TO_ODE_OBJECT
+from benders_exp.solarsys.defines import _PATH_TO_ODE_OBJECT
 
 logger = logging.getLogger(__name__)
 

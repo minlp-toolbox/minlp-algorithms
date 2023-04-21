@@ -3,8 +3,8 @@ import numpy as np
 import casadi as ca
 import scipy.sparse as ssp
 
-from benders_exp.nlpsolver import NLPSolverMPCBaseClass
-from benders_exp.dmiqp import DMiqp
+from benders_exp.solarsys.nlpsolver import NLPSolverMPCBaseClass
+from benders_exp.solarsys.dmiqp import DMiqp
 
 CASADI_CONTINOUS = 0
 CASADI_BINARY = 1

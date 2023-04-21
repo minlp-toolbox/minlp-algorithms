@@ -5,11 +5,11 @@ import time
 import datetime as dt
 import numpy as np
 import casadi as ca
-from benders_exp import dmiqp
+from benders_exp.solarsys import dmiqp
 
-from benders_exp.nlpsetup import NLPSetupMPC
-from benders_exp.voronoi import Voronoi
-from benders_exp.casadisolver import BendersMILP
+from benders_exp.solarsys.nlpsetup import NLPSetupMPC
+from benders_exp.solarsys.voronoi import Voronoi
+from benders_exp.solarsys.casadisolver import BendersMILP
 
 import logging
 

@@ -3,9 +3,9 @@
 import copy
 import numpy as np
 
-from nlpsolver import NLPSolverBin
-from system import System
-from timing import TimingMPC
+from benders_exp.solarsys.nlpsolver import NLPSolverBin
+from benders_exp.solarsys.system import System
+from benders_exp.solarsys.timing import TimingMPC
 
 import logging
 

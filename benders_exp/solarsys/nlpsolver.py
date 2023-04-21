@@ -7,8 +7,8 @@ import pytz
 import numpy as np
 import casadi as ca
 
-from benders_exp.nlpsetup import NLPSetupMPC
-from benders_exp.defines import _PATH_TO_NLP_OBJECT, NLP_OPTIONS_GENERAL, \
+from benders_exp.solarsys.nlpsetup import NLPSetupMPC
+from benders_exp.solarsys.defines import _PATH_TO_NLP_OBJECT, NLP_OPTIONS_GENERAL, \
         _NLP_OBJECT_FILENAME
 
 from abc import ABCMeta, abstractmethod

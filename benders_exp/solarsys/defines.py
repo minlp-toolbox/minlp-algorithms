@@ -2,7 +2,7 @@
 
 from os import path
 
-SOURCE_FOLDER = path.dirname(path.abspath(__file__))
+SOURCE_FOLDER = path.join(path.dirname(path.abspath(__file__)), "..")
 
 PICKLE_FOLDER = path.join(SOURCE_FOLDER, "../results/voronoi")
 

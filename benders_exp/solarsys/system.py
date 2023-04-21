@@ -6,7 +6,7 @@ import casadi as ca
 import subprocess
 
 from collections import OrderedDict
-from benders_exp.defines import _PATH_TO_ODE_FILE
+from benders_exp.solarsys.defines import _PATH_TO_ODE_FILE
 
 import logging
 

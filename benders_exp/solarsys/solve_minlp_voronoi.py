@@ -6,14 +6,14 @@ import logging
 import os
 import pickle
 
-from benders_exp.ambient import Ambient
-from benders_exp.binapprox import BinaryApproximation
-from benders_exp.predictor import Predictor
-from benders_exp.simulator import Simulator
-from benders_exp.state import State
-from benders_exp.timing import TimingMPC
-from benders_exp.voronoi import Voronoi
-from benders_exp.casadisolver import NLPSolverBin2
+from benders_exp.solarsys.ambient import Ambient
+from benders_exp.solarsys.binapprox import BinaryApproximation
+from benders_exp.solarsys.predictor import Predictor
+from benders_exp.solarsys.simulator import Simulator
+from benders_exp.solarsys.state import State
+from benders_exp.solarsys.timing import TimingMPC
+from benders_exp.solarsys.voronoi import Voronoi
+from benders_exp.solarsys.casadisolver import NLPSolverBin2
 
 
 def main(args):

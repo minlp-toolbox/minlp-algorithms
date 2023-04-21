@@ -6,7 +6,7 @@ import datetime as dt
 import time
 import pytz
 
-from system import System
+from benders_exp.solarsys.system import System
 
 from abc import ABCMeta, abstractmethod
 
