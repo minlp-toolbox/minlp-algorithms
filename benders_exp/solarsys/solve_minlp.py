@@ -4,8 +4,7 @@ import os
 import datetime as dt
 import pickle
 
-import logging
-from benders_exp.solarsys.utils import setup_logger
+from benders_exp.utils import setup_logger
 from benders_exp.solarsys.timing import TimingMPC
 from benders_exp.solarsys.state import State
 from benders_exp.solarsys.ambient import Ambient

@@ -1,54 +1,30 @@
 """Quick and dirty implementation."""
 
-from os import path
 import matplotlib.pyplot as plt
 from sys import argv
 from copy import deepcopy
 from dataclasses import dataclass
-import datetime as dt
-from typing import List, Dict, Any, Optional
+from typing import Dict
 import numpy as np
 from abc import ABC, abstractmethod
 
-from benders_exp.solarsys.nlpsolver import NLPSolverRel  # NLPSolverBin
-from benders_exp.solarsys.ambient import Ambient
-from benders_exp.solarsys.defines import _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
-from benders_exp.solarsys.nlpsetup import NLPSetupMPC
-from benders_exp.solarsys.predictor import Predictor
-from benders_exp.solarsys.simulator import Simulator
-from benders_exp.solarsys.state import State
-from benders_exp.solarsys.timing import TimingMPC
 import casadi as ca
 from benders_exp.utils import tic, toc  # , DebugCallBack
-
-
-WITH_JIT = False
-WITH_LOGGING = True
-WITH_PLOT = False
-CASADI_VAR = ca.MX
-IPOPT_SETTINGS = { # First settings for dummy experiments, second part for thermal control problem
-    "ipopt.tol": 1e-2,
-    "ipopt.dual_inf_tol": 2,
-    "ipopt.constr_viol_tol": 1e-3,
-    "ipopt.compl_inf_tol": 1e-3,
-    "ipopt.linear_solver": "ma27",
-    # "ipopt.max_cpu_time": 3600.0,
-    # "ipopt.max_iter": 6000,
-    # "ipopt.acceptable_tol": 0.2,
-    # "ipopt.acceptable_iter": 8,
-    # "ipopt.acceptable_constr_viol_tol": 10.0,
-    # "ipopt.acceptable_dual_inf_tol": 10.0,
-    # "ipopt.acceptable_compl_inf_tol": 10.0,
-    # "ipopt.acceptable_obj_change_tol": 1e-1,
-    # "ipopt.mu_strategy": "adaptive",
-    # "ipopt.mu_target": 1e-4,
-    "ipopt.print_level": 1,
-}
-
+from benders_exp.defines import WITH_JIT, WITH_LOGGING, WITH_PLOT, CASADI_VAR, IPOPT_SETTINGS
+from benders_exp.problems import MinlpProblem, MinlpData
+from benders_exp.solarsys import extract
 
 if WITH_PLOT:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+
+
+def to_0d(array):
+    """To zero dimensions."""
+    if isinstance(array, np.ndarray):
+        return array.squeeze()
+    else:
+        return array.full().squeeze()
 
 
 @dataclass
@@ -74,17 +50,6 @@ class Stats:
             print(f"\t{k}: {v}")
 
 
-@dataclass
-class MinlpProblem:
-    """Minlp problem description."""
-
-    f: CASADI_VAR
-    g: CASADI_VAR
-    x: CASADI_VAR
-    p: CASADI_VAR
-    idx_x_bin: List[float]
-
-
 def visualize_cut(g_k, x_bin, nu):
     """Visualize cut."""
     xx, yy = np.meshgrid(range(10), range(10))
@@ -99,140 +64,11 @@ def visualize_cut(g_k, x_bin, nu):
     plt.pause(1)
 
 
-@dataclass
-class MinlpData:
-    """Nlp data."""
-
-    p: List[float]
-    x0: ca.DM
-    _lbx: ca.DM
-    _ubx: ca.DM
-    _lbg: ca.DM
-    _ubg: ca.DM
-    solved: bool
-    prev_solution: Optional[Dict[str, Any]] = None
-
-    @property
-    def _sol(self):
-        """Get safely previous solution."""
-        if self.prev_solution is not None:
-            return self.prev_solution
-        else:
-            return {"f": -ca.inf, "x": ca.DM(self.x0)}
-
-    @property
-    def obj_val(self):
-        """Get float value."""
-        return float(self._sol['f'])
-
-    @property
-    def x_sol(self):
-        """Get x solution."""
-        return self._sol['x']
-
-    @property
-    def lam_g_sol(self):
-        """Get lambda g solution."""
-        return self._sol['lam_g']
-
-    @property
-    def lam_x_sol(self):
-        """Get lambda g solution."""
-        return self._sol['lam_x']
-
-    @property
-    def lbx(self):
-        """Get lbx."""
-        return deepcopy(self._lbx)
-
-    @property
-    def ubx(self):
-        """Get ubx."""
-        return deepcopy(self._ubx)
-
-    @property
-    def lbg(self):
-        """Get lbx."""
-        return deepcopy(self._lbg)
-
-    @property
-    def ubg(self):
-        """Get ubx."""
-        return deepcopy(self._ubg)
-
-
-def to_0d(array):
-    """To zero dimensions."""
-    if isinstance(array, np.ndarray):
-        return array.squeeze()
-    else:
-        return array.full().squeeze()
-
-
-def extract():
-    """Extract original problem."""
-    startup_time = dt.datetime.fromisoformat("2010-08-19 06:00:00+02:00")
-    timing = TimingMPC(startup_time=startup_time)
-
-    ambient = Ambient(timing=timing)
-    ambient.update()
-
-    state = State()
-    state.initialize()
-
-    simulator = Simulator(timing=timing, ambient=ambient, state=state)
-    simulator.solve()
-
-    predictor = Predictor(
-        timing=timing,
-        ambient=ambient,
-        state=state,
-        previous_solver=simulator,
-        solver_name="predictor",
-    )
-    predictor.solve(n_steps=0)
-
-    # simulator.b_data
-    nlpsolver_rel = NLPSolverRel(
-        timing=timing,
-        ambient=ambient,
-        previous_solver=simulator,
-        predictor=predictor,
-        solver_name="nlpsolver_rel",
-    )
-
-    nlpsetup_mpc = NLPSetupMPC(timing=timing)
-    nlpsetup_mpc._setup_nlp(True)
-
-    binary_values = []
-    binary_values.extend(nlpsetup_mpc.idx_b)
-    # binary_values.extend(nlpsetup_mpc.idx_sb)
-    # binary_values.extend(nlpsetup_mpc.idx_sb)
-    # binary_values.extend(nlpsetup_mpc.idx_sb_red)
-
-    nlpsolver_rel._store_previous_binary_solution()
-    nlpsolver_rel._setup_nlpsolver()
-    nlpsolver_rel._set_states_bounds()
-    nlpsolver_rel._set_continuous_control_bounds()
-    nlpsolver_rel._set_binary_control_bounds()
-    nlpsolver_rel._set_nlpsolver_bounds_and_initials()
-
-    nlp_args = nlpsolver_rel._nlpsolver_args
-    problem = MinlpProblem(**nlpsetup_mpc.nlp, idx_x_bin=binary_values)
-    data = MinlpData(x0=nlp_args['x0'],
-                     _lbx=nlp_args['lbx'],
-                     _ubx=nlp_args['ubx'],
-                     _lbg=nlp_args['lbg'],
-                     _ubg=nlp_args['ubg'],
-                     p=nlp_args['p'], solved=True)
-
-    return problem, data
-
-
 def create_dummy_problem(p_val=[1000, 3]):
     """
-        Create a dummy problem.
-        This problem corresponds to the tutorial example in the GN-Voronoi paper.
+    Create a dummy problem.
+
+    This problem corresponds to the tutorial example in the GN-Voronoi paper.
     """
     x = CASADI_VAR.sym("x", 3)
     x0 = np.array([0, 4, 100])
@@ -311,7 +147,7 @@ class NlpSolver(SolverClass):
     the binaries are fixed.
     """
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None, is_orig=False):
+    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
         """Create NLP problem."""
         super(NlpSolver, self).__init___(problem, stats)
         if options is None:
@@ -329,14 +165,10 @@ class NlpSolver(SolverClass):
         # )
         # self.callback.add_to_solver_opts(options, 50)
 
-        if is_orig:
+        if problem.precompiled_nlp is not None:
             # TODO: Clutter!
-            path_to_nlp_object = path.join(
-                _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
-            )
-
             self.solver = ca.nlpsol(
-                "nlp", "ipopt", path_to_nlp_object, options
+                "nlp", "ipopt", problem.precompiled_nlp, options
             )
         else:
             options.update({"jit": WITH_JIT})
@@ -550,7 +382,7 @@ class BendersConstraintMILP(BendersMasterMILP):
         f_lin = self.grad_f_x_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         g_lin = self.g(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         jac_g = self.jac_g_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
-        f_hess = self.f_hess(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
+        # f_hess = self.f_hess(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
 
         # TODO: When linearizing the bounds, remember they are two sided!
         # we need to take the other bounds into account as well
@@ -573,8 +405,8 @@ class BendersConstraintMILP(BendersMasterMILP):
             ),
             ubg=ca.vertcat(
                 # ca.inf * np.ones(self.nr_g_orig),
-                #TODO: NEED TO TAKE INTO ACCOUNT: nlpdata.ubg,
-                nlpdata.ubg, #TODO: verify correctness
+                # TODO: NEED TO TAKE INTO ACCOUNT: nlpdata.ubg,
+                nlpdata.ubg,  # TODO: verify correctness
                 np.zeros(self.nr_g)
             ),
             p=[self.y_N_val]
@@ -656,12 +488,12 @@ class FeasibilityNLP(SolverClass):
         return nlpdata
 
 
-def benders_algorithm(problem, data, stats, is_orig=False):
+def benders_algorithm(problem, data, stats, ):
     """Create benders algorithm."""
     tic()
     toc()
     print("Setup NLP solver...")
-    nlp = NlpSolver(problem, stats, is_orig=is_orig)
+    nlp = NlpSolver(problem, stats, )
     toc()
     print("Setup FNLP solver...")
     fnlp = FeasibilityNLP(problem, stats)
@@ -709,12 +541,12 @@ def benders_algorithm(problem, data, stats, is_orig=False):
     return data, x_star
 
 
-def idea_algorithm(problem, data, stats, is_orig=False):
+def idea_algorithm(problem, data, stats):
     """Create benders algorithm."""
     tic()
     toc()
     print("Setup NLP solver...")
-    nlp = NlpSolver(problem, stats, is_orig=is_orig)
+    nlp = NlpSolver(problem, stats)
     toc()
     print("Setup FNLP solver...")
     fnlp = FeasibilityNLP(problem, stats)
@@ -729,10 +561,12 @@ def idea_algorithm(problem, data, stats, is_orig=False):
     ub = ca.inf
     tolerance = 0.04
     feasible = True
-    data = nlp.solve(data, set_x_bin=True) #TODO: setting x_bin to start the algorithm with a integer solution, no guarantees about its feasibility!
+    # TODO: setting x_bin to start the algorithm with a integer solution,
+    # no guarantees about its feasibility!
+    data = nlp.solve(data, set_x_bin=True)
     x_bar = data.x_sol
     x_star = x_bar
-    prev_feasible = True #TODO: check feasibility of nlp.solve(...)
+    prev_feasible = True  # TODO: check feasibility of nlp.solve(...)
     is_integer = True
     while lb + tolerance < ub and feasible:
         toc()
@@ -779,6 +613,7 @@ if __name__ == "__main__":
         problem = "orig"
 
     new_inf = 1e3
+    print(problem)
     if problem == "dummy":
         problem, data = create_dummy_problem()
     elif problem == "dummy2":
@@ -794,7 +629,7 @@ if __name__ == "__main__":
     stats = Stats({})
     if mode == "benders":
         data, x_star = benders_algorithm(
-            problem, data, stats, is_orig=(problem == "orig")
+            problem, data, stats
         )
     elif mode == "idea":
         data, x_star = idea_algorithm(problem, data,  stats)
