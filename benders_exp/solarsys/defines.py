@@ -1,8 +1,6 @@
 """Defines."""
 
-from os import path
-
-SOURCE_FOLDER = path.join(path.dirname(path.abspath(__file__)), "..")
+from benders_exp.defines import path, SOURCE_FOLDER, _DATA_FOLDER  # noqa: F401
 
 PICKLE_FOLDER = path.join(SOURCE_FOLDER, "../results/voronoi")
 
@@ -14,8 +12,6 @@ _PATH_TO_ODE_FILE = _PATH_TO_ODE_OBJECT
 _NLP_SOURCE_FILENAME = "nlp_mpc.c"
 _NLP_OBJECT_FILENAME = "nlp_mpc.so"
 
-
-_DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 
 RESULTS_FOLDER = path.join(SOURCE_FOLDER, "../results/standard")
 
