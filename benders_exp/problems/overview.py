@@ -11,6 +11,7 @@ def create_dummy_problem(p_val=[1000, 3]):
     Create a dummy problem.
 
     This problem corresponds to the tutorial example in the GN-Voronoi paper.
+    (apart from the upper bound)
     """
     x = CASADI_VAR.sym("x", 3)
     x0 = np.array([0, 4, 100])
@@ -24,8 +25,7 @@ def create_dummy_problem(p_val=[1000, 3]):
     ubg = np.array([ca.inf, ca.inf])
     lbg = np.array([0, 0])
     lbx = -1e3 * np.ones((3,))
-    ubx = 1e3 * np.ones((3,))
-    # ubx = np.array([ca.inf, ca.inf, ca.inf])
+    ubx = np.array([ca.inf, ca.inf, ca.inf])
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
