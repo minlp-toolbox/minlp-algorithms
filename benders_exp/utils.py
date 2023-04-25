@@ -38,6 +38,14 @@ def toc(reset=False):
     return dt
 
 
+def to_0d(array):
+    """To zero dimensions."""
+    if isinstance(array, np.ndarray):
+        return array.squeeze()
+    else:
+        return array.full().squeeze()
+
+
 class DebugCallBack(ca.Callback):
     """
     Create a debug callback.
