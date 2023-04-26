@@ -78,3 +78,19 @@ class MinlpData:
     def ubg(self):
         """Get ubx."""
         return deepcopy(self._ubg)
+
+    @lbg.setter
+    def lbg(self, value):
+        self._lbg = value
+
+    @ubg.setter
+    def ubg(self, value):
+        self._ubg = value
+
+    @lbx.setter
+    def lbx(self, value):
+        self._lbx = value
+
+    @ubx.setter
+    def ubx(self, value):
+        self._ubx = value

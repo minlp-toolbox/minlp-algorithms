@@ -4,21 +4,31 @@ import matplotlib.pyplot as plt
 from sys import argv
 
 import casadi as ca
+import numpy as np
 from benders_exp.utils import tic, toc  # , DebugCallBack
 from benders_exp.defines import WITH_PLOT
 from benders_exp.problems.overview import PROBLEMS
-from benders_exp.problems import MinlpProblem
+from benders_exp.problems import MinlpData
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver
 from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP
 
 
-def make_bounded(problem: MinlpProblem, new_inf=1e5):
+def make_bounded(data: MinlpData, new_inf=1e5):
     """Make bounded."""
-    problem.lbx[problem.lbx < -new_inf] = -new_inf
-    problem.ubx[problem.ubx > new_inf] = new_inf
-    problem.lbg[problem.lbg < -1e9] = -1e9
-    problem.ubg[problem.ubg > 1e9] = 1e9
+    if any(data.lbx < -new_inf):
+        new_lbx = [-new_inf if elm else data.lbx[i] for i, elm in enumerate(data.lbx < -new_inf)]
+        data.lbx = np.array(new_lbx)
+    if any(data.ubx > new_inf):
+        new_ubx = [new_inf if elm else data.ubx[i] for i, elm in enumerate(data.ubx > new_inf)]
+        data.ubx = np.array(new_ubx)
+    if any(data.lbg < -1e9):
+        new_lbg = [-1e9 if elm else data.lbg[i] for i, elm in enumerate(data.lbg < -1e9)]
+        data.lbg = np.array(new_lbg)
+    if any(data.ubg > 1e9):
+        new_ubg = [1e9 if elm else data.ubg[i] for i, elm in enumerate(data.ubg > 1e9)]
+        data.ubg = np.array(new_ubg)
+
 
 
 def benders_algorithm(problem, data, stats, ):
@@ -133,7 +143,7 @@ if __name__ == "__main__":
     if len(argv) == 1:
         print("Usage: mode problem")
         print("Available modes are: benders, idea, ...")
-        print("Available problems are: dummy, dummy2, orig, ...")
+        print("Available problems are: dummy, dummy2, orig, doublepipe")
 
     if len(argv) > 1:
         mode = argv[1]
@@ -154,7 +164,7 @@ if __name__ == "__main__":
     else:
         raise Exception(f"No {problem=}")
 
-    # make_bounded(data, new_inf=new_inf)
+    make_bounded(data, new_inf=new_inf)
     print("Problem loaded")
     stats = Stats({})
     if mode == "benders":
