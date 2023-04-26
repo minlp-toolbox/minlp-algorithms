@@ -146,6 +146,76 @@ class BendersMasterMILP(SolverClass):
         plt.pause(1)
 
 
+class BendersMasterMIQP(BendersMasterMILP):
+    """MIQP implementation."""
+
+    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+        """Create the benders constraint MILP."""
+        super(BendersMasterMIQP, self).__init__(problem, stats, options)
+        self.setup_common(problem, options)
+        self.grad_f_x_sub_bin = ca.Function(
+            "gradient_f_x_bin",
+            [problem.x, problem.p], [ca.gradient(
+                problem.f, problem.x
+            )[problem.idx_x_bin]],
+            {"jit": WITH_JIT}
+        )
+        self.jac_g_sub_bin = ca.Function(
+            "jac_g_bin", [problem.x, problem.p],
+            [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
+            {"jit": WITH_JIT}
+        )
+        self.f_hess_bin = ca.Function(
+            "hess_f_x_bin",
+            [problem.x, problem.p], [ca.hessian(
+                problem.f, problem.x
+            )[0][problem.idx_x_bin, :][:, problem.idx_x_bin]],
+            {"jit": WITH_JIT}
+        )
+        self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
+
+    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
+        """solve."""
+        g_k = self._generate_cut_equation(
+            self._x, nlpdata.x_sol[:self.nr_x_orig], nlpdata.x_sol[self.idx_x_bin],
+            nlpdata.lam_g_sol, nlpdata.p, prev_feasible
+        )
+
+        f_hess = self.f_hess_bin(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
+        self._g = ca.vertcat(self._g, g_k)
+        self.nr_g += 1
+
+        self.solver = ca.qpsol(f"benders_qp{self.nr_g}", "gurobi", {
+            "f": self._nu + 0.5 * self._x.T @ f_hess @ self._x,
+            "g": self._g,
+            "x": ca.vertcat(self._x, self._nu),
+        }, self.options)
+
+        # This solver solves only to the binary variables (_x)!
+        solution = self.solver(
+            x0=ca.vertcat(nlpdata.x_sol[self.idx_x_bin], nlpdata.obj_val),
+            lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -1e5),
+            ubx=ca.vertcat(nlpdata.ubx[self.idx_x_bin], ca.inf),
+            lbg=-ca.inf * np.ones(self.nr_g),
+            ubg=np.zeros(self.nr_g)
+        )
+        obj = solution['x'][-1].full()
+        if obj > solution['f']:
+            breakpoint()
+        solution['f'] = obj
+
+        x_full = nlpdata.x_sol.full()[:self.nr_x_orig]
+        x_full[self.idx_x_bin] = solution['x'][:-1]
+        solution['x'] = x_full
+        nlpdata.prev_solution = solution
+        nlpdata.solved, stats = self.collect_stats()
+        self.stats["miqp_benders.time"] += sum(
+            [v for k, v in stats.items() if "t_proc" in k]
+        )
+        self.stats["miqp_benders.iter"] += max(0, stats["iter_count"])
+        return nlpdata
+
+
 class BendersConstraintMILP(BendersMasterMILP):
     """
     Create benders constraint MILP.

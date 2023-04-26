@@ -10,7 +10,7 @@ WITH_JIT = False
 WITH_LOGGING = True
 WITH_PLOT = False
 CASADI_VAR = ca.MX
-IPOPT_SETTINGS = {  # First settings for dummy experiments, second part for thermal control problem
+IPOPT_SETTINGS = {
     # "ipopt.tol": 1e-2,
     # "ipopt.dual_inf_tol": 2,
     # "ipopt.constr_viol_tol": 1e-3,

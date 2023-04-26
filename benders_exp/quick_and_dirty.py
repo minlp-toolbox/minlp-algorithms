@@ -11,7 +11,7 @@ from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver
-from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP
+from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP, BendersMasterMIQP
 
 
 def make_bounded(data: MinlpData, new_inf=1e5):
@@ -31,7 +31,7 @@ def make_bounded(data: MinlpData, new_inf=1e5):
 
 
 
-def benders_algorithm(problem, data, stats, ):
+def benders_algorithm(problem, data, stats, with_qp=False):
     """Create benders algorithm."""
     tic()
     toc()
@@ -42,9 +42,19 @@ def benders_algorithm(problem, data, stats, ):
     fnlp = FeasibilityNlpSolver(problem, stats)
     toc()
     print("Setup MILP solver...")
-    benders_milp = BendersMasterMILP(problem, stats)
-    t_load = toc()
+    if with_qp:
+        # This class provides an improved benders implementation
+        # where the hessian of the original function is used as stabelizer
+        # it is motivated by the approximation that benders make on the
+        # original function. Of course the lower bound can no longer
+        # be guaranteed, so care should be taken with this approach as it
+        # might only work in some circumstances!
+        benders_master = BendersMasterMIQP(problem, stats)
+    else:
+        # This class implements the original benders decomposition
+        benders_master = BendersMasterMILP(problem, stats)
 
+    t_load = toc()
     print("Solver initialized.")
     # Benders algorithm
     lb = -ca.inf
@@ -58,7 +68,7 @@ def benders_algorithm(problem, data, stats, ):
     while lb + tolerance < ub and feasible:
         toc()
         # Solve MILP-BENDERS and set lower bound:
-        data = benders_milp.solve(data, prev_feasible=prev_feasible)
+        data = benders_master.solve(data, prev_feasible=prev_feasible)
         feasible = data.solved
         lb = data.obj_val
         # x_hat = data.x_sol
@@ -170,6 +180,10 @@ if __name__ == "__main__":
     if mode == "benders":
         data, x_star = benders_algorithm(
             problem, data, stats
+        )
+    elif mode == "bendersqp":
+        data, x_star = benders_algorithm(
+            problem, data, stats, with_qp=True
         )
     elif mode == "idea":
         data, x_star = idea_algorithm(problem, data,  stats)
