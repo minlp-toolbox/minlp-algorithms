@@ -84,14 +84,95 @@ def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
     return problem, data
 
 
+def create_double_tank_problem(p_val=[2, 2.5]):
+    """
+        Implementation of the double tank problem
+        Taken from Abbasi et al. ECC 23, reimplemented to achieve nice sparsity pattern.
+    """
+
+    N = 300
+    T = 10
+    dt = T / N
+    alpha = 100
+    beta = np.array([[1., 1.1]])
+    gamma = 10
+    demand = np.array([2 + 0.5 * np.sin(x) for x in np.linspace(0, T, N+1)])[np.newaxis, :]
+
+    nx = 2
+    ns = 2
+    nq = 2
+    x_0 = CASADI_VAR.sym('x0', nx)
+    x = CASADI_VAR.sym('x', nx) # state
+    s = CASADI_VAR.sym('s', ns) # binary control
+    q = CASADI_VAR.sym('q', nq) # continuous control
+
+    x1dot = s.T @ q - ca.sqrt(x[0])
+    x2dot = ca.sqrt(x[0]) - ca.sqrt(x[1])
+    xdot = ca.Function('xdot', [x, s, q], [ca.vertcat(x1dot, x2dot)])
+    F = ca.Function('F', [x, s, q], [x + dt * xdot(x, s, q)]) #TODO: implement a RK4 integrator
+
+    w = []
+    w0 = []
+    lbw = []
+    ubw = []
+    J = 0
+    g = []
+    lbg = []
+    ubg = []
+    p = []
+    idx_x_bin = []
+    idx_var = 0
+
+    Xk = x_0
+    p += [Xk]
+    for k in range(N):
+        Qk = CASADI_VAR.sym(f"q_{k}", nq)
+        w += [Qk]
+        idx_var += nq
+        lbw += [gamma, 0]
+        ubw += [gamma, gamma]
+        w0 += [0, 0]
+        Sk = CASADI_VAR.sym(f"s_{k}", ns)
+        w += [Sk]
+        idx_var += nq
+        idx_x_bin.append(np.arange(idx_var-ns, idx_var))
+        lbw += [0, 0]
+        ubw += [1, 1]
+        w0 += [0, 0]
+
+        # Integrate till the end of the interval
+        Xk_end = F(Xk, Sk, Qk)
+        J += dt * ca.sum2((Xk[1] - demand) ** 2) * alpha
+        J += dt * ca.sum2(beta @ (Qk * Sk))
+
+        # New NLP variable for state at end of interval
+        Xk = CASADI_VAR.sym(f"x_{k+1}", nx)
+        idx_var += nx
+        w += [Xk]
+        lbw += [-np.inf, -np.inf]
+        ubw += [np.inf, np.inf]
+        w0 += [0, 0]
+
+        # Add equality constraint
+        g   += [Xk_end - Xk]
+        lbg += [0, 0]
+        ubg += [0, 0]
+
+    problem = MinlpProblem(x=ca.vcat(w), f=J, g=ca.vcat(g), p=x_0, idx_x_bin=np.hstack(idx_x_bin))
+    data = MinlpData(x0=0.5*np.ones(len(w0)), _ubx=np.array(ubw), _lbx=np.array(lbw), _ubg=np.array(ubg), _lbg=np.array(lbg), p=p_val, solved=True)
+
+    return problem, data
+
 PROBLEMS = {
     "dummy": create_dummy_problem,
     "dummy2": create_dummy_problem_2,
     "orig": extract_solarsys,
-    "doublepipe": create_double_pipe_problem
+    "doublepipe": create_double_pipe_problem,
+    "doubletank": create_double_tank_problem
 }
 
 
 if __name__ == '__main__':
-    prob, data = create_double_pipe_problem()
+    prob, data = create_double_tank_problem()
+    # prob, data = create_double_pipe_problem()
     # prob, data = create_dummy_problem()
