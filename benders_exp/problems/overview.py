@@ -44,7 +44,7 @@ def create_dummy_problem_2():
         x[1],
         -(x[0]**2 + x[1] - p[0]**2)
     )
-    ubg = np.array([ca.inf, ca.inf])
+    ubg = np.array([1e5, 1e5])
     lbg = np.array([0, 0])
     lbx = -1e3 * np.ones((2,))
     ubx = np.array([ca.inf, ca.inf])
@@ -54,8 +54,9 @@ def create_dummy_problem_2():
                      _ubg=ubg, _lbg=lbg, p=[3], solved=True)
     return problem, data
 
-def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
 
+def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
+    """Create double pipe problem."""
     y = CASADI_VAR.sym("y", 2)
     z = CASADI_VAR.sym("z", 2)
     x0 = np.array([0, 0, 0, 0])

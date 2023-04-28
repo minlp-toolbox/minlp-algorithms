@@ -8,27 +8,42 @@ import numpy as np
 from benders_exp.utils import tic, toc  # , DebugCallBack
 from benders_exp.defines import WITH_PLOT
 from benders_exp.problems.overview import PROBLEMS
-from benders_exp.problems import MinlpData
+from benders_exp.problems import MinlpData, MinlpProblem
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver
 from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP, BendersMasterMIQP
 
 
-def make_bounded(data: MinlpData, new_inf=1e5):
+def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
     """Make bounded."""
-    if any(data.lbx < -new_inf):
-        new_lbx = [-new_inf if elm else data.lbx[i] for i, elm in enumerate(data.lbx < -new_inf)]
-        data.lbx = np.array(new_lbx)
-    if any(data.ubx > new_inf):
-        new_ubx = [new_inf if elm else data.ubx[i] for i, elm in enumerate(data.ubx > new_inf)]
-        data.ubx = np.array(new_ubx)
-    if any(data.lbg < -1e9):
-        new_lbg = [-1e9 if elm else data.lbg[i] for i, elm in enumerate(data.lbg < -1e9)]
-        data.lbg = np.array(new_lbg)
-    if any(data.ubg > 1e9):
-        new_ubg = [1e9 if elm else data.ubg[i] for i, elm in enumerate(data.ubg > 1e9)]
-        data.ubg = np.array(new_ubg)
+    lbx, ubx = data.lbx, data.ubx
+    lbg, ubg = data.lbg, data.ubg
 
+    # # Move all continmous bounds to g!
+    g_extra, g_lb, g_ub = [], [], []
+    for i in range(len(data.lbx)):
+        if i not in problem.idx_x_bin:
+            if lbx[i] > -new_inf:
+                g_extra.append(problem.x[i] - max(lbx[i], -new_inf))
+                g_lb.append(0)
+                g_ub.append(ca.inf)
+                lbx[i] = -ca.inf
+            if ubx[i] < new_inf:
+                g_extra.append(min(ubx[i], new_inf) - problem.x[i])
+                g_lb.append(0)
+                g_ub.append(ca.inf)
+                ubx[i] = ca.inf
+        else:
+            if lbx[i] < -new_inf:
+                lbx[i] = -new_inf
+            if ubx[i] > new_inf:
+                ubx[i] = new_inf
+
+    data.lbx, data.ubx = lbx, ubx
+    # Update
+    problem.g = ca.vertcat(problem.g, ca.vertcat(*g_extra))
+    data.lbg = np.concatenate((lbg, g_lb))
+    data.ubg = np.concatenate((ubg, g_ub))
 
 
 def benders_algorithm(problem, data, stats, with_qp=False):
@@ -71,11 +86,13 @@ def benders_algorithm(problem, data, stats, with_qp=False):
         data = benders_master.solve(data, prev_feasible=prev_feasible)
         feasible = data.solved
         lb = data.obj_val
-        # x_hat = data.x_sol
+        x_hat = data.x_sol
+        print(f"{x_hat=}")
 
         # Obtain new linearization point for NLP:
         data = nlp.solve(data, set_x_bin=True)
         x_bar = data.x_sol
+        print(f"{x_bar=}")
         prev_feasible = data.solved
         if not prev_feasible:
             data = fnlp.solve(data)
@@ -88,6 +105,7 @@ def benders_algorithm(problem, data, stats, with_qp=False):
 
         print(f"{ub=} {lb=}")
         print(f"{x_bar=}")
+        stats['iter'] += 1
 
     t_total = toc()
     print(f"{t_total=} of with calc: {t_total - t_load}")
@@ -153,17 +171,17 @@ if __name__ == "__main__":
     if len(argv) == 1:
         print("Usage: mode problem")
         print("Available modes are: benders, idea, ...")
-        print("Available problems are: dummy, dummy2, orig, doublepipe")
+        print("Available problems are: %s" % ", ".join(PROBLEMS.keys()))
 
     if len(argv) > 1:
         mode = argv[1]
     else:
-        mode = "benders"
+        mode = "bendersqp"
 
     if len(argv) > 2:
         problem = argv[2]
     else:
-        problem = "orig"
+        problem = "dummy"
 
     new_inf = 1e3
     print(problem)
@@ -174,7 +192,7 @@ if __name__ == "__main__":
     else:
         raise Exception(f"No {problem=}")
 
-    make_bounded(data, new_inf=new_inf)
+    make_bounded(problem, data, new_inf=new_inf)
     print("Problem loaded")
     stats = Stats({})
     if mode == "benders":

@@ -30,6 +30,8 @@ class BendersMasterMILP(SolverClass):
             {"jit": WITH_JIT}
         )
         self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
+        self.cut_id = 0
+        self.visualized_cuts = []
 
     def setup_common(self, problem: MinlpProblem, options):
         """Set up common data."""
@@ -62,12 +64,25 @@ class BendersMasterMILP(SolverClass):
         self.nr_x_orig = problem.x.shape[0]
 
     def _generate_cut_equation(self, x, x_sol, x_sol_sub_set, lam_g, p, prev_feasible):
-        """
+        r"""
         Generate a cut.
+
+        when feasible, this creates the cut:
+
+        $$
+         g_k = f_k \lambda_k^{\mathrm{T}} (x_{\mathrm{binary}} - x_{\mathrm{binary, prev\_sol}}) - \nu \leq 0 \\
+        \lambda_k = \nabla f_k + J_{g_k}^{T} \lambda_{g_j}
+        $$
+
+        when infeasible, the cut is equal to
+        $$
+        g_k = \lambda_{g_k}^{\mathrm{T}} g_k + J_{g_k}(x_{\mathrm{binary}} - x_{\mathrm{binary, prev\_sol}})
+        $$
 
         :param x: optimization variable
         :param x_sol: Complete x_solution
         :param x_sol_sub_set: Subset of the x solution to optimize the MILP to
+            $x_{\mathrm{bin}}$
         :param lam_g: Lambda g solution
         :param p: parameters
         :param prev_feasible: If the previous solution was feasible
@@ -76,7 +91,7 @@ class BendersMasterMILP(SolverClass):
         if prev_feasible:
             grad_f_k = self.grad_f_x_sub_bin(x_sol, p)
             jac_g_k = self.jac_g_sub_bin(x_sol, p)
-            lambda_k = grad_f_k - jac_g_k.T @ - lam_g
+            lambda_k = grad_f_k + jac_g_k.T @ lam_g
             f_k = self.f(x_sol, p)
             g_k = (
                 f_k + lambda_k.T @ (x - x_sol_sub_set)
@@ -134,6 +149,7 @@ class BendersMasterMILP(SolverClass):
 
     def visualize_cut(self, g_k, x_bin, nu):
         """Visualize cut."""
+        self.cut_id += 1
         xx, yy = np.meshgrid(range(10), range(10))
         cut = ca.Function("t", [x_bin, nu], [g_k])
         z = np.zeros(xx.shape)
@@ -141,7 +157,18 @@ class BendersMasterMILP(SolverClass):
             for j in range(10):
                 z[i, j] = cut(ca.vertcat(xx[i, j], yy[i, j]), 0).full()[0, 0]
 
-        self.ax.plot_surface(xx, yy, z, alpha=0.2)
+        self.visualized_cuts.append(
+            self.ax.plot_surface(
+                xx, yy, z, alpha=0.2, label="Cut %d" % self.cut_id
+            )
+        )
+        # HACK:
+        for surf in self.visualized_cuts:
+            surf._edgecolors2d = surf._edgecolor3d
+            surf._facecolors2d = surf._facecolor3d
+        # Legend
+        self.ax.legend()
+
         plt.show(block=False)
         plt.pause(1)
 
@@ -152,19 +179,6 @@ class BendersMasterMIQP(BendersMasterMILP):
     def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
         """Create the benders constraint MILP."""
         super(BendersMasterMIQP, self).__init__(problem, stats, options)
-        self.setup_common(problem, options)
-        self.grad_f_x_sub_bin = ca.Function(
-            "gradient_f_x_bin",
-            [problem.x, problem.p], [ca.gradient(
-                problem.f, problem.x
-            )[problem.idx_x_bin]],
-            {"jit": WITH_JIT}
-        )
-        self.jac_g_sub_bin = ca.Function(
-            "jac_g_bin", [problem.x, problem.p],
-            [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
-            {"jit": WITH_JIT}
-        )
         self.f_hess_bin = ca.Function(
             "hess_f_x_bin",
             [problem.x, problem.p], [ca.hessian(
@@ -172,21 +186,32 @@ class BendersMasterMIQP(BendersMasterMILP):
             )[0][problem.idx_x_bin, :][:, problem.idx_x_bin]],
             {"jit": WITH_JIT}
         )
-        self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
+
+        # TODO: Strip all linear equations with binary variables only!
+        # Format to g < 0 for simplicity
+        # sparsity = ca.jacobian(problem.g, problem.x).sparsity
+
+        self._g = []
+        self.nr_g = len(self._g)
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """solve."""
+        x_bin_star = nlpdata.x_sol[self.idx_x_bin]
         g_k = self._generate_cut_equation(
-            self._x, nlpdata.x_sol[:self.nr_x_orig], nlpdata.x_sol[self.idx_x_bin],
+            self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
             nlpdata.lam_g_sol, nlpdata.p, prev_feasible
         )
+
+        if WITH_PLOT:
+            self.visualize_cut(g_k, self._x, self._nu)
 
         f_hess = self.f_hess_bin(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         self._g = ca.vertcat(self._g, g_k)
         self.nr_g += 1
 
+        dx = self._x - x_bin_star
         self.solver = ca.qpsol(f"benders_qp{self.nr_g}", "gurobi", {
-            "f": self._nu + 0.5 * self._x.T @ f_hess @ self._x,
+            "f": self._nu + 0.5 * dx.T @ f_hess @ dx,
             "g": self._g,
             "x": ca.vertcat(self._x, self._nu),
         }, self.options)
@@ -201,6 +226,7 @@ class BendersMasterMIQP(BendersMasterMILP):
         )
         obj = solution['x'][-1].full()
         if obj > solution['f']:
+            print("Possible thougth mistake!")
             breakpoint()
         solution['f'] = obj
 
@@ -242,8 +268,6 @@ class BendersConstraintMILP(BendersMasterMILP):
     def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
         """Create the benders constraint MILP."""
         super(BendersConstraintMILP, self).__init__(problem, stats, options)
-        self.setup_common(problem, options)
-
         self.grad_f_x_sub = ca.Function(
             "gradient_f_x",
             [problem.x, problem.p], [ca.gradient(

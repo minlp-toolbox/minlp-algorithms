@@ -8,6 +8,7 @@ from benders_exp.solarsys.state import State
 from benders_exp.solarsys.timing import TimingMPC
 from benders_exp.problems import MinlpProblem, MinlpData
 import datetime as dt
+from os import path
 
 
 def extract():
@@ -63,7 +64,10 @@ def extract():
         _PATH_TO_NLP_OBJECT, _NLP_OBJECT_FILENAME
     )
 
-    problem = MinlpProblem(**nlpsetup_mpc.nlp, idx_x_bin=binary_values)
+    problem = MinlpProblem(
+        **nlpsetup_mpc.nlp, idx_x_bin=binary_values,
+        precompiled_nlp=path_to_nlp_object
+    )
     data = MinlpData(
         x0=nlp_args['x0'],
         _lbx=nlp_args['lbx'],
@@ -71,7 +75,6 @@ def extract():
         _lbg=nlp_args['lbg'],
         _ubg=nlp_args['ubg'],
         p=nlp_args['p'], solved=True,
-        precompiled_nlp=path_to_nlp_object
     )
 
     return problem, data
