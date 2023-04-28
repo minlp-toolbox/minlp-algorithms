@@ -133,4 +133,5 @@ class FeasibilityNlpSolver(SolverClass):
         self.stats["fnlp.iter"] += max(0, stats["iter_count"])
         if not nlpdata.solved:
             print("MILP not solved")
+            raise Exception()
         return nlpdata
