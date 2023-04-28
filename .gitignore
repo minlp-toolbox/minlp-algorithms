@@ -10,3 +10,20 @@ __pycache__/
 results/*
 jit_tmp*
 
+
+## Core latex/pdflatex auxiliary files:
+**/*.aux
+**/*.lof
+**/*.log
+**/*.lot
+**/*.fls
+**/*.out
+**/*.toc
+**/*.fmt
+**/*.fot
+**/*.cb
+**/*.cb2
+**/*.lb
+**/*.synctex.gz
+**/*.fdb_latexmk
+**/*.pdf
