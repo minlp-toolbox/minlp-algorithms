@@ -74,7 +74,7 @@ class NlpSolver(SolverClass):
 class FeasibilityNlpSolver(SolverClass):
     """Create benders master problem."""
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data:MinlpData, stats: Stats, options=None):
         """Create benders master MILP."""
         super(FeasibilityNlpSolver, self).__init___(problem, stats)
         if options is None:
@@ -85,21 +85,22 @@ class FeasibilityNlpSolver(SolverClass):
                     "ipopt.print_level": 0, "verbose": False, "print_time": 0
                 }
 
-        self.nr_g = problem.g.shape[0]
-        s_lbg = CASADI_VAR.sym("s_lbg", self.nr_g)
-        lbg = CASADI_VAR.sym("lbg", self.nr_g)
-        ubg = CASADI_VAR.sym("ubg", self.nr_g)
+        g = []
+        beta =  CASADI_VAR.sym("beta")
+        for i in range(problem.g.shape[0]):
+            if data.lbg[i] != -np.inf:
+                g.append(-problem.g[i] + data.lbg[i] - beta)
+            if data.ubg[i] != np.inf:
+                g.append(problem.g[i] - data.ubg[i] - beta)
+        g = ca.vertcat(*g)
+        self.nr_g = g.shape[0]
 
-        g = ca.vertcat(
-            problem.g - lbg + s_lbg,
-            ubg + s_lbg - problem.g
-        )
-        self.lbg = np.zeros((self.nr_g * 2, 1))
-        self.ubg = ca.inf * np.ones((self.nr_g * 2, 1))
-        f = ca.sum1(s_lbg)
-        x = ca.vertcat(problem.x, s_lbg)
-        p = ca.vertcat(problem.p, lbg, ubg)
+        self.lbg = -np.inf * np.ones((self.nr_g))
+        self.ubg = np.zeros((self.nr_g))
 
+        f = beta
+        x = ca.vertcat(*[problem.x, beta])
+        p = ca.vertcat(*[problem.p])
         self.idx_x_bin = problem.idx_x_bin
         options.update({"jit": WITH_JIT})
         options.update(IPOPT_SETTINGS)
@@ -114,18 +115,20 @@ class FeasibilityNlpSolver(SolverClass):
         ubx = deepcopy(nlpdata.ubx)
         lbx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
         ubx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
+        lbx=np.hstack([lbx, np.zeros(1)]) # add lower bound for the slacks
+        ubx=np.hstack([ubx, np.inf * np.ones(1)]) # add upper bound for the slacks
 
         nlpdata.prev_solution = self.solver(
             x0=ca.vertcat(
-                nlpdata.x_sol[:nlpdata.x0.shape[0]
-                              ], np.zeros((self.nr_g * 1, 1))
-            ),
-            lbx=ca.vertcat(lbx, np.zeros((self.nr_g * 1, 1))),
-            ubx=ca.vertcat(ubx, ca.inf * np.ones((self.nr_g * 1, 1))),
+                nlpdata.x_sol[:nlpdata.x0.shape[0]],
+                np.zeros(1) # slacks initialization
+                ),
+            lbx=lbx,
+            ubx=ubx,
             lbg=self.lbg,
             ubg=self.ubg,
-            p=ca.vertcat(nlpdata.p, nlpdata.lbg, nlpdata.ubg)
-        )
+            p=nlpdata.p
+            )
         nlpdata.solved, stats = self.collect_stats()
         self.stats["fnlp.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]

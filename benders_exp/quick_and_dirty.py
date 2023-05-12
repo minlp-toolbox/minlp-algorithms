@@ -12,49 +12,17 @@ from benders_exp.problems import MinlpData, MinlpProblem
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver
 from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP, BendersMasterMIQP
-
-
-def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
-    """Make bounded."""
-    lbx, ubx = data.lbx, data.ubx
-    lbg, ubg = data.lbg, data.ubg
-
-    # # Move all continmous bounds to g!
-    g_extra, g_lb, g_ub = [], [], []
-    for i in range(len(data.lbx)):
-        if i not in problem.idx_x_bin:
-            if lbx[i] > -new_inf:
-                g_extra.append(problem.x[i] - max(lbx[i], -new_inf))
-                g_lb.append(0)
-                g_ub.append(ca.inf)
-                lbx[i] = -ca.inf
-            if ubx[i] < new_inf:
-                g_extra.append(min(ubx[i], new_inf) - problem.x[i])
-                g_lb.append(0)
-                g_ub.append(ca.inf)
-                ubx[i] = ca.inf
-        else:
-            if lbx[i] < -new_inf:
-                lbx[i] = -new_inf
-            if ubx[i] > new_inf:
-                ubx[i] = new_inf
-
-    data.lbx, data.ubx = lbx, ubx
-    # Update
-    problem.g = ca.vertcat(problem.g, ca.vertcat(*g_extra))
-    data.lbg = np.concatenate((lbg, g_lb))
-    data.ubg = np.concatenate((ubg, g_ub))
-
+from benders_exp.utils import make_bounded
 
 def benders_algorithm(problem, data, stats, with_qp=False):
     """Create benders algorithm."""
     tic()
     toc()
     print("Setup NLP solver...")
-    nlp = NlpSolver(problem, stats, )
+    nlp = NlpSolver(problem, stats)
     toc()
     print("Setup FNLP solver...")
-    fnlp = FeasibilityNlpSolver(problem, stats)
+    fnlp = FeasibilityNlpSolver(problem, data, stats)
     toc()
     print("Setup MILP solver...")
     if with_qp:
@@ -76,25 +44,16 @@ def benders_algorithm(problem, data, stats, with_qp=False):
     ub = ca.inf
     tolerance = 0.04
     feasible = True
-    data = nlp.solve(data)
-    x_bar = data.x_sol
-    x_star = x_bar
-    prev_feasible = True
     while lb + tolerance < ub and feasible:
         toc()
-        # Solve MILP-BENDERS and set lower bound:
-        data = benders_master.solve(data, prev_feasible=prev_feasible)
-        feasible = data.solved
-        lb = data.obj_val
-        x_hat = data.x_sol
-        print(f"{x_hat=}")
-
-        # Obtain new linearization point for NLP:
+        # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
+        prev_feasible = data.solved
         x_bar = data.x_sol
         print(f"{x_bar=}")
-        prev_feasible = data.solved
+
         if not prev_feasible:
+            # Solve NLPF(y^k)
             data = fnlp.solve(data)
             x_bar = data.x_sol
             print("Infeasible")
@@ -103,8 +62,13 @@ def benders_algorithm(problem, data, stats, with_qp=False):
             x_star = x_bar
             print("Feasible")
 
-        print(f"{ub=} {lb=}")
-        print(f"{x_bar=}")
+        # Solve MGBD^k and set lower bound:
+        data = benders_master.solve(data, prev_feasible=prev_feasible)
+        feasible = data.solved
+        lb = data.obj_val
+        x_hat = data.x_sol
+        print(f"\n\n\n{x_hat=}")
+        print(f"{ub=}\n{lb=}\n\n\n")
         stats['iter'] += 1
 
     t_total = toc()

@@ -3,10 +3,44 @@ import casadi as ca
 import logging
 from time import perf_counter
 from benders_exp.defines import _DATA_FOLDER
+from benders_exp.problems import MinlpData, MinlpProblem
 
 CALLBACK_INPUTS = dict()
 for i, label in enumerate(ca.nlpsol_out()):
     CALLBACK_INPUTS[label] = i
+
+
+def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
+    """Make bounded."""
+    lbx, ubx = data.lbx, data.ubx
+    lbg, ubg = data.lbg, data.ubg
+
+    # # Move all continmous bounds to g!
+    # when constraints are one sided the convention is -inf <= g <= ubg
+    g_extra, g_lb, g_ub = [], [], []
+    for i in range(len(data.lbx)):
+        if i not in problem.idx_x_bin:
+            if lbx[i] > -new_inf:
+                g_extra.append(-problem.x[i] + max(lbx[i], -new_inf))
+                g_lb.append(-np.inf)
+                g_ub.append(0)
+                lbx[i] = -ca.inf
+            if ubx[i] < new_inf:
+                g_extra.append(problem.x[i] - min(ubx[i], new_inf))
+                g_lb.append(-np.inf)
+                g_ub.append(0)
+                ubx[i] = ca.inf
+        else:
+            if lbx[i] < -new_inf:
+                lbx[i] = -new_inf
+            if ubx[i] > new_inf:
+                ubx[i] = new_inf
+
+    data.lbx, data.ubx = lbx, ubx
+    # Update
+    problem.g = ca.vertcat(problem.g, ca.vertcat(*g_extra))
+    data.lbg = np.concatenate((lbg, g_lb))
+    data.ubg = np.concatenate((ubg, g_ub))
 
 
 def setup_logger():

@@ -100,7 +100,6 @@ class BendersMasterMILP(SolverClass):
         else:  # Not feasible solution
             h_k = self.g(x_sol, p)
             jac_h_k = self.jac_g_sub_bin(x_sol, p)
-            lam_g = lam_g[:self.nr_g_orig] - lam_g[self.nr_g_orig:]
             g_k = lam_g.T @ (h_k + jac_h_k @ (x - x_sol_sub_set))
 
         return g_k
@@ -118,7 +117,7 @@ class BendersMasterMILP(SolverClass):
         self._g = ca.vertcat(self._g, g_k)
         self.nr_g += 1
 
-        self.solver = ca.qpsol(f"benders{self.nr_g}", "gurobi", {
+        self.solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", "gurobi", {
             "f": self._nu, "g": self._g,
             "x": ca.vertcat(self._x, self._nu),
         }, self.options)
