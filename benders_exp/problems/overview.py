@@ -4,7 +4,21 @@ from benders_exp.problems import MinlpProblem, CASADI_VAR, MinlpData
 import casadi as ca
 import numpy as np
 from benders_exp.solarsys import extract as extract_solarsys
+from benders_exp.solvers import Stats
+from benders_exp.solvers.nlp import NlpSolver
 
+def create_check_sign_lagrange_problem():
+    """
+    Create a problem to check the sign of the multipliers
+    """
+    x = CASADI_VAR.sym("x")
+    p = CASADI_VAR.sym("p")
+
+    problem = MinlpProblem(x=x, f=(x - 2)**2, g=x, p=p, idx_x_bin=[])
+    data = MinlpData(x0=0, _ubx=np.inf, _lbx=-np.inf,
+                     _ubg=-1, _lbg=-7, p=[], solved=True)
+
+    return problem, data
 
 def create_dummy_problem(p_val=[1000, 3]):
     """
@@ -44,9 +58,9 @@ def create_dummy_problem_2():
         x[1],
         -(x[0]**2 + x[1] - p[0]**2)
     )
-    ubg = np.array([1e5, 1e5])
+    ubg = np.array([np.inf, np.inf])
     lbg = np.array([0, 0])
-    lbx = -1e3 * np.ones((2,))
+    lbx = -np.inf * np.ones((2,))
     ubx = np.array([ca.inf, ca.inf])
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
@@ -57,26 +71,26 @@ def create_dummy_problem_2():
 
 def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
     """Create double pipe problem."""
-    y = CASADI_VAR.sym("y", 2)
-    z = CASADI_VAR.sym("z", 2)
-    x0 = np.array([0, 0, 0, 0])
+    y = CASADI_VAR.sym("y", 1) #integers
+    z = CASADI_VAR.sym("z", 2) #continuous
+    x0 = np.array([1, 0, 0])
     x = ca.vertcat(*[y, z])
-    idx_x_bin = [0, 1]
+    idx_x_bin = [0]
 
     alpha = CASADI_VAR.sym("alpha", 2)
     r = CASADI_VAR.sym("r", 1)
     gamma = CASADI_VAR.sym("gamma", 1)
     p = ca.vertcat(*[alpha, r, gamma])
 
-    f = alpha[0] * y[0] * z[0] + alpha[1] * y[1]
+    f = alpha[0] * z[0] + alpha[1] * y[0]
     g = ca.vertcat(*[
-        y[0] * z[0] + y[1] * z[1] - r,
+        z[0] + y[0] * z[1] - r,
         gamma - z[1]
         ])
     lbg = np.array([0, 0])
     ubg = np.array([ca.inf, ca.inf])
-    lbx = np.array([0, 0, 0, -ca.inf])
-    ubx = np.array([1, 1, ca.inf, ca.inf])
+    lbx = np.array([0, 0, -ca.inf])
+    ubx = np.array([1, ca.inf, ca.inf])
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
@@ -164,6 +178,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     return problem, data
 
 PROBLEMS = {
+    "sign_check": create_check_sign_lagrange_problem,
     "dummy": create_dummy_problem,
     "dummy2": create_dummy_problem_2,
     "orig": extract_solarsys,
@@ -173,6 +188,10 @@ PROBLEMS = {
 
 
 if __name__ == '__main__':
-    prob, data = create_double_tank_problem()
+    stats = Stats({})
+    prob, data = create_check_sign_lagrange_problem()
+    nlp = NlpSolver(prob, stats)
+    data = nlp.solve(data)
+    breakpoint()
     # prob, data = create_double_pipe_problem()
     # prob, data = create_dummy_problem()
