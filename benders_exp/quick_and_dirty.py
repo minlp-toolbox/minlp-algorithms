@@ -3,40 +3,27 @@
 import matplotlib.pyplot as plt
 from sys import argv
 
+from typing import Tuple
 import casadi as ca
-import numpy as np
 from benders_exp.utils import tic, toc  # , DebugCallBack
 from benders_exp.defines import WITH_PLOT
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem
 from benders_exp.solvers import Stats
-from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver
+from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass
 from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP, BendersMasterMIQP
+from benders_exp.solvers.outer_approx import OuterApproxMILP
 from benders_exp.utils import make_bounded
 
-def benders_algorithm(problem, data, stats, with_qp=False):
-    """Create benders algorithm."""
-    tic()
-    toc()
+
+def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
+                  master_problem: SolverClass) -> Tuple[MinlpData, ca.DM]:
+    """Run the base strategy."""
     print("Setup NLP solver...")
     nlp = NlpSolver(problem, stats)
     toc()
     print("Setup FNLP solver...")
     fnlp = FeasibilityNlpSolver(problem, data, stats)
-    toc()
-    print("Setup MILP solver...")
-    if with_qp:
-        # This class provides an improved benders implementation
-        # where the hessian of the original function is used as stabelizer
-        # it is motivated by the approximation that benders make on the
-        # original function. Of course the lower bound can no longer
-        # be guaranteed, so care should be taken with this approach as it
-        # might only work in some circumstances!
-        benders_master = BendersMasterMIQP(problem, stats)
-    else:
-        # This class implements the original benders decomposition
-        benders_master = BendersMasterMILP(problem, stats)
-
     t_load = toc()
     print("Solver initialized.")
     # Benders algorithm
@@ -62,8 +49,8 @@ def benders_algorithm(problem, data, stats, with_qp=False):
             x_star = x_bar
             print("Feasible")
 
-        # Solve MGBD^k and set lower bound:
-        data = benders_master.solve(data, prev_feasible=prev_feasible)
+        # Solve master^k and set lower bound:
+        data = master_problem.solve(data, prev_feasible=prev_feasible)
         feasible = data.solved
         lb = data.obj_val
         x_hat = data.x_sol
@@ -74,6 +61,36 @@ def benders_algorithm(problem, data, stats, with_qp=False):
     t_total = toc()
     print(f"{t_total=} of with calc: {t_total - t_load}")
     return data, x_star
+
+
+def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats,
+                      with_qp: bool = False) -> Tuple[MinlpData, ca.DM]:
+    """Create and run benders algorithm."""
+    print("Setup MILP solver...")
+    if with_qp:
+        # This class provides an improved benders implementation
+        # where the hessian of the original function is used as stabelizer
+        # it is motivated by the approximation that benders make on the
+        # original function. Of course the lower bound can no longer
+        # be guaranteed, so care should be taken with this approach as it
+        # might only work in some circumstances!
+        benders_master = BendersMasterMIQP(problem, data, stats)
+    else:
+        # This class implements the original benders decomposition
+        benders_master = BendersMasterMILP(problem, data, stats)
+
+    toc()
+    return base_strategy(problem, data, stats, benders_master)
+
+
+def outer_approx_algorithm(
+    problem: MinlpProblem, data: MinlpData, stats: Stats
+) -> Tuple[MinlpData, ca.DM]:
+    """Create and run outer approximation."""
+    print("Setup MILP solver...")
+    outer_approx = OuterApproxMILP(problem, data, stats)
+    toc()
+    return base_strategy(problem, data, stats, outer_approx)
 
 
 def idea_algorithm(problem, data, stats):
@@ -106,7 +123,8 @@ def idea_algorithm(problem, data, stats):
     while lb + tolerance < ub and feasible:
         toc()
         # Solve MILP-BENDERS and set lower bound:
-        data = benders_milp.solve(data, prev_feasible=prev_feasible, integer=is_integer)
+        data = benders_milp.solve(
+            data, prev_feasible=prev_feasible, integer=is_integer)
         feasible = data.solved
         lb = data.obj_val
         # x_hat = data.x_sol
@@ -147,6 +165,7 @@ if __name__ == "__main__":
     else:
         problem = "dummy"
 
+    tic()
     new_inf = 1e3
     print(problem)
     if problem in PROBLEMS:
@@ -158,6 +177,7 @@ if __name__ == "__main__":
 
     make_bounded(problem, data, new_inf=new_inf)
     print("Problem loaded")
+    toc()
     stats = Stats({})
     if mode == "benders":
         data, x_star = benders_algorithm(
@@ -169,6 +189,8 @@ if __name__ == "__main__":
         )
     elif mode == "idea":
         data, x_star = idea_algorithm(problem, data,  stats)
+    elif mode == "outerapprox":
+        data, x_star = outer_approx_algorithm(problem, data, stats)
 
     stats.print()
     print(x_star)

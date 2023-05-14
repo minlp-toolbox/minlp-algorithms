@@ -1,16 +1,22 @@
-"""Set of solvers based on bender cuts."""
+"""
+Set of solvers based on bender cuts.
+
+Bender cuts are based on the principle of decomposing the problem into two
+parts where the main part is only solving the integer variables.
+"""
 
 import matplotlib.pyplot as plt
 import casadi as ca
 import numpy as np
-from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData
+from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
+        extract_linear_bounds_binary_x
 from benders_exp.defines import WITH_LOGGING, WITH_JIT, CASADI_VAR, WITH_PLOT
 
 
 class BendersMasterMILP(SolverClass):
     """Create benders master problem."""
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Create benders master MILP."""
         super(BendersMasterMILP, self).__init___(problem, stats)
         self.setup_common(problem, options)
@@ -175,9 +181,9 @@ class BendersMasterMILP(SolverClass):
 class BendersMasterMIQP(BendersMasterMILP):
     """MIQP implementation."""
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Create the benders constraint MILP."""
-        super(BendersMasterMIQP, self).__init__(problem, stats, options)
+        super(BendersMasterMIQP, self).__init__(problem, data, stats, options)
         self.f_hess_bin = ca.Function(
             "hess_f_x_bin",
             [problem.x, problem.p], [ca.hessian(
@@ -189,9 +195,12 @@ class BendersMasterMIQP(BendersMasterMILP):
         # TODO: Strip all linear equations with binary variables only!
         # Format to g < 0 for simplicity
         # sparsity = ca.jacobian(problem.g, problem.x).sparsity
+        g, lbg, ubg = extract_linear_bounds_binary_x(problem, data)
 
-        self._g = []
-        self.nr_g = len(self._g)
+        self._g = ca.vertcat(*g)
+        self._lbg = lbg
+        self._ubg = ubg
+        self.nr_g = len(g)
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """solve."""
@@ -206,6 +215,8 @@ class BendersMasterMIQP(BendersMasterMILP):
 
         f_hess = self.f_hess_bin(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
         self._g = ca.vertcat(self._g, g_k)
+        self._ubg.append(0)
+        self._lbg.append(-ca.inf)
         self.nr_g += 1
 
         dx = self._x - x_bin_star
@@ -220,13 +231,11 @@ class BendersMasterMIQP(BendersMasterMILP):
             x0=ca.vertcat(nlpdata.x_sol[self.idx_x_bin], nlpdata.obj_val),
             lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -1e5),
             ubx=ca.vertcat(nlpdata.ubx[self.idx_x_bin], ca.inf),
-            lbg=-ca.inf * np.ones(self.nr_g),
-            ubg=np.zeros(self.nr_g)
+            lbg=self._lbg, ubg=self._ubg
         )
         obj = solution['x'][-1].full()
         if obj > solution['f']:
-            print("Possible thougth mistake!")
-            breakpoint()
+            raise Exception("Possible thougth mistake!")
         solution['f'] = obj
 
         x_full = nlpdata.x_sol.full()[:self.nr_x_orig]
