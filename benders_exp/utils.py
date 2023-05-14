@@ -1,9 +1,15 @@
+"""Set of utilities for MINLP optimization and visualization."""
+
+from math import sqrt
+from typing import Union
+from matplotlib import pyplot as plt
+import matplotlib
 import numpy as np
 import casadi as ca
 import logging
 from time import perf_counter
-from benders_exp.defines import _DATA_FOLDER
-from benders_exp.problems import MinlpData, MinlpProblem
+from benders_exp.defines import _DATA_FOLDER, IMG_DIR
+from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp
 
 CALLBACK_INPUTS = dict()
 for i, label in enumerate(ca.nlpsol_out()):
@@ -78,6 +84,104 @@ def to_0d(array):
         return array.squeeze()
     else:
         return array.full().squeeze()
+
+
+def latexify(fig_width=None, fig_height=None):
+    """
+    Set up matplotlib's RC params for LaTeX plotting.
+
+    Call this before plotting a figure.
+
+    Parameters
+    ----------
+    fig_width : float, optional, inches
+    fig_height : float,  optional, inches
+    columns : {1, 2}
+    """
+    # code adapted from http://www.scipy.org/Cookbook/Matplotlib/LaTeX_Examples
+
+    # Width and max height in inches for IEEE journals taken from
+    # computer.org/cms/Computer.org/Journal%20templates/transactions_art_guide.pdf
+    if fig_width is None:
+        fig_width = 5  # width in inches
+
+    if fig_height is None:
+        golden_mean = (sqrt(5) - 1.0) / 2.0  # Aesthetic ratio
+        fig_height = fig_width * golden_mean  # height in inches
+
+    params = {
+        # "backend": "ps",
+        "text.latex.preamble": r"\usepackage{gensymb} \usepackage{amsmath}",
+        "axes.labelsize": 10,  # fontsize for x and y labels (was 10)
+        "axes.titlesize": 10,
+        "lines.linewidth": 2,
+        "legend.fontsize": 10,  # was 10
+        "xtick.labelsize": 10,
+        "ytick.labelsize": 10,
+        "text.usetex": True,
+        "figure.figsize": [fig_width, fig_height],
+        "font.family": "serif",
+    }
+
+    matplotlib.rcParams.update(params)
+
+
+def plot_trajectory(
+    s_collection: Union[np.ndarray, list],
+    a_collection: Union[np.ndarray, list],
+    meta: MetaDataOcp,
+    title: str,
+):
+    """Plot a trajectory of an OCP."""
+    alpha = 0.4
+    if isinstance(a_collection, np.ndarray):
+        a_collection = [a_collection]
+        alpha = 0.7
+    if isinstance(s_collection, np.ndarray):
+        s_collection = [s_collection]
+    N = a_collection[0].shape[0]
+    dt = meta.dt
+    time_array = np.linspace(0, N * dt, N + 1)
+
+    latexify()
+    fig, axs = plt.subplots(meta.n_state + meta.n_control,
+                            1, figsize=(4.5, 8), sharex=True)
+    for s in range(meta.n_state):
+        axs[s].grid()
+        for s_traj in s_collection:
+            if len(s_traj.shape) == 1:
+                s_traj = s_traj[..., np.newaxis]
+            axs[s].plot(time_array, s_traj[:, s], "-",
+                        alpha=alpha, color="tab:blue")
+        # axs[s].axhline(s_max[s], linestyle=":", color="k", alpha=0.7)
+        # axs[s].axhline(s_min[s], linestyle=":", color="k", alpha=0.7)
+        axs[s].set_ylabel(f"$x_{s}$")
+
+    for a in range(meta.n_control):
+        for a_traj in a_collection:
+            if len(a_traj.shape) == 1:
+                a_traj = a_traj[..., np.newaxis]
+            axs[meta.n_state + a].step(
+                time_array,
+                np.append([a_traj[0, a]], a_traj[:, a]),
+                alpha=alpha,
+                color="tab:orange",
+            )
+            if np.all((a_traj[:, a] == 0) + (a_traj[:, a] == 1)):
+                axs[meta.n_state + a].set_ylim(-0.05, 1.05)
+                axs[meta.n_state + a].set_yticks([0, 1])
+        axs[meta.n_state + a].set_ylabel(f"$u_{a}$")
+        axs[meta.n_state + a].grid()
+
+    axs[0].set_title(title)
+    axs[-1].set_xlabel(r"time [sec]")
+    axs[-1].set_xlim(0, time_array[-1])
+    # axs[-1].grid()
+    # axs[-1].axhline(model.a_max, linestyle=":", color="k", alpha=0.5)
+    # axs[-1].axhline(model.a_min, linestyle=":", color="k", alpha=0.5)
+
+    plt.tight_layout()
+    fig.savefig(f"{IMG_DIR}/acados_test_loop.pdf", bbox_inches='tight')
 
 
 class DebugCallBack(ca.Callback):
