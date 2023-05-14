@@ -5,10 +5,11 @@ from sys import argv
 
 from typing import Tuple
 import casadi as ca
-from benders_exp.utils import tic, toc  # , DebugCallBack
+import numpy as np
+from benders_exp.utils import plot_trajectory, tic, to_0d, toc  # , DebugCallBack
 from benders_exp.defines import WITH_PLOT
 from benders_exp.problems.overview import PROBLEMS
-from benders_exp.problems import MinlpData, MinlpProblem
+from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass
 from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP, BendersMasterMIQP
@@ -161,19 +162,19 @@ if __name__ == "__main__":
         mode = "bendersqp"
 
     if len(argv) > 2:
-        problem = argv[2]
+        problem_name = argv[2]
     else:
-        problem = "dummy"
+        problem_name = "dummy"
 
     tic()
     new_inf = 1e3
-    print(problem)
-    if problem in PROBLEMS:
-        problem, data = PROBLEMS[problem]()
+    print(problem_name)
+    if problem_name in PROBLEMS:
+        problem, data = PROBLEMS[problem_name]()
         if problem == "orig":
             new_inf = 1e5
     else:
-        raise Exception(f"No {problem=}")
+        raise Exception(f"No {problem_name=}, available: {PROBLEMS.keys()}")
 
     make_bounded(problem, data, new_inf=new_inf)
     print("Problem loaded")
@@ -194,5 +195,13 @@ if __name__ == "__main__":
 
     stats.print()
     print(x_star)
+    if isinstance(problem.meta, MetaDataOcp):
+        meta = problem.meta
+        state = to_0d(x_star)[meta.idx_state].reshape(-1, meta.n_state)
+        state = np.vstack([meta.initial_state, state])
+        control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_control)
+        plot_trajectory(state, control, meta, title=problem_name)
+        plt.show()
+
     if WITH_PLOT:
         plt.show()

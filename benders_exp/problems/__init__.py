@@ -7,6 +7,23 @@ from copy import deepcopy
 
 
 @dataclass
+class MetaData:
+    """Meta data class."""
+
+
+@dataclass
+class MetaDataOcp(MetaData):
+    """Meta data in case the problem is an OCP."""
+
+    n_state: Optional[int] = None
+    n_control: Optional[int] = None
+    idx_state: Optional[List[float]] = None
+    idx_control: Optional[List[float]] = None
+    initial_state: Optional[List[float]] = None  # TODO: initial_state needs to become an index list of p
+    dt: Optional[float] = None
+
+
+@dataclass
 class MinlpProblem:
     """Minlp problem description."""
 
@@ -16,6 +33,8 @@ class MinlpProblem:
     p: CASADI_VAR
     idx_x_bin: List[float]
     precompiled_nlp: Optional[str] = None
+
+    meta: MetaData = MetaData()
 
 
 @dataclass

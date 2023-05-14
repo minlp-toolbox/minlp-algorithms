@@ -1,16 +1,16 @@
 """Overview of all problems."""
 
-from benders_exp.problems import MinlpProblem, CASADI_VAR, MinlpData
+from benders_exp.problems import MinlpProblem, CASADI_VAR, MinlpData, \
+    MetaDataOcp
 import casadi as ca
 import numpy as np
 from benders_exp.solarsys import extract as extract_solarsys
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver
 
+
 def create_check_sign_lagrange_problem():
-    """
-    Create a problem to check the sign of the multipliers
-    """
+    """Create a problem to check the sign of the multipliers."""
     x = CASADI_VAR.sym("x")
     p = CASADI_VAR.sym("p")
 
@@ -19,6 +19,7 @@ def create_check_sign_lagrange_problem():
                      _ubg=-1, _lbg=-7, p=[], solved=True)
 
     return problem, data
+
 
 def create_dummy_problem(p_val=[1000, 3]):
     """
@@ -71,8 +72,8 @@ def create_dummy_problem_2():
 
 def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
     """Create double pipe problem."""
-    y = CASADI_VAR.sym("y", 1) #integers
-    z = CASADI_VAR.sym("z", 2) #continuous
+    y = CASADI_VAR.sym("y", 1)  # integers
+    z = CASADI_VAR.sym("z", 2)  # continuous
     x0 = np.array([1, 0, 0])
     x = ca.vertcat(*[y, z])
     idx_x_bin = [0]
@@ -86,7 +87,7 @@ def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
     g = ca.vertcat(*[
         z[0] + y[0] * z[1] - r,
         gamma - z[1]
-        ])
+    ])
     lbg = np.array([0, 0])
     ubg = np.array([ca.inf, ca.inf])
     lbx = np.array([0, 0, -ca.inf])
@@ -100,30 +101,32 @@ def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
 
 def create_double_tank_problem(p_val=[2, 2.5]):
     """
-        Implementation of the double tank problem
-        Taken from Abbasi et al. ECC 23, reimplemented to achieve nice sparsity pattern.
-    """
+    Implement the double tank problem.
 
+    Taken from Abbasi et al. ECC 23, reimplemented to achieve nice sparsity pattern.
+    """
     N = 300
     T = 10
     dt = T / N
     alpha = 100
     beta = np.array([[1., 1.1]])
     gamma = 10
-    demand = np.array([2 + 0.5 * np.sin(x) for x in np.linspace(0, T, N+1)])[np.newaxis, :]
+    demand = np.array([2 + 0.5 * np.sin(x)
+                      for x in np.linspace(0, T, N+1)])[np.newaxis, :]
 
     nx = 2
     ns = 2
     nq = 2
     x_0 = CASADI_VAR.sym('x0', nx)
-    x = CASADI_VAR.sym('x', nx) # state
-    s = CASADI_VAR.sym('s', ns) # binary control
-    q = CASADI_VAR.sym('q', nq) # continuous control
+    x = CASADI_VAR.sym('x', nx)  # state
+    s = CASADI_VAR.sym('s', ns)  # binary control
+    q = CASADI_VAR.sym('q', nq)  # continuous control
 
     x1dot = s.T @ q - ca.sqrt(x[0])
     x2dot = ca.sqrt(x[0]) - ca.sqrt(x[1])
     xdot = ca.Function('xdot', [x, s, q], [ca.vertcat(x1dot, x2dot)])
-    F = ca.Function('F', [x, s, q], [x + dt * xdot(x, s, q)]) #TODO: implement a RK4 integrator
+    # TODO: implement a RK4 integrator
+    F = ca.Function('F', [x, s, q], [x + dt * xdot(x, s, q)])
 
     w = []
     w0 = []
@@ -135,6 +138,8 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     ubg = []
     p = []
     idx_x_bin = []
+    idx_state = []
+    idx_control = []
     idx_var = 0
 
     Xk = x_0
@@ -148,8 +153,9 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         w0 += [0, 0]
         Sk = CASADI_VAR.sym(f"s_{k}", ns)
         w += [Sk]
-        idx_var += nq
+        idx_var += ns
         idx_x_bin.append(np.arange(idx_var-ns, idx_var))
+        idx_control.append(np.arange(idx_var-ns-nq, idx_var))
         lbw += [0, 0]
         ubw += [1, 1]
         w0 += [0, 0]
@@ -162,20 +168,29 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         # New NLP variable for state at end of interval
         Xk = CASADI_VAR.sym(f"x_{k+1}", nx)
         idx_var += nx
+        idx_state.append(np.arange(idx_var-nx, idx_var))
         w += [Xk]
         lbw += [-np.inf, -np.inf]
         ubw += [np.inf, np.inf]
         w0 += [0, 0]
 
         # Add equality constraint
-        g   += [Xk_end - Xk]
+        g += [Xk_end - Xk]
         lbg += [0, 0]
         ubg += [0, 0]
 
-    problem = MinlpProblem(x=ca.vcat(w), f=J, g=ca.vcat(g), p=x_0, idx_x_bin=np.hstack(idx_x_bin))
-    data = MinlpData(x0=0.5*np.ones(len(w0)), _ubx=np.array(ubw), _lbx=np.array(lbw), _ubg=np.array(ubg), _lbg=np.array(lbg), p=p_val, solved=True)
+    meta = MetaDataOcp(
+        dt=dt, n_state=nx, n_control=ns+nq,
+        initial_state=p_val, idx_control=np.hstack(idx_control),
+        idx_state=np.hstack(idx_state)
+    )
+    problem = MinlpProblem(x=ca.vcat(w), f=J, g=ca.vcat(
+        g), p=x_0, idx_x_bin=np.hstack(idx_x_bin), meta=meta)
+    data = MinlpData(x0=0.5*np.ones(len(w0)), _ubx=np.array(ubw), _lbx=np.array(lbw),
+                     _ubg=np.array(ubg), _lbg=np.array(lbg), p=p_val, solved=True)
 
     return problem, data
+
 
 PROBLEMS = {
     "sign_check": create_check_sign_lagrange_problem,
