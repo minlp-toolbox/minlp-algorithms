@@ -106,6 +106,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     Taken from Abbasi et al. ECC 23, reimplemented to achieve nice sparsity pattern.
 
     """
+    eps = 0
     N = 150  # NOTE In paper the is set to 300
     dt = 1/30
     T = N * dt
@@ -123,8 +124,8 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     s = CASADI_VAR.sym('s', ns)  # binary control
     q = CASADI_VAR.sym('q', nq)  # continuous control
 
-    x1dot = s.T @ q - ca.sqrt(x[0])
-    x2dot = ca.sqrt(x[0]) - ca.sqrt(x[1])
+    x1dot = s.T @ q - ca.sqrt(x[0] + eps)
+    x2dot = ca.sqrt(x[0] + eps) - ca.sqrt(x[1] + eps)
     xdot = ca.Function('xdot', [x, s, q], [ca.vertcat(x1dot, x2dot)])
     # TODO: implement a RK4 integrator
     F = ca.Function('F', [x, s, q], [x + dt * xdot(x, s, q)])
