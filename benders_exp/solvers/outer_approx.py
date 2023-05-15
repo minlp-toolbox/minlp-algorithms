@@ -3,7 +3,7 @@
 import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData
-from benders_exp.defines import WITH_LOGGING, WITH_JIT, CASADI_VAR
+from benders_exp.defines import GUROBI_SETTINGS, WITH_LOGGING, WITH_JIT, CASADI_VAR
 
 
 class OuterApproxMILP(SolverClass):
@@ -67,9 +67,9 @@ class OuterApproxMILP(SolverClass):
         discrete = [0] * (self.nr_x+1)
         for i in problem.idx_x_bin:
             discrete[i] = 1
+        self.options.update(GUROBI_SETTINGS)
         self.options.update({
             "discrete": discrete,
-            "gurobi.MIPGap": 0.05
         })
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:

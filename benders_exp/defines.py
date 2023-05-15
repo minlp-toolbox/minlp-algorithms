@@ -33,3 +33,7 @@ IPOPT_SETTINGS = {
     # "ipopt.mu_target": 1e-4,
     "ipopt.print_level": 1,
 }
+GUROBI_SETTINGS = {
+        "gurobi.MIPGap": 0.05,
+        "gurobi.NumericFocus": 1,
+}
