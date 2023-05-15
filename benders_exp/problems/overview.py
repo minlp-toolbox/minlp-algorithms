@@ -104,10 +104,11 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     Implement the double tank problem.
 
     Taken from Abbasi et al. ECC 23, reimplemented to achieve nice sparsity pattern.
+
     """
-    N = 300
-    T = 10
-    dt = T / N
+    N = 180
+    dt = 1/30
+    T = N * dt
     alpha = 100
     beta = np.array([[1., 1.1]])
     gamma = 10
