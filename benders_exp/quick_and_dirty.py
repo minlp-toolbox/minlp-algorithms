@@ -7,7 +7,7 @@ from typing import Tuple
 import casadi as ca
 import numpy as np
 from benders_exp.utils import plot_trajectory, tic, to_0d, toc  # , DebugCallBack
-from benders_exp.defines import WITH_PLOT
+from benders_exp.defines import IMG_DIR, WITH_PLOT
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp
 from benders_exp.solvers import Stats
@@ -200,7 +200,9 @@ if __name__ == "__main__":
         state = to_0d(x_star)[meta.idx_state].reshape(-1, meta.n_state)
         state = np.vstack([meta.initial_state, state])
         control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_control)
-        plot_trajectory(state, control, meta, title=problem_name)
+        fig, axs = plot_trajectory(state, control, meta, title=problem_name)
+        fig.savefig(f"{IMG_DIR}/ocp_trajectory.pdf", bbox_inches='tight')
+
         plt.show()
 
     if WITH_PLOT:

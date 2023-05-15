@@ -181,7 +181,8 @@ def plot_trajectory(
     # axs[-1].axhline(model.a_min, linestyle=":", color="k", alpha=0.5)
 
     plt.tight_layout()
-    fig.savefig(f"{IMG_DIR}/acados_test_loop.pdf", bbox_inches='tight')
+    # fig.savefig(f"{IMG_DIR}/acados_test_loop.pdf", bbox_inches='tight')
+    return fig, axs
 
 
 class DebugCallBack(ca.Callback):
