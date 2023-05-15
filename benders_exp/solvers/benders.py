@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-        extract_linear_bounds_binary_x
+        get_idx_linear_bounds_binary_x
 from benders_exp.defines import GUROBI_SETTINGS, WITH_LOGGING, WITH_JIT, CASADI_VAR, WITH_PLOT
 
 

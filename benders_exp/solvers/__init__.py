@@ -49,7 +49,7 @@ class SolverClass(ABC):
         return stats["success"], stats
 
 
-def get_idx_linear_bounds_binary_x(problem: MinlpProblem, data: MinlpData):
+def get_idx_linear_bounds_binary_x(problem: MinlpProblem):
     """Get the indices for the linear bounds that are purely on the binary x."""
     x_cont_idx = [
         i for i in range(problem.x.shape[0]) if i not in problem.idx_x_bin
@@ -70,8 +70,8 @@ def get_idx_linear_bounds(problem: MinlpProblem):
     """Get the indices of the linear bounds."""
     nr_g = problem.g.shape[0]
     return np.array(
-        filter(lambda i: ca.hessian(problem.g[i], problem.x)[0] == 0,
-               list(range(nr_g)))
+        list(filter(lambda i: ca.hessian(problem.g[i], problem.x)[0].nnz() == 0,
+             range(nr_g)))
     )
 
 
