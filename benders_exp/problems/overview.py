@@ -107,8 +107,8 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     Taken from Abbasi et al. ECC 23, reimplemented to achieve nice sparsity pattern.
 
     """
-    eps = 0
-    N = 150  # NOTE In paper the is set to 300
+    eps = 1e-3
+    N = 200  # NOTE In paper the is set to 300
     dt = 1/30
     T = N * dt
     alpha = 100
