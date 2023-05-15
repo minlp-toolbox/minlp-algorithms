@@ -3,9 +3,9 @@
 import casadi as ca
 import numpy as np
 from copy import deepcopy
-from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData
-from benders_exp.defines import WITH_LOGGING, WITH_JIT, IPOPT_SETTINGS, \
-        CASADI_VAR
+from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
+        regularize_options
+from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR
 from benders_exp.utils import to_0d
 
 
@@ -20,12 +20,7 @@ class NlpSolver(SolverClass):
     def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
         """Create NLP problem."""
         super(NlpSolver, self).__init___(problem, stats)
-        if options is None:
-            if WITH_LOGGING:
-                options = {}
-            else:
-                options = {"ipopt.print_level": 0,
-                           "verbose": False, "print_time": 0}
+        options = regularize_options(options, {}, {"ipopt.print_level": 0})
 
         self.idx_x_bin = problem.idx_x_bin
         options.update(IPOPT_SETTINGS)
@@ -59,11 +54,7 @@ class NlpSolver(SolverClass):
             lbg=nlpdata.lbg, ubg=nlpdata.ubg
         )
 
-        nlpdata.solved, stats = self.collect_stats()
-        self.stats["nlp.time"] += sum(
-            [v for k, v in stats.items() if "t_proc" in k]
-        )
-        self.stats["nlp.iter"] += max(0, stats["iter_count"])
+        nlpdata.solved, _ = self.collect_stats("nlp")
         if not nlpdata.solved:
             print("NLP not solved")
         else:
@@ -74,19 +65,13 @@ class NlpSolver(SolverClass):
 class FeasibilityNlpSolver(SolverClass):
     """Create benders master problem."""
 
-    def __init__(self, problem: MinlpProblem, data:MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Create benders master MILP."""
         super(FeasibilityNlpSolver, self).__init___(problem, stats)
-        if options is None:
-            if WITH_LOGGING:
-                options = {}
-            else:
-                options = {
-                    "ipopt.print_level": 0, "verbose": False, "print_time": 0
-                }
+        options = regularize_options(options, {}, {"ipopt.print_level": 0})
 
         g = []
-        beta =  CASADI_VAR.sym("beta")
+        beta = CASADI_VAR.sym("beta")
         for i in range(problem.g.shape[0]):
             if data.lbg[i] != -np.inf:
                 g.append(-problem.g[i] + data.lbg[i] - beta)
@@ -115,25 +100,23 @@ class FeasibilityNlpSolver(SolverClass):
         ubx = deepcopy(nlpdata.ubx)
         lbx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
         ubx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
-        lbx=np.hstack([lbx, np.zeros(1)]) # add lower bound for the slacks
-        ubx=np.hstack([ubx, np.inf * np.ones(1)]) # add upper bound for the slacks
+        lbx = np.hstack([lbx, np.zeros(1)])  # add lower bound for the slacks
+        # add upper bound for the slacks
+        ubx = np.hstack([ubx, np.inf * np.ones(1)])
 
         nlpdata.prev_solution = self.solver(
             x0=ca.vertcat(
                 nlpdata.x_sol[:nlpdata.x0.shape[0]],
-                np.zeros(1) # slacks initialization
-                ),
+                np.zeros(1)  # slacks initialization
+            ),
             lbx=lbx,
             ubx=ubx,
             lbg=self.lbg,
             ubg=self.ubg,
             p=nlpdata.p
-            )
-        nlpdata.solved, stats = self.collect_stats()
-        self.stats["fnlp.time"] += sum(
-            [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats["fnlp.iter"] += max(0, stats["iter_count"])
+
+        nlpdata.solved, _ = self.collect_stats("fnlp")
         if not nlpdata.solved:
             print("MILP not solved")
             raise Exception()

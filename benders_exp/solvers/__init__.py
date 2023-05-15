@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Dict, List
 from benders_exp.problems import MinlpProblem, MinlpData
+from benders_exp.defines import WITH_LOGGING
 import casadi as ca
 import numpy as np
 
@@ -43,10 +44,27 @@ class SolverClass(ABC):
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve the problem."""
 
-    def collect_stats(self):
+    def collect_stats(self, algo_name):
         """Collect statistics."""
         stats = self.solver.stats()
+
+        self.stats[f"{algo_name}.time"] += sum(
+            [v for k, v in stats.items() if "t_proc" in k]
+        )
+        self.stats[f"{algo_name}.iter"] += max(0, stats["iter_count"])
         return stats["success"], stats
+
+
+def regularize_options(options, log_opts, nolog_opts):
+    """Regularize options."""
+    if options is None:
+        if WITH_LOGGING:
+            return log_opts
+        else:
+            nolog_opts.update({"verbose": False, "print_time": 0})
+            return nolog_opts
+    else:
+        return options.copy()
 
 
 def get_idx_linear_bounds_binary_x(problem: MinlpProblem):

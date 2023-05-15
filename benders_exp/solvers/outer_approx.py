@@ -3,21 +3,8 @@
 import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-    get_idx_linear_bounds
-from benders_exp.defines import GUROBI_SETTINGS, WITH_LOGGING, WITH_JIT, CASADI_VAR
-
-
-def regularize_options(options):
-    """Regularize options."""
-    if options is None:
-        if WITH_LOGGING:
-            return {}
-        else:
-            return {
-                "verbose": False, "print_time": 0, "gurobi.output_flag": 0
-            }
-    else:
-        return options.copy()
+    get_idx_linear_bounds, regularize_options
+from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR
 
 
 class OuterApproxMILP(SolverClass):
@@ -38,7 +25,9 @@ class OuterApproxMILP(SolverClass):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Create benders master MILP."""
         super(OuterApproxMILP, self).__init___(problem, stats)
-        self.options = regularize_options(options)
+        self.options = regularize_options(
+            options, {}, {"gurobi.output_flag": 0}
+        )
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
             {"jit": WITH_JIT}
@@ -112,11 +101,7 @@ class OuterApproxMILP(SolverClass):
             ubg=self._ubg,
         )
         nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x]
-        nlpdata.solved, stats = self.collect_stats()
-        self.stats["milp_oa.time"] += sum(
-            [v for k, v in stats.items() if "t_proc" in k]
-        )
-        self.stats["milp_oa.iter"] += max(0, stats["iter_count"])
+        nlpdata.solved, stats = self.collect_stats("milp_oa")
         return nlpdata
 
 
@@ -126,7 +111,9 @@ class OuterApproxMILPImproved(SolverClass):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Improved outer approximation."""
         super(OuterApproxMILPImproved, self).__init___(problem, stats)
-        self.options = regularize_options(options)
+        self.options = regularize_options(
+            options, {}, {"gurobi.output_flag": 0}
+        )
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
             {"jit": WITH_JIT}
@@ -207,9 +194,5 @@ class OuterApproxMILPImproved(SolverClass):
             ubg=self._ubg,
         )
         nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x]
-        nlpdata.solved, stats = self.collect_stats()
-        self.stats["milp_oa.time"] += sum(
-            [v for k, v in stats.items() if "t_proc" in k]
-        )
-        self.stats["milp_oa.iter"] += max(0, stats["iter_count"])
+        nlpdata.solved, stats = self.collect_stats("milp_oai")
         return nlpdata
