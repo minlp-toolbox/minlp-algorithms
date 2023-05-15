@@ -7,6 +7,7 @@ import numpy as np
 from benders_exp.solarsys import extract as extract_solarsys
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver
+from benders_exp.utils import integrate_ee, integrate_rk4
 
 
 def create_check_sign_lagrange_problem():
@@ -123,12 +124,14 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     x = CASADI_VAR.sym('x', nx)  # state
     s = CASADI_VAR.sym('s', ns)  # binary control
     q = CASADI_VAR.sym('q', nq)  # continuous control
-
+    u = ca.vertcat(*[s, q])
     x1dot = s.T @ q - ca.sqrt(x[0] + eps)
     x2dot = ca.sqrt(x[0] + eps) - ca.sqrt(x[1] + eps)
-    xdot = ca.Function('xdot', [x, s, q], [ca.vertcat(x1dot, x2dot)])
-    # TODO: implement a RK4 integrator
-    F = ca.Function('F', [x, s, q], [x + dt * xdot(x, s, q)])
+    xdot = ca.vertcat(*[x1dot, x2dot])
+
+    # F = integrate_ee(x, u, xdot, dt, m_steps=1)
+    F = integrate_rk4(x, u, xdot, dt, m_steps=1)
+
 
     w = []
     w0 = []
@@ -163,7 +166,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         w0 += [0, 0]
 
         # Integrate till the end of the interval
-        Xk_end = F(Xk, Sk, Qk)
+        Xk_end = F(Xk, ca.vertcat(*[Sk, Qk]))
         J += dt * alpha * (Xk[1] - demand[k]) ** 2
         J += dt * ca.sum2(beta @ (Qk * Sk))
 
