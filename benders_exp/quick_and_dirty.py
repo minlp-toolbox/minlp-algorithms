@@ -201,6 +201,14 @@ if __name__ == "__main__":
         state = np.vstack([meta.initial_state, state])
         control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_control)
         fig, axs = plot_trajectory(state, control, meta, title=problem_name)
+
+        # TODO the next is only a patch for plotting the demand for the double tank problem
+        time_array = np.linspace(0, meta.dt * state.shape[0], state.shape[0] + 1)
+        demand = np.array([2 + 0.5 * np.sin(x)
+                      for x in time_array])
+        axs[1].plot(time_array, demand, "r--", alpha=0.5)
+
+
         fig.savefig(f"{IMG_DIR}/ocp_trajectory.pdf", bbox_inches='tight')
 
         plt.show()
