@@ -195,12 +195,16 @@ class BendersMasterMIQP(BendersMasterMILP):
         # TODO: Strip all linear equations with binary variables only!
         # Format to g < 0 for simplicity
         # sparsity = ca.jacobian(problem.g, problem.x).sparsity
-        g, lbg, ubg = extract_linear_bounds_binary_x(problem, data)
-
-        self._g = ca.vertcat(*g)
-        self._lbg = lbg
-        self._ubg = ubg
-        self.nr_g = len(g)
+        idx_lin = get_idx_linear_bounds_binary_x(problem)
+        self.nr_g = len(idx_lin)
+        if self.nr_g > 0:
+            self._g = ca.vertcat(*problem.g[idx_lin])
+            self._lbg = data.lbg[idx_lin]
+            self._ubg = data.ubg[idx_lin]
+        else:
+            self._g = []
+            self._lbg = []
+            self._ubg = []
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """solve."""
