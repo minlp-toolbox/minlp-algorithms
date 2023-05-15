@@ -106,14 +106,14 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     Taken from Abbasi et al. ECC 23, reimplemented to achieve nice sparsity pattern.
 
     """
-    N = 180
+    N = 150  # NOTE In paper the is set to 300
     dt = 1/30
     T = N * dt
     alpha = 100
     beta = np.array([[1., 1.1]])
     gamma = 10
     demand = np.array([2 + 0.5 * np.sin(x)
-                      for x in np.linspace(0, T, N+1)])[np.newaxis, :]
+                      for x in np.linspace(0, T, N+1)])
 
     nx = 2
     ns = 2
@@ -163,7 +163,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
 
         # Integrate till the end of the interval
         Xk_end = F(Xk, Sk, Qk)
-        J += dt * alpha * (Xk[1] - demand[:, k]) ** 2
+        J += dt * alpha * (Xk[1] - demand[k]) ** 2
         J += dt * ca.sum2(beta @ (Qk * Sk))
 
         # New NLP variable for state at end of interval
