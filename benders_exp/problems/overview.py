@@ -162,7 +162,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
 
         # Integrate till the end of the interval
         Xk_end = F(Xk, Sk, Qk)
-        J += dt * ca.sum2((Xk[1] - demand) ** 2) * alpha
+        J += dt * alpha * (Xk[1] - demand[:, k]) ** 2
         J += dt * ca.sum2(beta @ (Qk * Sk))
 
         # New NLP variable for state at end of interval
