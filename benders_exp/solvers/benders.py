@@ -59,7 +59,6 @@ class BendersMasterMILP(SolverClass):
         self._nu = CASADI_VAR.sym("nu", 1)
         self._g = np.array([])
         self.nr_g = 0
-        self.options = options.copy()
         self.options.update(GUROBI_SETTINGS)
         self.options["discrete"] = [1] * (self.nr_x_bin + 1)
         self.options["discrete"][-1] = 0

@@ -30,7 +30,7 @@ def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
                 g_extra.append(-problem.x[i] + max(lbx[i], -new_inf))
                 g_lb.append(-np.inf)
                 g_ub.append(0)
-                lbx[i] = -ca.inf
+                lbx[i] = -1e9 #TODO: for -ca.inf it raises an error (OverflowError: cannot convert float infinity to integer)
             if ubx[i] < new_inf:
                 g_extra.append(problem.x[i] - min(ubx[i], new_inf))
                 g_lb.append(-np.inf)
