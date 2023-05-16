@@ -10,7 +10,7 @@ import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
         extract_linear_bounds_binary_x
-from benders_exp.defines import WITH_LOGGING, WITH_JIT, CASADI_VAR, WITH_PLOT
+from benders_exp.defines import GUROBI_SETTINGS, WITH_LOGGING, WITH_JIT, CASADI_VAR, WITH_PLOT
 
 
 class BendersMasterMILP(SolverClass):
@@ -63,9 +63,9 @@ class BendersMasterMILP(SolverClass):
         self._g = np.array([])
         self.nr_g = 0
         self.options = options.copy()
+        self.options.update(GUROBI_SETTINGS)
         self.options["discrete"] = [1] * (self.nr_x_bin + 1)
         self.options["discrete"][-1] = 0
-        self.options["gurobi.MIPGap"] = 0.05
         self.nr_g_orig = problem.g.shape[0]
         self.nr_x_orig = problem.x.shape[0]
 

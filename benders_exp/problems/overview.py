@@ -7,6 +7,7 @@ import numpy as np
 from benders_exp.solarsys import extract as extract_solarsys
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver
+from benders_exp.problems.utils import integrate_rk4  # , integrate_ee
 
 
 def create_check_sign_lagrange_problem():
@@ -104,29 +105,30 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     Implement the double tank problem.
 
     Taken from Abbasi et al. ECC 23, reimplemented to achieve nice sparsity pattern.
+
     """
-    N = 300
-    T = 10
-    dt = T / N
+    eps = 1e-3
+    N = 200  # NOTE In paper the is set to 300
+    dt = 1/30
+    T = N * dt
     alpha = 100
-    beta = np.array([[1., 1.1]])
+    beta = np.array([1., 1.1])
     gamma = 10
+    scaling_coeff = [gamma, 1]
     demand = np.array([2 + 0.5 * np.sin(x)
-                      for x in np.linspace(0, T, N+1)])[np.newaxis, :]
+                      for x in np.linspace(0, T, N+1)])
 
     nx = 2
-    ns = 2
-    nq = 2
+    nu = 2
     x_0 = CASADI_VAR.sym('x0', nx)
     x = CASADI_VAR.sym('x', nx)  # state
-    s = CASADI_VAR.sym('s', ns)  # binary control
-    q = CASADI_VAR.sym('q', nq)  # continuous control
+    u = CASADI_VAR.sym('u', nu)  # control
+    x1dot = scaling_coeff[0]*u[0] + u[1] - ca.sqrt(x[0] + eps)
+    x2dot = ca.sqrt(x[0] + eps) - ca.sqrt(x[1] + eps)
+    xdot = ca.vertcat(*[x1dot, x2dot])
 
-    x1dot = s.T @ q - ca.sqrt(x[0])
-    x2dot = ca.sqrt(x[0]) - ca.sqrt(x[1])
-    xdot = ca.Function('xdot', [x, s, q], [ca.vertcat(x1dot, x2dot)])
-    # TODO: implement a RK4 integrator
-    F = ca.Function('F', [x, s, q], [x + dt * xdot(x, s, q)])
+    # F = integrate_ee(x, u, xdot, dt, m_steps=1)
+    F = integrate_rk4(x, u, xdot, dt, m_steps=1)
 
     w = []
     w0 = []
@@ -145,32 +147,26 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     Xk = x_0
     p += [Xk]
     for k in range(N):
-        Qk = CASADI_VAR.sym(f"q_{k}", nq)
-        w += [Qk]
-        idx_var += nq
-        lbw += [gamma, 0]
-        ubw += [gamma, gamma]
-        w0 += [0, 0]
-        Sk = CASADI_VAR.sym(f"s_{k}", ns)
-        w += [Sk]
-        idx_var += ns
-        idx_x_bin.append(np.arange(idx_var-ns, idx_var))
-        idx_control.append(np.arange(idx_var-ns-nq, idx_var))
+        Uk = CASADI_VAR.sym(f"u_{k}", nu)
+        w += [Uk]
+        idx_var += nu
         lbw += [0, 0]
-        ubw += [1, 1]
+        ubw += [1, gamma]
         w0 += [0, 0]
+        idx_x_bin.append(np.arange(idx_var-nu, idx_var-1))
+        idx_control.append(np.arange(idx_var-nu, idx_var))
 
         # Integrate till the end of the interval
-        Xk_end = F(Xk, Sk, Qk)
-        J += dt * alpha * (Xk[1] - demand[:, k]) ** 2
-        J += dt * ca.sum2(beta @ (Qk * Sk))
+        Xk_end = F(Xk, Uk)
+        J += dt * alpha * (Xk[1] - demand[k]) ** 2
+        J += dt * (beta[0] * scaling_coeff[0] * Uk[0] + beta[1] * Uk[1])
 
         # New NLP variable for state at end of interval
         Xk = CASADI_VAR.sym(f"x_{k+1}", nx)
         idx_var += nx
         idx_state.append(np.arange(idx_var-nx, idx_var))
         w += [Xk]
-        lbw += [-np.inf, -np.inf]
+        lbw += [0, 0]
         ubw += [np.inf, np.inf]
         w0 += [0, 0]
 
@@ -180,9 +176,10 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         ubg += [0, 0]
 
     meta = MetaDataOcp(
-        dt=dt, n_state=nx, n_control=ns+nq,
+        dt=dt, n_state=nx, n_control=nu,
         initial_state=p_val, idx_control=np.hstack(idx_control),
-        idx_state=np.hstack(idx_state)
+        idx_state=np.hstack(idx_state),
+        scaling_coeff_control=scaling_coeff
     )
     problem = MinlpProblem(x=ca.vcat(w), f=J, g=ca.vcat(
         g), p=x_0, idx_x_bin=np.hstack(idx_x_bin), meta=meta)
