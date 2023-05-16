@@ -13,7 +13,7 @@ from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass
 from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP, BendersMasterMIQP
-from benders_exp.solvers.outer_approx import OuterApproxMILP
+from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.utils import make_bounded
 
 
@@ -90,6 +90,16 @@ def outer_approx_algorithm(
     """Create and run outer approximation."""
     print("Setup MILP solver...")
     outer_approx = OuterApproxMILP(problem, data, stats)
+    toc()
+    return base_strategy(problem, data, stats, outer_approx)
+
+
+def outer_approx_algorithm_improved(
+    problem: MinlpProblem, data: MinlpData, stats: Stats
+) -> Tuple[MinlpData, ca.DM]:
+    """Create and run improved outer approximation."""
+    print("Setup MILP solver...")
+    outer_approx = OuterApproxMILPImproved(problem, data, stats)
     toc()
     return base_strategy(problem, data, stats, outer_approx)
 
@@ -180,18 +190,18 @@ if __name__ == "__main__":
     print("Problem loaded")
     toc()
     stats = Stats({})
-    if mode == "benders":
-        data, x_star = benders_algorithm(
-            problem, data, stats
-        )
-    elif mode == "bendersqp":
-        data, x_star = benders_algorithm(
-            problem, data, stats, with_qp=True
-        )
-    elif mode == "idea":
-        data, x_star = idea_algorithm(problem, data,  stats)
-    elif mode == "outerapprox":
-        data, x_star = outer_approx_algorithm(problem, data, stats)
+    MODES = {
+        "benders": benders_algorithm,
+        "bendersqp": lambda p, d, s: benders_algorithm(p, d, s, with_qp=True),
+        "idea": idea_algorithm,
+        "outerapprox": outer_approx_algorithm,
+        "oa": outer_approx_algorithm,
+        "oai": outer_approx_algorithm_improved
+    }
+    if mode in MODES:
+        data, x_star = MODES[mode](problem, data, stats)
+    else:
+        raise Exception(f"No mode {mode=}, available {MODES.keys()}")
 
     stats.print()
     print(x_star)

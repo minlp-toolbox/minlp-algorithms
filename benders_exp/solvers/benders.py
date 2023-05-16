@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-        extract_linear_bounds_binary_x
-from benders_exp.defines import GUROBI_SETTINGS, WITH_LOGGING, WITH_JIT, CASADI_VAR, WITH_PLOT
+        get_idx_linear_bounds_binary_x, regularize_options
+from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR, WITH_PLOT
 
 
 class BendersMasterMILP(SolverClass):
@@ -39,14 +39,11 @@ class BendersMasterMILP(SolverClass):
         self.cut_id = 0
         self.visualized_cuts = []
 
-    def setup_common(self, problem: MinlpProblem, options):
+    def setup_common(self, problem: MinlpProblem, options=None):
         """Set up common data."""
-        if options is None:
-            if WITH_LOGGING:
-                options = {}
-            else:
-                options = {"verbose": False,
-                           "print_time": 0, "gurobi.output_flag": 0}
+        self.options = regularize_options(
+            options, {}, {"gurobi.output_flag": 0}
+        )
 
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
@@ -140,11 +137,7 @@ class BendersMasterMILP(SolverClass):
         x_full[self.idx_x_bin] = solution['x'][:-1]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
-        nlpdata.solved, stats = self.collect_stats()
-        self.stats["milp_benders.time"] += sum(
-            [v for k, v in stats.items() if "t_proc" in k]
-        )
-        self.stats["milp_benders.iter"] += max(0, stats["iter_count"])
+        nlpdata.solved, stats = self.collect_stats("milp_benders")
         return nlpdata
 
     def setup_plot(self):
@@ -195,12 +188,16 @@ class BendersMasterMIQP(BendersMasterMILP):
         # TODO: Strip all linear equations with binary variables only!
         # Format to g < 0 for simplicity
         # sparsity = ca.jacobian(problem.g, problem.x).sparsity
-        g, lbg, ubg = extract_linear_bounds_binary_x(problem, data)
-
-        self._g = ca.vertcat(*g)
-        self._lbg = lbg
-        self._ubg = ubg
-        self.nr_g = len(g)
+        idx_lin = get_idx_linear_bounds_binary_x(problem)
+        self.nr_g = len(idx_lin)
+        if self.nr_g > 0:
+            self._g = ca.vertcat(*problem.g[idx_lin])
+            self._lbg = data.lbg[idx_lin]
+            self._ubg = data.ubg[idx_lin]
+        else:
+            self._g = []
+            self._lbg = []
+            self._ubg = []
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """solve."""
@@ -242,11 +239,7 @@ class BendersMasterMIQP(BendersMasterMILP):
         x_full[self.idx_x_bin] = solution['x'][:-1]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
-        nlpdata.solved, stats = self.collect_stats()
-        self.stats["miqp_benders.time"] += sum(
-            [v for k, v in stats.items() if "t_proc" in k]
-        )
-        self.stats["miqp_benders.iter"] += max(0, stats["iter_count"])
+        nlpdata.solved, stats = self.collect_stats("miqp_benders")
         return nlpdata
 
 
@@ -339,11 +332,7 @@ class BendersConstraintMILP(BendersMasterMILP):
         )
         nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x_orig]
 
-        nlpdata.solved, stats = self.collect_stats()
-        self.stats["milp_bconstraint.time"] += sum(
-            [v for k, v in stats.items() if "t_proc" in k]
-        )
-        self.stats["milp_bconstraint.iter"] += max(0, stats["iter_count"])
+        nlpdata.solved, stats = self.collect_stats("milp_bconstraint")
         self._g = ca.vertcat(self._g, g_k)
         self.nr_g += 1
         return nlpdata
