@@ -8,7 +8,7 @@ import numpy as np
 import casadi as ca
 import logging
 from time import perf_counter
-from benders_exp.defines import _DATA_FOLDER, CASADI_VAR, IMG_DIR
+from benders_exp.defines import _DATA_FOLDER
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp
 
 CALLBACK_INPUTS = dict()
@@ -155,21 +155,20 @@ def plot_trajectory(
                         alpha=alpha, color="tab:blue")
         # axs[s].axhline(s_max[s], linestyle=":", color="k", alpha=0.7)
         # axs[s].axhline(s_min[s], linestyle=":", color="k", alpha=0.7)
+        axs[s].set_ylim(0, )
         axs[s].set_ylabel(f"$x_{s}$")
 
     for a in range(meta.n_control):
+        axs[meta.n_state + a].set_ylim(0, 10.5)
         for a_traj in a_collection:
             if len(a_traj.shape) == 1:
                 a_traj = a_traj[..., np.newaxis]
             axs[meta.n_state + a].step(
                 time_array,
-                np.append([a_traj[0, a]], a_traj[:, a]),
+                meta.scaling_coeff_control[a] * np.append([a_traj[0, a]], a_traj[:, a]),
                 alpha=alpha,
                 color="tab:orange",
             )
-            if np.all((a_traj[:, a] == 0) + (a_traj[:, a] == 1)):
-                axs[meta.n_state + a].set_ylim(-0.05, 1.05)
-                axs[meta.n_state + a].set_yticks([0, 1])
         axs[meta.n_state + a].set_ylabel(f"$u_{a}$")
         axs[meta.n_state + a].grid()
 
@@ -183,57 +182,6 @@ def plot_trajectory(
     plt.tight_layout()
     # fig.savefig(f"{IMG_DIR}/acados_test_loop.pdf", bbox_inches='tight')
     return fig, axs
-
-
-def integrate_rk4(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_steps: int = 1):
-        """
-        Implement RK4 integrator for ODE
-
-        x: state
-        u: control
-        x_dot: ODE that describes the continuous time dynamics of the system
-        dt: integration time
-        m_steps: number of integration steps per interval
-        """
-
-        if m_steps > 1:
-            dt = dt / m_steps
-
-        f = ca.Function("f", [x, u], [x_dot])
-        X0 = ca.SX.sym("X0", x.shape[0])
-        U = ca.SX.sym("U", u.shape[0])
-        X = X0
-        for _ in range(m_steps):
-            k1 = f(X, U)
-            k2 = f(X + dt / 2 * k1, U)
-            k3 = f(X + dt / 2 * k2, U)
-            k4 = f(X + dt * k3, U)
-            X = X + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
-        return ca.Function("I_rk4", [X0, U], [X], ["x0", "u"], ["xf"])
-
-
-def integrate_ee(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_steps: int = 1):
-        """
-        Implement explicit euler integrator for ODE
-
-        x: state
-        u: control
-        x_dot: ODE that describes the continuous time dynamics of the system
-        dt: integration time
-        m_steps: number of integration steps per interval
-        """
-
-        if m_steps > 1:
-            dt = dt / m_steps
-
-        f = ca.Function("f", [x, u], [x_dot])
-        X0 = ca.SX.sym("X0", x.shape[0])
-        U = ca.SX.sym("U", u.shape[0])
-        X = X0
-        for _ in range(m_steps):
-            k1 = f(X, U)
-            X = X + dt * k1
-        return ca.Function("I_ee", [X0, U], [X], ["x0", "u"], ["xf"])
 
 
 class DebugCallBack(ca.Callback):

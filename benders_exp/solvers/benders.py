@@ -59,9 +59,10 @@ class BendersMasterMILP(SolverClass):
         self._nu = CASADI_VAR.sym("nu", 1)
         self._g = np.array([])
         self.nr_g = 0
+        self.options = options.copy()
         self.options.update(GUROBI_SETTINGS)
-        self.options["discrete"] = [1] * self.nr_x_bin + [0]
-        self.options["gurobi.MIPGap"] = 0.05
+        self.options["discrete"] = [1] * (self.nr_x_bin + 1)
+        self.options["discrete"][-1] = 0
         self.nr_g_orig = problem.g.shape[0]
         self.nr_x_orig = problem.x.shape[0]
 
