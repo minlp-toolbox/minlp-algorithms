@@ -8,7 +8,7 @@ import numpy as np
 import casadi as ca
 import logging
 from time import perf_counter
-from benders_exp.defines import _DATA_FOLDER, IMG_DIR
+from benders_exp.defines import _DATA_FOLDER
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp
 
 CALLBACK_INPUTS = dict()
@@ -155,21 +155,20 @@ def plot_trajectory(
                         alpha=alpha, color="tab:blue")
         # axs[s].axhline(s_max[s], linestyle=":", color="k", alpha=0.7)
         # axs[s].axhline(s_min[s], linestyle=":", color="k", alpha=0.7)
+        axs[s].set_ylim(0, )
         axs[s].set_ylabel(f"$x_{s}$")
 
     for a in range(meta.n_control):
+        axs[meta.n_state + a].set_ylim(0, 10.5)
         for a_traj in a_collection:
             if len(a_traj.shape) == 1:
                 a_traj = a_traj[..., np.newaxis]
             axs[meta.n_state + a].step(
                 time_array,
-                np.append([a_traj[0, a]], a_traj[:, a]),
+                meta.scaling_coeff_control[a] * np.append([a_traj[0, a]], a_traj[:, a]),
                 alpha=alpha,
                 color="tab:orange",
             )
-            if np.all((a_traj[:, a] == 0) + (a_traj[:, a] == 1)):
-                axs[meta.n_state + a].set_ylim(-0.05, 1.05)
-                axs[meta.n_state + a].set_yticks([0, 1])
         axs[meta.n_state + a].set_ylabel(f"$u_{a}$")
         axs[meta.n_state + a].grid()
 
@@ -181,7 +180,8 @@ def plot_trajectory(
     # axs[-1].axhline(model.a_min, linestyle=":", color="k", alpha=0.5)
 
     plt.tight_layout()
-    fig.savefig(f"{IMG_DIR}/acados_test_loop.pdf", bbox_inches='tight')
+    # fig.savefig(f"{IMG_DIR}/acados_test_loop.pdf", bbox_inches='tight')
+    return fig, axs
 
 
 class DebugCallBack(ca.Callback):

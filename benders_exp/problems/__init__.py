@@ -21,6 +21,7 @@ class MetaDataOcp(MetaData):
     idx_control: Optional[List[float]] = None
     initial_state: Optional[List[float]] = None  # TODO: initial_state needs to become an index list of p
     dt: Optional[float] = None
+    scaling_coeff_control: Optional[List[float]] = None
 
 
 @dataclass
