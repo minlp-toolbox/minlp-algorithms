@@ -7,7 +7,8 @@ import numpy as np
 from benders_exp.solarsys import extract as extract_solarsys
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver
-from benders_exp.problems.utils import integrate_rk4  # , integrate_ee
+from benders_exp.utils import integrate_rk4  # integrate_ee
+from benders_exp.problems.double_tank import create_double_tank_problem2
 
 
 def create_check_sign_lagrange_problem():
@@ -108,7 +109,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
 
     """
     eps = 1e-3
-    N = 200  # NOTE In paper the is set to 300
+    N = 300  # NOTE In paper the is set to 300
     dt = 1/30
     T = N * dt
     alpha = 100
@@ -195,7 +196,8 @@ PROBLEMS = {
     "dummy2": create_dummy_problem_2,
     "orig": extract_solarsys,
     "doublepipe": create_double_pipe_problem,
-    "doubletank": create_double_tank_problem
+    "doubletank": create_double_tank_problem,
+    "doubletank2": create_double_tank_problem2,
 }
 
 

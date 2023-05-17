@@ -45,8 +45,9 @@ class NlpSolver(SolverClass):
         lbx = nlpdata.lbx
         ubx = nlpdata.ubx
         if set_x_bin:
-            lbx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
-            ubx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
+            x_bin_var = to_0d(nlpdata.x_sol[self.idx_x_bin])
+            lbx[self.idx_x_bin] = x_bin_var
+            ubx[self.idx_x_bin] = x_bin_var
 
         new_sol = self.solver(
             p=nlpdata.p, x0=nlpdata.x0,

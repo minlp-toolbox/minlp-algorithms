@@ -24,7 +24,7 @@ def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
     # # Move all continmous bounds to g!
     # when constraints are one sided the convention is -inf <= g <= ubg
     g_extra, g_lb, g_ub = [], [], []
-    for i in range(len(data.lbx)):
+    for i in range(data.lbx.shape[0]):
         if i not in problem.idx_x_bin:
             if lbx[i] > -new_inf:
                 g_extra.append(-problem.x[i] + max(lbx[i], -new_inf))
@@ -35,7 +35,7 @@ def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
                 g_extra.append(problem.x[i] - min(ubx[i], new_inf))
                 g_lb.append(-np.inf)
                 g_ub.append(0)
-                ubx[i] = ca.inf
+                ubx[i] = new_inf
         else:
             if lbx[i] < -new_inf:
                 lbx[i] = -new_inf
@@ -45,8 +45,8 @@ def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
     data.lbx, data.ubx = lbx, ubx
     # Update
     problem.g = ca.vertcat(problem.g, ca.vertcat(*g_extra))
-    data.lbg = np.concatenate((lbg, g_lb))
-    data.ubg = np.concatenate((ubg, g_ub))
+    data.lbg = np.concatenate((ca.DM(lbg), ca.DM(g_lb)))
+    data.ubg = np.concatenate((ca.DM(ubg), ca.DM(g_ub)))
 
 
 def setup_logger():
