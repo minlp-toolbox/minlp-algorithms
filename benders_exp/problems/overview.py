@@ -184,9 +184,8 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     )
     problem = MinlpProblem(x=ca.vcat(w), f=J, g=ca.vcat(
         g), p=x_0, idx_x_bin=np.hstack(idx_x_bin), meta=meta)
-    data = MinlpData(x0=0.5*np.ones(len(w0)), _ubx=np.array(ubw), _lbx=np.array(lbw),
+    data = MinlpData(x0=0.5*np.ones(len(w0)), _ubx=ca.vcat(ubw), _lbx=ca.vcat(lbw),
                      _ubg=np.array(ubg), _lbg=np.array(lbg), p=p_val, solved=True)
-
     return problem, data
 
 
