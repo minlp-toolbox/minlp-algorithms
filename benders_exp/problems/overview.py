@@ -113,7 +113,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     dt = 1/30
     T = N * dt
     alpha = 100
-    beta = np.array([1., 1.1])
+    beta = np.array([1., 1.2])
     gamma = 10
     scaling_coeff = [gamma, 1]
     demand = np.array([2 + 0.5 * np.sin(x)
@@ -153,7 +153,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         idx_var += nu
         lbw += [0, 0]
         ubw += [1, gamma]
-        w0 += [0, 0]
+        w0 += [0.5, 0.5]
         idx_x_bin.append(np.arange(idx_var-nu, idx_var-1))
         idx_control.append(np.arange(idx_var-nu, idx_var))
 
@@ -168,8 +168,8 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         idx_state.append(np.arange(idx_var-nx, idx_var))
         w += [Xk]
         lbw += [0, 0]
-        ubw += [np.inf, np.inf]
-        w0 += [0, 0]
+        ubw += [1e3, 1e3]
+        w0 += [0.5, 0.5]
 
         # Add equality constraint
         g += [Xk_end - Xk]
@@ -184,7 +184,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     )
     problem = MinlpProblem(x=ca.vcat(w), f=J, g=ca.vcat(
         g), p=x_0, idx_x_bin=np.hstack(idx_x_bin), meta=meta)
-    data = MinlpData(x0=0.5*np.ones(len(w0)), _ubx=ca.vcat(ubw), _lbx=ca.vcat(lbw),
+    data = MinlpData(x0=ca.vcat(w0), _ubx=ca.vcat(ubw), _lbx=ca.vcat(lbw),
                      _ubg=np.array(ubg), _lbg=np.array(lbg), p=p_val, solved=True)
     return problem, data
 
