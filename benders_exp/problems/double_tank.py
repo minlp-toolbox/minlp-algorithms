@@ -4,7 +4,7 @@ from typing import Union
 from benders_exp.problems import MinlpProblem, CASADI_VAR, MinlpData, \
     MetaDataOcp
 from benders_exp.problems.dsc import Description
-from benders_exp.utils import integrate_rk4
+from benders_exp.problems.utils import integrate_rk4
 import numpy as np
 import casadi as ca
 

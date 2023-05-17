@@ -7,7 +7,7 @@ import numpy as np
 from benders_exp.solarsys import extract as extract_solarsys
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver
-from benders_exp.utils import integrate_rk4  # integrate_ee
+from benders_exp.problems.utils import integrate_rk4  # integrate_ee
 from benders_exp.problems.double_tank import create_double_tank_problem2
 
 
