@@ -72,12 +72,21 @@ class FeasibilityNlpSolver(SolverClass):
         options = regularize_options(options, {}, {"ipopt.print_level": 0})
 
         g = []
+        self.g_idx = []
         beta = CASADI_VAR.sym("beta")
         for i in range(problem.g.shape[0]):
-            if data.lbg[i] != -np.inf:
+            if data.lbg[i] == data.ubg[i]:
+                if abs(data.lbg[i]) == np.inf:  # when lbg == ubg we have an equality constraints, so we need to append it only once
+                    raise ValueError(f"lbg and ubg cannot be +-inf at the same time, at instant {i}, you have {data.lbg[i]=} and {data.ubg[i]=}")
                 g.append(-problem.g[i] + data.lbg[i] - beta)
-            if data.ubg[i] != np.inf:
-                g.append(problem.g[i] - data.ubg[i] - beta)
+                self.g_idx.append((i, 1))
+            else:
+                if data.lbg[i] != -np.inf:
+                    g.append(-problem.g[i] + data.lbg[i] - beta)
+                    self.g_idx.append((i, -1))
+                if data.ubg[i] != np.inf:
+                    g.append(problem.g[i] - data.ubg[i] - beta)
+                    self.g_idx.append((i, 1))
         g = ca.vertcat(*g)
         self.nr_g = g.shape[0]
 
@@ -101,14 +110,13 @@ class FeasibilityNlpSolver(SolverClass):
         ubx = deepcopy(nlpdata.ubx)
         lbx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
         ubx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
-        lbx = np.hstack([lbx, np.zeros(1)])  # add lower bound for the slacks
-        # add upper bound for the slacks
-        ubx = np.hstack([ubx, np.inf * np.ones(1)])
+        lbx = ca.vcat([lbx, np.zeros(1)])  # add lower bound for the slacks
+        ubx = ca.vcat([ubx, np.inf * np.ones(1)])  # add upper bound for the slacks
 
         nlpdata.prev_solution = self.solver(
-            x0=ca.vertcat(
-                nlpdata.x_sol[:nlpdata.x0.shape[0]],
-                np.zeros(1)  # slacks initialization
+            x0=ca.vcat(
+                [nlpdata.x_sol[:nlpdata.x0.shape[0]],
+                np.zeros(1)]  # slacks initialization
             ),
             lbx=lbx,
             ubx=ubx,
@@ -117,8 +125,15 @@ class FeasibilityNlpSolver(SolverClass):
             p=nlpdata.p
         )
 
+        # Reconstruct lambda_g:
+        lambda_g = to_0d(nlpdata.lam_g_sol)
+        lambda_g_req = np.zeros(nlpdata.lbg.shape[0])
+        for lg, (idx, sgn) in zip(lambda_g, self.g_idx):
+            lambda_g_req[idx] = sgn * lg
+        nlpdata.prev_solution['lam_g'] = ca.DM(lambda_g_req)
+
         nlpdata.solved, _ = self.collect_stats("fnlp")
         if not nlpdata.solved:
-            print("MILP not solved")
+            print("FNLP not solved")
             raise Exception()
         return nlpdata

@@ -23,6 +23,17 @@ class BendersMasterMILP(SolverClass):
         if WITH_PLOT:
             self.setup_plot()
 
+        idx_lin = get_idx_linear_bounds_binary_x(problem)
+        self.nr_g = len(idx_lin)
+        if self.nr_g > 0:
+            self._g = problem.g[idx_lin]
+            self._lbg = data.lbg[idx_lin].tolist()
+            self._ubg = data.ubg[idx_lin].tolist()
+        else:
+            self._g = []
+            self._lbg = []
+            self._ubg = []
+
         self.grad_f_x_sub_bin = ca.Function(
             "gradient_f_x_bin",
             [problem.x, problem.p], [ca.gradient(
@@ -35,7 +46,9 @@ class BendersMasterMILP(SolverClass):
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
             {"jit": WITH_JIT}
         )
-        self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
+        self._x = problem.x[problem.idx_x_bin]
+        # self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
+
         self.cut_id = 0
         self.visualized_cuts = []
 
@@ -57,8 +70,6 @@ class BendersMasterMILP(SolverClass):
         self.idx_x_bin = problem.idx_x_bin
         self.nr_x_bin = len(problem.idx_x_bin)
         self._nu = CASADI_VAR.sym("nu", 1)
-        self._g = np.array([])
-        self.nr_g = 0
         self.options.update(GUROBI_SETTINGS)
         self.options["discrete"] = [1] * (self.nr_x_bin + 1)
         self.options["discrete"][-1] = 0
@@ -117,6 +128,8 @@ class BendersMasterMILP(SolverClass):
             self.visualize_cut(g_k, self._x, self._nu)
 
         self._g = ca.vertcat(self._g, g_k)
+        self._ubg.append(0)
+        self._lbg.append(-ca.inf)
         self.nr_g += 1
 
         self.solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", "gurobi", {
@@ -129,8 +142,7 @@ class BendersMasterMILP(SolverClass):
             x0=ca.vertcat(nlpdata.x_sol[self.idx_x_bin], nlpdata.obj_val),
             lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -1e5),
             ubx=ca.vertcat(nlpdata.ubx[self.idx_x_bin], ca.inf),
-            lbg=-ca.inf * np.ones(self.nr_g),
-            ubg=np.zeros(self.nr_g)
+            lbg=ca.vertcat(*self._lbg), ubg=ca.vertcat(*self._ubg)
         )
         x_full = nlpdata.x_sol.full()[:self.nr_x_orig]
         x_full[self.idx_x_bin] = solution['x'][:-1]
@@ -184,20 +196,6 @@ class BendersMasterMIQP(BendersMasterMILP):
             {"jit": WITH_JIT}
         )
 
-        # TODO: Strip all linear equations with binary variables only!
-        # Format to g < 0 for simplicity
-        # sparsity = ca.jacobian(problem.g, problem.x).sparsity
-        idx_lin = get_idx_linear_bounds_binary_x(problem)
-        self.nr_g = len(idx_lin)
-        if self.nr_g > 0:
-            self._g = ca.vertcat(*problem.g[idx_lin])
-            self._lbg = data.lbg[idx_lin]
-            self._ubg = data.ubg[idx_lin]
-        else:
-            self._g = []
-            self._lbg = []
-            self._ubg = []
-
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """solve."""
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
@@ -227,7 +225,7 @@ class BendersMasterMIQP(BendersMasterMILP):
             x0=ca.vertcat(nlpdata.x_sol[self.idx_x_bin], nlpdata.obj_val),
             lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -1e5),
             ubx=ca.vertcat(nlpdata.ubx[self.idx_x_bin], ca.inf),
-            lbg=self._lbg, ubg=self._ubg
+            lbg=ca.vertcat(*self._lbg), ubg=ca.vertcat(*self._ubg)
         )
         obj = solution['x'][-1].full()
         if obj > solution['f']:

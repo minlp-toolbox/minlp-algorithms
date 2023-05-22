@@ -218,8 +218,8 @@ if __name__ == "__main__":
                       for x in time_array])
         axs[1].plot(time_array, demand, "r--", alpha=0.5)
 
-
-        fig.savefig(f"{IMG_DIR}/ocp_trajectory.pdf", bbox_inches='tight')
+        uptime = problem.meta.min_uptime
+        fig.savefig(f"{IMG_DIR}/ocp_trajectory_uptime_{uptime}.pdf", bbox_inches='tight')
 
         plt.show()
 
