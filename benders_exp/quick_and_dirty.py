@@ -165,12 +165,12 @@ def benders_constrained_milp(
     return base_strategy(problem, data, stats, benders_tr_master)
 
 
-def bonmin(problem, data, stats):
+def bonmin(problem, data, stats, algo_type="B-BB"):
     """Create benders algorithm."""
     tic()
     toc()
     print("Create bonmin.")
-    minlp = BonminSolver(problem, stats)
+    minlp = BonminSolver(problem, stats, algo_type=algo_type)
     stats['total_time_loading'] = toc(reset=True)
     data = minlp.solve(data)
     stats['total_time_calc'] = toc(reset=True)
@@ -207,6 +207,16 @@ def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData
         "oa": outer_approx_algorithm,
         "oai": outer_approx_algorithm_improved,
         "bonmin": bonmin,
+        # B-BB is a NLP-based branch-and-bound algorithm
+        "bonmin-bb": lambda p, d, s: bonmin(p, d, s, "B-BB"),
+        # B-Hyb is a hybrid outer-approximation based branch-and-cut algorithm
+        "bonmin-hyb": lambda p, d, s: bonmin(p, d, s, "B-Hyb"),
+        # B-OA is an outer-approximation decomposition algorithm
+        "bonmin-oa": lambda p, d, s: bonmin(p, d, s, "B-OA"),
+        # B-QG is an implementation of Quesada and Grossmann's branch-and-cut algorithm
+        "bonmin-qg": lambda p, d, s: bonmin(p, d, s, "B-QG"),
+        # B-iFP: an iterated feasibility pump algorithm
+        "bonmin-ifp": lambda p, d, s: bonmin(p, d, s, "B-iFP"),
         "voronoi_tr": voronoi_tr_algorithm,
     }
 
