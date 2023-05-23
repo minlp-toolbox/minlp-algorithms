@@ -29,3 +29,7 @@ jit_tmp*
 **/*.pdf
 **/*.bbl
 **/*.blg
+
+# Coverage files
+.coverage
+coverage.xml
