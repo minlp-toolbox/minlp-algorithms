@@ -40,7 +40,7 @@ class TestSolver(unittest.TestCase):
         stats = Stats({})
         problem, data, x_star = run_problem(mode, problem_name, stats)
         desired_obj = obj_val.get(problem_name, -1)
-        desired_tol = obj_tolerance.get(problem.name, obj_tolerance_default)
+        desired_tol = obj_tolerance.get(problem_name, obj_tolerance_default)
         self.assertAlmostEqual(data.obj_val, desired_obj, desired_tol,
                                msg=f"Failed for {mode} & {problem_name}")
         check_solution(problem, data, x_star)
