@@ -11,6 +11,7 @@ from time import perf_counter
 from benders_exp.defines import _DATA_FOLDER
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp
 
+perf_ti = None
 CALLBACK_INPUTS = dict()
 for i, label in enumerate(ca.nlpsol_out()):
     CALLBACK_INPUTS[label] = i
@@ -30,7 +31,7 @@ def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
                 g_extra.append(-problem.x[i] + max(lbx[i], -new_inf))
                 g_lb.append(-np.inf)
                 g_ub.append(0)
-                lbx[i] = -1e9 #TODO: for -ca.inf it raises an error (OverflowError: cannot convert float infinity to integer)
+                lbx[i] = -1e9  # TODO: for -ca.inf it raises an error (OverflowError: cannot convert float infinity to integer)
             if ubx[i] < new_inf:
                 g_extra.append(problem.x[i] - min(ubx[i], new_inf))
                 g_lb.append(-np.inf)
@@ -70,6 +71,8 @@ def tic():
 def toc(reset=False):
     """Toc."""
     global perf_ti
+    if perf_ti is None:
+        tic()
     tim = perf_counter()
     dt = tim - perf_ti
     print("  Elapsed time: %s s." % (dt))

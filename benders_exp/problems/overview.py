@@ -16,9 +16,10 @@ def create_check_sign_lagrange_problem():
     x = CASADI_VAR.sym("x")
     p = CASADI_VAR.sym("p")
 
-    problem = MinlpProblem(x=x, f=(x - 2)**2, g=x, p=p, idx_x_bin=[])
-    data = MinlpData(x0=0, _ubx=np.inf, _lbx=-np.inf,
-                     _ubg=-1, _lbg=-7, p=[], solved=True)
+    problem = MinlpProblem(x=x, f=(x - 2)**2, g=ca.vcat([x]), p=p, idx_x_bin=[0])
+    data = MinlpData(
+        x0=np.array([0]), _ubx=np.array([np.inf]), _lbx=np.array([-np.inf]),
+        _ubg=np.array([-1]), _lbg=np.array([-7]), p=np.array([0]), solved=True)
 
     return problem, data
 

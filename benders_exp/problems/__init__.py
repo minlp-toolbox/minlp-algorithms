@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from benders_exp.defines import CASADI_VAR, ca
 from copy import deepcopy
+import numpy as np
 
 
 @dataclass
@@ -115,3 +116,24 @@ class MinlpData:
     @ubx.setter
     def ubx(self, value):
         self._ubx = value
+
+
+def check_solution(problem: MinlpProblem, data: MinlpData, x_star):
+    """Check a solution."""
+    f = ca.Function("f", [problem.x, problem.p], [problem.f])
+    g = ca.Function("g", [problem.x, problem.p], [problem.g])
+    f_val = f(x_star, data.p)
+    g_val = g(x_star, data.p)
+    print(f"Objective value {float(f_val)} (real) vs {data.obj_val}")
+    if abs(data.obj_val - float(f_val)) > 1e-4:
+        raise Exception("Objective value wrong!")
+    if np.any(data.lbx > x_star):
+        raise Exception("Lbx > x* for some values")
+    if np.any(data.ubx < x_star):
+        raise Exception("Ubx > x* for some values")
+    if np.any(data.lbg > g_val + 1e-4):
+        print(f"{g_val=}  {data.lbg=}")
+        raise Exception("Lbg > g(x*,p) for some values")
+    if np.any(data.ubg < g_val - 1e-4):
+        print(f"{g_val=}  {data.ubg=}")
+        raise Exception("Ubg < g(x*,p) for some values")
