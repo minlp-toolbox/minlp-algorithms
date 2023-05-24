@@ -1,7 +1,0 @@
-numpy
-pandas
-casadi
-scipy
-gurobipy
-pytz
-matplotlib

@@ -13,6 +13,8 @@ setup(
         "scipy",
         "gurobipy",
         "pytz",
-        "matplotlib"
+        "matplotlib",
+        "parameterized",
+        "tox"
     ]
 )
