@@ -26,7 +26,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
     toc()
     print("Setup FNLP solver...")
     fnlp = FeasibilityNlpSolver(problem, data, stats)
-    t_load = toc()
+    stats['total_time_loading'] = toc(reset=True)
     print("Solver initialized.")
     # Benders algorithm
     lb = -ca.inf
@@ -60,15 +60,13 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
         print(f"{ub=}\n{lb=}\n\n\n")
         stats['iter'] += 1
 
-    t_total = toc()
-    print(f"{t_total=} of with calc: {t_total - t_load}")
+    stats['total_time_calc'] = toc(reset=True)
     return problem, data, x_star
 
 
 def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats,
                       with_qp: bool = False) -> Tuple[MinlpData, ca.DM]:
     """Create and run benders algorithm."""
-    print("Setup MILP solver...")
     if with_qp:
         # This class provides an improved benders implementation
         # where the hessian of the original function is used as stabelizer
@@ -76,8 +74,10 @@ def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats,
         # original function. Of course the lower bound can no longer
         # be guaranteed, so care should be taken with this approach as it
         # might only work in some circumstances!
+        print("Setup Benders MIQP solver...")
         benders_master = BendersMasterMIQP(problem, data, stats)
     else:
+        print("Setup Benders MILP solver...")
         # This class implements the original benders decomposition
         benders_master = BendersMasterMILP(problem, data, stats)
 
@@ -89,7 +89,7 @@ def outer_approx_algorithm(
     problem: MinlpProblem, data: MinlpData, stats: Stats
 ) -> Tuple[MinlpData, ca.DM]:
     """Create and run outer approximation."""
-    print("Setup MILP solver...")
+    print("Setup OA MILP solver...")
     outer_approx = OuterApproxMILP(problem, data, stats)
     toc()
     return base_strategy(problem, data, stats, outer_approx)
@@ -99,66 +99,20 @@ def outer_approx_algorithm_improved(
     problem: MinlpProblem, data: MinlpData, stats: Stats
 ) -> Tuple[MinlpData, ca.DM]:
     """Create and run improved outer approximation."""
-    print("Setup MILP solver...")
+    print("Setup OAI MILP solver...")
     outer_approx = OuterApproxMILPImproved(problem, data, stats)
     toc()
     return base_strategy(problem, data, stats, outer_approx)
 
 
-def idea_algorithm(problem, data, stats):
-    """Create benders algorithm."""
-    tic()
+def benders_constrained_milp(
+    problem: MinlpProblem, data: MinlpData, stats: Stats
+) -> Tuple[MinlpData, ca.DM]:
+    """Create and run benders constrained milp algorithm."""
+    print("Setup Idea MIQP solver...")
+    outer_approx = BendersConstraintMILP(problem, data, stats)
     toc()
-    print("Setup NLP solver...")
-    nlp = NlpSolver(problem, stats)
-    toc()
-    print("Setup FNLP solver...")
-    fnlp = FeasibilityNlpSolver(problem, stats)
-    toc()
-    print("Setup MILP solver...")
-    benders_milp = BendersConstraintMILP(problem, stats)
-    toc(reset=True)
-
-    print("Solver initialized.")
-    # Benders algorithm
-    lb = -ca.inf
-    ub = ca.inf
-    tolerance = 0.04
-    feasible = True
-    # TODO: setting x_bin to start the algorithm with a integer solution,
-    # no guarantees about its feasibility!
-    data = nlp.solve(data, set_x_bin=True)
-    x_bar = data.x_sol
-    x_star = x_bar
-    prev_feasible = True  # TODO: check feasibility of nlp.solve(...)
-    is_integer = True
-    while lb + tolerance < ub and feasible:
-        toc()
-        # Solve MILP-BENDERS and set lower bound:
-        data = benders_milp.solve(
-            data, prev_feasible=prev_feasible, integer=is_integer)
-        feasible = data.solved
-        lb = data.obj_val
-        # x_hat = data.x_sol
-
-        # Obtain new linearization point for NLP:
-        data = nlp.solve(data, set_x_bin=True)
-        x_bar = data.x_sol
-        prev_feasible = data.solved
-        if not prev_feasible:
-            data = fnlp.solve(data)
-            x_bar = data.x_sol
-            print("Infeasible")
-        elif data.obj_val < ub:
-            ub = data.obj_val
-            x_star = x_bar
-            print("Feasible")
-
-        is_integer = True
-        print(f"{ub=} {lb=}")
-        print(f"{x_bar=}")
-
-    return problem, data, x_star
+    return base_strategy(problem, data, stats, outer_approx)
 
 
 def bonmin(problem, data, stats):
@@ -167,10 +121,9 @@ def bonmin(problem, data, stats):
     toc()
     print("Create bonmin.")
     minlp = BonminSolver(problem, stats)
-    toc(reset=True)
+    stats['total_time_loading'] = toc(reset=True)
     data = minlp.solve(data)
-    toc()
-
+    stats['total_time_calc'] = toc(reset=True)
     return problem, data, data.x_sol
 
 
@@ -190,7 +143,7 @@ def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData
     MODES = {
         "benders": benders_algorithm,
         "bendersqp": lambda p, d, s: benders_algorithm(p, d, s, with_qp=True),
-        "idea": idea_algorithm,
+        "idea": benders_constrained_milp,
         "outerapprox": outer_approx_algorithm,
         "oa": outer_approx_algorithm,
         "oai": outer_approx_algorithm_improved,
@@ -243,7 +196,7 @@ if __name__ == "__main__":
         axs[1].plot(time_array, demand, "r--", alpha=0.5)
 
         uptime = problem.meta.min_uptime
-        fig.savefig(f"{IMG_DIR}/ocp_trajectory_uptime_{uptime}.pdf", bbox_inches='tight')
+        fig.savefig(f"{IMG_DIR}/ocp_trajectory_{mode}_uptime_{uptime}.pdf", bbox_inches='tight')
         plt.show()
 
     if WITH_PLOT:

@@ -196,7 +196,7 @@ PROBLEMS = {
     "dummy2": create_dummy_problem_2,
     "orig": extract_solarsys,
     "doublepipe": create_double_pipe_problem,
-    # "doubletank": create_double_tank_problem,
+    "doubletank": create_double_tank_problem,
     "doubletank2": create_double_tank_problem2,
 }
 

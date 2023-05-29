@@ -3,7 +3,7 @@
 import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-    get_idx_linear_bounds, regularize_options
+    get_idx_linear_bounds, regularize_options, get_idx_inverse
 from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR
 
 
@@ -125,21 +125,20 @@ class OuterApproxMILPImproved(SolverClass):
             )], {"jit": WITH_JIT}
         )
 
-        idx_lin = get_idx_linear_bounds(problem)
-        self.idx_nonlin = list(filter(lambda i: i not in idx_lin,
-                                      range(problem.g.shape[0])))
-
+        self.idx_g_lin = get_idx_linear_bounds(problem)
+        self.idx_g_nonlin = get_idx_inverse(self.idx_g_lin, problem.g.shape[0])
         self.g_lin = ca.Function(
-            "g", [problem.x, problem.p], [problem.g[idx_lin]]
+            "g", [problem.x, problem.p], [problem.g[self.idx_g_lin]],
+            {"jit": WITH_JIT}
         )
         self.g_nonlin = ca.Function(
-            "g", [problem.x, problem.p], [problem.g[self.idx_nonlin]],
+            "g", [problem.x, problem.p], [problem.g[self.idx_g_nonlin]],
             {"jit": WITH_JIT}
         )
         self.jac_g_nonlin = ca.Function(
             "gradient_g_x",
             [problem.x, problem.p], [ca.jacobian(
-                problem.g[self.idx_nonlin], problem.x
+                problem.g[self.idx_g_nonlin], problem.x
             )], {"jit": WITH_JIT}
         )
 
@@ -147,8 +146,8 @@ class OuterApproxMILPImproved(SolverClass):
         # Last one is alpha
         self._x = CASADI_VAR.sym("x", self.nr_x + 1)
         self._g = self.g_lin(self._x[:-1], data.p)
-        self._lbg = data.lbg[idx_lin]
-        self._ubg = data.ubg[idx_lin]
+        self._lbg = data.lbg[self.idx_g_lin]
+        self._ubg = data.ubg[self.idx_g_lin]
         self._alpha = self._x[-1]
 
         discrete = [0] * (self.nr_x+1)
@@ -177,9 +176,9 @@ class OuterApproxMILPImproved(SolverClass):
             self._g,
             g_lin + jac_g @ (self._x[:self.nr_x] - x_sol)
         )
-        self._lbg = ca.vertcat(self._lbg, nlpdata.lbg[self.idx_nonlin])
+        self._lbg = ca.vertcat(self._lbg, nlpdata.lbg[self.idx_g_nonlin])
         self._ubg = ca.vertcat(self._ubg, ca.inf *
-                               np.ones((len(self.idx_nonlin), 1)))
+                               np.ones((len(self.idx_g_nonlin), 1)))
 
         self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", "gurobi", {
             "f": self._alpha, "g": self._g,

@@ -20,7 +20,8 @@ class MetaDataOcp(MetaData):
     n_control: Optional[int] = None
     idx_state: Optional[List[float]] = None
     idx_control: Optional[List[float]] = None
-    initial_state: Optional[List[float]] = None  # TODO: initial_state needs to become an index list of p
+    # TODO: initial_state needs to become an index list of p
+    initial_state: Optional[List[float]] = None
     dt: Optional[float] = None
     scaling_coeff_control: Optional[List[float]] = None
     min_uptime: Optional[int] = None
@@ -118,22 +119,32 @@ class MinlpData:
         self._ubx = value
 
 
-def check_solution(problem: MinlpProblem, data: MinlpData, x_star):
+def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
     """Check a solution."""
     f = ca.Function("f", [problem.x, problem.p], [problem.f])
     g = ca.Function("g", [problem.x, problem.p], [problem.g])
-    f_val = f(x_star, data.p)
-    g_val = g(x_star, data.p)
+    f_val = f(x_star, data.p).full()
+    g_val = g(x_star, data.p).full()
     print(f"Objective value {float(f_val)} (real) vs {data.obj_val}")
+    msg = []
     if abs(data.obj_val - float(f_val)) > 1e-4:
-        raise Exception("Objective value wrong!")
+        msg.append("Objective value wrong!")
     if np.any(data.lbx > x_star):
-        raise Exception("Lbx > x* for some values")
+        msg.append(f"Lbx > x* for indices:\n{np.nonzero(data.lbx > x_star).T}")
     if np.any(data.ubx < x_star):
-        raise Exception("Ubx > x* for some values")
+        msg.append(f"Ubx > x* for indices:\n{np.nonzero(data.ubx < x_star).T}")
     if np.any(data.lbg > g_val + 1e-4):
-        print(f"{g_val=}  {data.lbg=}")
-        raise Exception("Lbg > g(x*,p) for some values")
+        msg.append(f"{g_val=}  {data.lbg=}")
+        msg.append("Lbg > g(x*,p) for indices:\n"
+                   f"{np.nonzero(data.lbg > g_val + 1e-4).T}")
     if np.any(data.ubg < g_val - 1e-4):
-        print(f"{g_val=}  {data.ubg=}")
-        raise Exception("Ubg < g(x*,p) for some values")
+        msg.append(f"{g_val=}  {data.ubg=}")
+        msg.append("Ubg < g(x*,p) for indices:\n"
+                   f"{np.nonzero(data.ubg < g_val - 1e-4).T}")
+
+    if msg:
+        msg = "\n".join(msg)
+        if throws:
+            raise Exception(msg)
+        else:
+            print(msg)

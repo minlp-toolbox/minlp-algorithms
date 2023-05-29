@@ -28,7 +28,7 @@ class Stats:
     def print(self):
         """Print statistics."""
         print("Statistics")
-        for k, v in self.data.items():
+        for k, v in sorted(self.data.items()):
             print(f"\t{k}: {v}")
 
 
@@ -51,7 +51,9 @@ class SolverClass(ABC):
         self.stats[f"{algo_name}.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats[f"{algo_name}.iter"] += max(0, stats["iter_count"])
+        self.stats[f"{algo_name}.iter"] += max(
+            stats.get("n_call_solver", 0), stats["iter_count"]
+        )
         return stats["success"], stats
 
 
@@ -87,10 +89,16 @@ def get_idx_linear_bounds_binary_x(problem: MinlpProblem):
 def get_idx_linear_bounds(problem: MinlpProblem):
     """Get the indices of the linear bounds."""
     nr_g = problem.g.shape[0]
-    return np.array(
-        list(filter(lambda i: ca.hessian(problem.g[i], problem.x)[0].nnz() == 0,
-             range(nr_g)))
+    return np.array(list(
+        filter(lambda i: ca.hessian(problem.g[i], problem.x)[0].nnz() == 0,
+               range(nr_g)))
     )
+
+
+def get_idx_inverse(indices, nr):
+    """Get an inver list of indices."""
+    full_indices = np.arange(0, nr)
+    return list(set(full_indices) - set(indices))
 
 
 def extract_bounds(problem: MinlpProblem, data: MinlpData, idx: List[int]):

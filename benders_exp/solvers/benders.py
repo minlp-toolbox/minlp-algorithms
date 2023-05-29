@@ -9,7 +9,8 @@ import matplotlib.pyplot as plt
 import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-        get_idx_linear_bounds_binary_x, regularize_options
+    get_idx_linear_bounds, get_idx_linear_bounds_binary_x, regularize_options, \
+    get_idx_inverse
 from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR, WITH_PLOT
 
 
@@ -23,12 +24,12 @@ class BendersMasterMILP(SolverClass):
         if WITH_PLOT:
             self.setup_plot()
 
-        idx_lin = get_idx_linear_bounds_binary_x(problem)
-        self.nr_g = len(idx_lin)
+        self.idx_g_lin = get_idx_linear_bounds_binary_x(problem)
+        self.nr_g = len(self.idx_g_lin)
         if self.nr_g > 0:
-            self._g = problem.g[idx_lin]
-            self._lbg = data.lbg[idx_lin].tolist()
-            self._ubg = data.ubg[idx_lin].tolist()
+            self._g = problem.g[self.idx_g_lin]
+            self._lbg = data.lbg[self.idx_g_lin].flatten().tolist()
+            self._ubg = data.ubg[self.idx_g_lin].flatten().tolist()
         else:
             self._g = []
             self._lbg = []
@@ -263,9 +264,15 @@ class BendersConstraintMILP(BendersMasterMILP):
         meaning: nu == J(y_N)
     """
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Create the benders constraint MILP."""
-        super(BendersConstraintMILP, self).__init__(problem, stats, options)
+        super(BendersConstraintMILP, self).__init__(
+            problem, data, stats, options)
+        self.setup_common(problem, options)
+
+        self.idx_g_lin = get_idx_linear_bounds(problem)
+        self.idx_g_nonlin = get_idx_inverse(self.idx_g_lin, problem.g.shape[0])
+
         self.grad_f_x_sub = ca.Function(
             "gradient_f_x",
             [problem.x, problem.p], [ca.gradient(
@@ -278,58 +285,88 @@ class BendersConstraintMILP(BendersMasterMILP):
             [ca.jacobian(problem.g, problem.x)],
             {"jit": WITH_JIT}
         )
-        self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [ca.hessian(problem.f, problem.x)[0]])
+        self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
+                                  ca.hessian(problem.f, problem.x)[0]])
 
-        self._x = CASADI_VAR.sym("x", self.nr_x_orig)
+        self._x = CASADI_VAR.sym("x_benders", problem.x.numel())
+        self.nr_g = len(self.idx_g_lin)
+        if self.nr_g > 0:
+            self._g = ca.Function(
+                "g_lin", [problem.x, problem.p],
+                [problem.g[self.idx_g_lin]]
+            )(self._x, data.p)
+            self._lbg = data.lbg[self.idx_g_lin].flatten().tolist()
+            self._ubg = data.ubg[self.idx_g_lin].flatten().tolist()
+        else:
+            self._g = []
+            self._lbg = []
+            self._ubg = []
+
+        self.options.update({"discrete": [
+                            1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]})
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
+        # We take a point
+        self.x_sol_best = data.x0
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, integer=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """Solve."""
+        # Update with the lowest upperbound and the corresponding best solution:
+        if nlpdata.obj_val < self.y_N_val:
+            if prev_feasible:
+                self.y_N_val = nlpdata.obj_val
+                self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
+                print(f"NEW BOUND {self.y_N_val}")
+
         # Create a new cut
-        x_sol = nlpdata.x_sol[:self.nr_x_orig]
+        x_sol_prev = nlpdata.x_sol[:self.nr_x_orig]
         g_k = self._generate_cut_equation(
-            self._x[self.idx_x_bin], x_sol, x_sol[self.idx_x_bin], nlpdata.lam_g_sol, nlpdata.p, prev_feasible
+            self._x[self.idx_x_bin], x_sol_prev, x_sol_prev[self.idx_x_bin],
+            nlpdata.lam_g_sol, nlpdata.p, prev_feasible
         )
-        # If the upper bound improved, decrease it:
-        if integer and prev_feasible:
-            self.y_N_val = min(self.y_N_val, nlpdata.obj_val)
-            print(f"NEW BOUND {self.y_N_val}")
+        self._g = ca.vertcat(self._g, g_k)
+        self._lbg = ca.vertcat(self._lbg, -ca.inf)
+        self._ubg = ca.vertcat(self._ubg, 0)
+        self.nr_g += 1
 
-        f_lin = self.grad_f_x_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
-        g_lin = self.g(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
-        jac_g = self.jac_g_sub(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
-        # f_hess = self.f_hess(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
+        dx = self._x - self.x_sol_best
 
-        # TODO: When linearizing the bounds, remember they are two sided!
-        # we need to take the other bounds into account as well
-        self.solver = ca.qpsol(f"benders_constraint{self.nr_g}", "gurobi", {
-            # "f": f_lin.T @ self._x + 0.5 * self._x.T @ f_hess @ self._x, #TODO: add a flag to solve the qp
-            "f": f_lin.T @ self._x,
-            "g": ca.vertcat(
-                g_lin + jac_g @ self._x,  # TODO: Check sign error?
+        f_k = self.f(self.x_sol_best, nlpdata.p)
+        f_lin = self.grad_f_x_sub(self.x_sol_best, nlpdata.p)
+        f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
+        g_lin = self.g(self.x_sol_best, nlpdata.p)[self.idx_g_nonlin]
+        if g_lin.numel() > 0:
+            jac_g = self.jac_g_sub(self.x_sol_best, nlpdata.p)[
+                self.idx_g_nonlin, :]
+            g = ca.vertcat(
+                g_lin + jac_g @ dx,
                 self._g
-            ),
-            "x": self._x, "p": self._nu
+            )
+            lbg = ca.vertcat(
+                nlpdata.lbg[self.idx_g_nonlin],
+                self._lbg,
+            )
+            ubg = ca.vertcat(
+                nlpdata.ubg[self.idx_g_nonlin],
+                self._ubg,
+            )
+        else:
+            g = self._g
+            lbg = self._lbg
+            ubg = self._ubg
+
+        self.solver = ca.qpsol(f"benders_constraint_{self.nr_g}", "gurobi", {
+            # TODO: add a flag to solve the qp
+            "f": f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx,
+            # "f": f_k + f_lin.T @ dx,
+            "g": g, "x": self._x, "p": self._nu
         }, self.options)
 
         nlpdata.prev_solution = self.solver(
-            x0=x_sol,
+            x0=self.x_sol_best,
             lbx=nlpdata.lbx, ubx=nlpdata.ubx,
-            lbg=ca.vertcat(
-                nlpdata.lbg,
-                -ca.inf * np.ones(self.nr_g)
-            ),
-            ubg=ca.vertcat(
-                # ca.inf * np.ones(self.nr_g_orig),
-                # TODO: NEED TO TAKE INTO ACCOUNT: nlpdata.ubg,
-                nlpdata.ubg,  # TODO: verify correctness
-                np.zeros(self.nr_g)
-            ),
+            lbg=lbg, ubg=ubg,
             p=[self.y_N_val]
         )
-        nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x_orig]
 
         nlpdata.solved, stats = self.collect_stats("milp_bconstraint")
-        self._g = ca.vertcat(self._g, g_k)
-        self.nr_g += 1
         return nlpdata
