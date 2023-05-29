@@ -26,7 +26,8 @@ jit_tmp*
 **/*.lb
 **/*.synctex.gz
 **/*.fdb_latexmk
-**/*.pdf
+# **/*.pdf
+**/report.pdf
 **/*.bbl
 **/*.blg
 
