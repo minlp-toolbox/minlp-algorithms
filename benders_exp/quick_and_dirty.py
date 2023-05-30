@@ -110,9 +110,9 @@ def benders_constrained_milp(
 ) -> Tuple[MinlpData, ca.DM]:
     """Create and run benders constrained milp algorithm."""
     print("Setup Idea MIQP solver...")
-    outer_approx = BendersConstraintMILP(problem, data, stats)
+    benders_tr_master = BendersConstraintMILP(problem, data, stats)
     toc()
-    return base_strategy(problem, data, stats, outer_approx)
+    return base_strategy(problem, data, stats, benders_tr_master)
 
 
 def bonmin(problem, data, stats):
