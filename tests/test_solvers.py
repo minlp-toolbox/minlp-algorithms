@@ -8,7 +8,7 @@ from benders_exp.problems import check_solution
 
 options = [
     (solver, problem)
-    for solver in ["benders", "bendersqp", "bonmin", "idea"]
+    for solver in ["benders", "bendersqp", "bonmin", "b_tr"]
     for problem in PROBLEMS.keys()
     if (
         problem not in ["orig", "doubletank2", "doubletank"]

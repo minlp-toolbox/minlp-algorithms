@@ -143,8 +143,7 @@ def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData
     MODES = {
         "benders": benders_algorithm,
         "bendersqp": lambda p, d, s: benders_algorithm(p, d, s, with_qp=True),
-        "idea": benders_constrained_milp,
-        "outerapprox": outer_approx_algorithm,
+        "b_tr": benders_constrained_milp,
         "oa": outer_approx_algorithm,
         "oai": outer_approx_algorithm_improved,
         "bonmin": bonmin,
