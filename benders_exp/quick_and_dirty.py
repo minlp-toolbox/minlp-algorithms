@@ -15,6 +15,7 @@ from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass
 from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP, BendersMasterMIQP
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
+from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
 from benders_exp.utils import make_bounded
 
 
@@ -34,6 +35,55 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
     tolerance = 0.04
     feasible = True
     while lb + tolerance < ub and feasible:
+        toc()
+        # Solve NLP(y^k)
+        data = nlp.solve(data, set_x_bin=True)
+        prev_feasible = data.solved
+        x_bar = data.x_sol
+        print(f"{x_bar=}")
+
+        if not prev_feasible:
+            # Solve NLPF(y^k)
+            data = fnlp.solve(data)
+            x_bar = data.x_sol
+            print("Infeasible")
+        elif data.obj_val < ub:
+            ub = data.obj_val
+            x_star = x_bar
+            print("Feasible")
+
+        # Solve master^k and set lower bound:
+        data = master_problem.solve(data, prev_feasible=prev_feasible)
+        feasible = data.solved
+        lb = data.obj_val
+        x_hat = data.x_sol
+        print(f"\n\n\n{x_hat=}")
+        print(f"{ub=}\n{lb=}\n\n\n")
+        stats['iter'] += 1
+
+    stats['total_time_calc'] = toc(reset=True)
+    return problem, data, x_star
+
+
+def voronoi_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
+                  master_problem: SolverClass) -> Tuple[MinlpData, ca.DM]:
+    """Run the base strategy."""
+    print("Setup NLP solver...")
+    nlp = NlpSolver(problem, stats)
+    toc()
+    print("Setup FNLP solver...")
+    fnlp = FeasibilityNlpSolver(problem, data, stats)
+    stats['total_time_loading'] = toc(reset=True)
+    print("Solver initialized.")
+    # Benders algorithm
+    lb = -ca.inf
+    ub = ca.inf
+    feasible = True
+
+    x_star = np.nan * np.empty(problem.x.shape[0])
+    x_hat = -np.nan * np.empty(problem.x.shape[0])
+
+    while (not np.allclose(x_star[problem.idx_x_bin], x_hat[problem.idx_x_bin], equal_nan=False)) and feasible:
         toc()
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
@@ -127,6 +177,16 @@ def bonmin(problem, data, stats):
     return problem, data, data.x_sol
 
 
+def voronoi_tr_algorithm(
+    problem: MinlpProblem, data: MinlpData, stats: Stats
+) -> Tuple[MinlpData, ca.DM]:
+    """Create and run voronoi trust region milp algorithm."""
+    print("Setup Voronoi trust region MILP solver...")
+    benders_tr_master = VoronoiTrustRegionMILP(problem, data, stats)
+    toc()
+    return voronoi_strategy(problem, data, stats, benders_tr_master)
+
+
 def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData, ca.DM]:
     """Run a problem and return the results."""
     if problem_name in PROBLEMS:
@@ -147,6 +207,7 @@ def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData
         "oa": outer_approx_algorithm,
         "oai": outer_approx_algorithm_improved,
         "bonmin": bonmin,
+        "voronoi_tr": voronoi_tr_algorithm,
     }
 
     if mode_name in MODES:

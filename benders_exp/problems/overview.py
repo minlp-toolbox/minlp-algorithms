@@ -42,8 +42,8 @@ def create_dummy_problem(p_val=[1000, 3]):
     )
     ubg = np.array([ca.inf, ca.inf])
     lbg = np.array([0, 0])
-    lbx = -1e3 * np.ones((3,))
-    ubx = np.array([ca.inf, ca.inf, ca.inf])
+    lbx = np.array([0, 0, 0])
+    ubx = np.array([4, 4, np.inf])
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
