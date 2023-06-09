@@ -16,10 +16,12 @@ def extract(sol, lst):
 def make_list(value, nr=1):
     """Make list."""
     if isinstance(value, np.ndarray):
-        return reshape(value, (nr, 1))
+        return list(np.reshape(value, (nr,)))
     elif not isinstance(value, list):
         return [value] * nr
-    else:
+    elif isinstance(value, list):
+        if len(value) != nr:
+            raise Exception("Value error!")
         return value
 
 
@@ -147,9 +149,6 @@ class Description:
         # Create
         p = CASADI_VAR.sym("%s[%d]" % (name, len(idx_list)), nr)
         values = make_list(values, nr)
-
-        if len(values) != nr:
-            raise Exception("Values error!")
 
         # Create & Collect
         new_idx = [i + len(self.p0) for i in range(nr)]

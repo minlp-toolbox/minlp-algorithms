@@ -9,7 +9,7 @@ import numpy as np
 import casadi as ca
 
 
-def create_double_tank_problem2(p_val=[2, 2.5]) -> Union[MinlpProblem, MinlpData]:
+def create_double_tank_problem2(p_val=[2, 2.5], single_shooting=True) -> Union[MinlpProblem, MinlpData]:
     """
     Implement the double tank problem.
 
@@ -62,16 +62,19 @@ def create_double_tank_problem2(p_val=[2, 2.5]) -> Union[MinlpProblem, MinlpData
         dsc.f += dt * alpha * (Xk[1] - demand[k]) ** 2
         dsc.f += dt * (beta[0] * gamma * Uk[0] + beta[1] * Uk[1])
 
-        # New NLP variable for state at end of interval
-        Xk = dsc.sym("Xk", nx, lb=0, ub=BigM, w0=0.5)
-        dsc.eq(Xk_end, Xk)
+        if single_shooting:
+            Xk = Xk_end
+        else:
+            # New NLP variable for state at end of interval
+            Xk = dsc.sym("Xk", nx, lb=0, ub=BigM, w0=0.5)
+            dsc.eq(Xk_end, Xk)
 
         Uprev = Uk
 
     meta = MetaDataOcp(
         dt=dt, n_state=nx, n_control=nu,
         initial_state=p_val, idx_control=np.hstack(dsc.get_indices("Uk")),
-        idx_state=np.hstack(dsc.get_indices("Xk")),
+        idx_state=0,  # np.hstack(dsc.get_indices("Xk0")),
         scaling_coeff_control=[gamma, 1], min_uptime=min_uptime
     )
     problem = dsc.get_problem()

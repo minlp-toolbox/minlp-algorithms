@@ -6,6 +6,7 @@ import casadi as ca
 SOURCE_FOLDER = path.dirname(path.abspath(__file__))
 _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
+OUT_DIR = path.join(SOURCE_FOLDER, "../results")
 CACHE_FOLDER = path.join(SOURCE_FOLDER, "../data/cache")
 
 if not path.exists(IMG_DIR):
@@ -18,26 +19,26 @@ if not path.exists(CACHE_FOLDER):
 WITH_JIT = False
 WITH_PLOT = False
 EPS = 1e-5
-WITH_DEBUG = environ.get("DEBUG", False)
+CASADI_VAR = ca.MX
 MIP_SOLVER = environ.get("MIP_SOLVER", "gurobi")
-
-CASADI_VAR = ca.SX
-IPOPT_SETTINGS = {
-    # "ipopt.tol": 1e-2,
-    # "ipopt.dual_inf_tol": 2,
-    # "ipopt.constr_viol_tol": 1e-3,
-    # "ipopt.compl_inf_tol": 1e-3,
-    # "ipopt.linear_solver": "ma27",
-    # "ipopt.max_cpu_time": 3600.0,
-    # "ipopt.max_iter": 6000,
-    # "ipopt.acceptable_tol": 0.2,
-    # "ipopt.acceptable_iter": 8,
-    # "ipopt.acceptable_constr_viol_tol": 10.0,
-    # "ipopt.acceptable_dual_inf_tol": 10.0,
-    # "ipopt.acceptable_compl_inf_tol": 10.0,
-    # "ipopt.acceptable_obj_change_tol": 1e-1,
-    # "ipopt.mu_strategy": "adaptive",
-    # "ipopt.mu_target": 1e-4,
+WITH_DEBUG = environ.get("DEBUG", False)
+WITH_LOG_DATA = environ.get("LOG_DATA", False)
+IPOPT_SETTINGS = { # TODO: make ipopt setting change according to the problem called
+    "ipopt.linear_solver": "ma57",
+    "ipopt.mumps_mem_percent": 10000,
+    "ipopt.mumps_pivtol": 0.001,
+    "ipopt.print_level": 5,
+    "ipopt.file_print_level": 5,
+    "ipopt.max_cpu_time": 3600.0,
+    "ipopt.max_iter": 600000,
+    "ipopt.acceptable_tol": 0.2,
+    "ipopt.acceptable_iter": 8,
+    "ipopt.acceptable_constr_viol_tol": 10.0,
+    "ipopt.acceptable_dual_inf_tol": 10.0,
+    "ipopt.acceptable_compl_inf_tol": 10.0,
+    "ipopt.acceptable_obj_change_tol": 1e-1,
+    "ipopt.mu_strategy": "adaptive",
+    "ipopt.mu_target": 1e-5,
 }
 BONMIN_SETTINGS = {}
 GUROBI_SETTINGS = {
