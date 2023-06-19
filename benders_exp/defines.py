@@ -6,9 +6,13 @@ import casadi as ca
 SOURCE_FOLDER = path.dirname(path.abspath(__file__))
 _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
+CACHE_FOLDER = path.join(SOURCE_FOLDER, "../data/cache")
 
 if not path.exists(IMG_DIR):
     makedirs(IMG_DIR)
+
+if not path.exists(CACHE_FOLDER):
+    makedirs(CACHE_FOLDER)
 
 
 WITH_JIT = False
