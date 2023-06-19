@@ -8,8 +8,11 @@ from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
 class BonminSolver(SolverClass):
     """Create MINLP solver (using bonmin)."""
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
-        """Create MINLP problem."""
+    def __init__(self, problem: MinlpProblem, stats: Stats, options=None, algo_type="B-BB"):
+        """Create MINLP problem.
+
+        :param algo_type: Algorithm type, options: B-BB, B-OA, B-QG, or B-Hyb
+        """
         super(BonminSolver, self).__init___(problem, stats)
         options = regularize_options(options, {}, {"ipopt.print_level": 0})
 
@@ -19,6 +22,7 @@ class BonminSolver(SolverClass):
             discrete[i] = 1
         options.update({
             "discrete": discrete,
+            "bonmin.algorithm": algo_type,
         })
         minlp = {
             "f": problem.f,
