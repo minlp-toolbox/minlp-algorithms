@@ -12,7 +12,7 @@ from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass
-from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP, BendersMasterMIQP
+from benders_exp.solvers.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
@@ -184,7 +184,7 @@ def benders_constrained_milp(
             - std: based on lower and upper bound
     """
     print("Setup Idea MIQP solver...")
-    benders_tr_master = BendersConstraintMILP(problem, data, stats)
+    benders_tr_master = BendersTrustRegionMIP(problem, data, stats)
     termination_condition = get_termination_condition(
         termination_type, problem, data)
     toc()

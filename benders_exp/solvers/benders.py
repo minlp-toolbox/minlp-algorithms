@@ -305,9 +305,9 @@ class BendersMasterMIQP(BendersMasterMILP):
         return nlpdata
 
 
-class BendersConstraintMILP(BendersMasterMILP):
+class BendersTrustRegionMIP(BendersMasterMILP):
     """
-    Create benders constraint MILP.
+    Create benders constraint MIP.
 
     By an idea of Moritz D. and Andrea G.
     Given the ordered sequence of integer solutions:
@@ -328,9 +328,9 @@ class BendersConstraintMILP(BendersMasterMILP):
         meaning: nu == J(y_N)
     """
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None, switching_qp=True):
         """Create the benders constraint MILP."""
-        super(BendersConstraintMILP, self).__init__(
+        super(BendersTrustRegionMIP, self).__init__(
             problem, data, stats, options)
         self.setup_common(problem, options)
 
@@ -362,9 +362,15 @@ class BendersConstraintMILP(BendersMasterMILP):
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
         # We take a point
         self.x_sol_best = data.x0
+        self.switching_qp = switching_qp
+        self.iter = 0
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False) -> MinlpData:
         """Solve."""
+        if self.switching_qp:
+            self.iter += 1
+            is_qp = ((self.iter % 2) == 0)
+
         # Update with the lowest upperbound and the corresponding best solution:
         if nlpdata.obj_val < self.y_N_val:
             if prev_feasible:
