@@ -34,3 +34,7 @@ jit_tmp*
 # Coverage files
 .coverage
 coverage.xml
+
+data/cache
+*.so
+*.c
