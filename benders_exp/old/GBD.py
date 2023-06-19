@@ -1,4 +1,4 @@
-from benders_exp.utils import Nlp
+from benders_exp.old.utils import Nlp
 import casadi as ca
 import numpy as np
 

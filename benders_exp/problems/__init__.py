@@ -36,6 +36,8 @@ class MinlpProblem:
     x: CASADI_VAR
     p: CASADI_VAR
     idx_x_bin: List[float]
+    idx_g_lin: Optional[List[int]] = None
+    idx_g_lin_bin: Optional[List[int]] = None
     precompiled_nlp: Optional[str] = None
 
     meta: MetaData = MetaData()

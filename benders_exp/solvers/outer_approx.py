@@ -3,7 +3,7 @@
 import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-    get_idx_linear_bounds, regularize_options, get_idx_inverse
+    get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
 from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR
 
 
@@ -145,9 +145,9 @@ class OuterApproxMILPImproved(SolverClass):
         self.nr_x = problem.x.shape[0]
         # Last one is alpha
         self._x = CASADI_VAR.sym("x", self.nr_x + 1)
-        self._g = self.g_lin(self._x[:-1], data.p)
-        self._lbg = data.lbg[self.idx_g_lin]
-        self._ubg = data.ubg[self.idx_g_lin]
+        _, self._g, self._lbg, self._ubg = extract_bounds(
+            problem, data, self.idx_g_lin, self._x[:-1], allow_fail=False
+        )
         self._alpha = self._x[-1]
 
         discrete = [0] * (self.nr_x+1)
