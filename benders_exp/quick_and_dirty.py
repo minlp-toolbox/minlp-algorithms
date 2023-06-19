@@ -16,11 +16,12 @@ from benders_exp.solvers.benders import BendersMasterMILP, BendersConstraintMILP
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
-from benders_exp.utils import make_bounded
+from benders_exp.utils import make_bounded, setup_logger, logging
 
 
 def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
-                  master_problem: SolverClass, termination_condition: Callable[..., bool]) -> Tuple[MinlpData, ca.DM]:
+                  master_problem: SolverClass, termination_condition: Callable[..., bool]
+                  ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
     print("Setup NLP solver...")
     nlp = NlpSolver(problem, stats)
@@ -69,32 +70,50 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
 
 
 def get_termination_condition(termination_type, problem: MinlpProblem,  data: MinlpData):
+    """
+    Get termination condition.
+
+    :param termination_type: String of the termination type (gradient, std or equality)
+    :param problem: problem
+    :param data: data
+    :return: callable that returns true if the termination condition holds
+    """
     if termination_type == 'gradient':
         idx_x_bin = problem.idx_x_bin
-        f_fn = ca.Function("f", [problem.x, problem.p], [problem.f], {"jit": WITH_JIT})
-        grad_f_fn = ca.Function("gradient_f_x", [problem.x, problem.p], [ca.gradient(problem.f, problem.x)], {"jit": WITH_JIT})
-        func = lambda lb=None, ub=None, tol=None, x_best=None, x_current=None: to_0d(
-            f_fn(x_current, data.p) \
-            + grad_f_fn(x_current, data.p)[idx_x_bin].T @ (x_current[idx_x_bin] - x_best[idx_x_bin]) \
-            - f_fn(x_best, data.p)
+        f_fn = ca.Function("f", [problem.x, problem.p], [
+                           problem.f], {"jit": WITH_JIT})
+        grad_f_fn = ca.Function("gradient_f_x", [problem.x, problem.p], [ca.gradient(problem.f, problem.x)],
+                                {"jit": WITH_JIT})
+
+        def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
+            return to_0d(
+                f_fn(x_current, data.p)
+                + grad_f_fn(x_current, data.p)[idx_x_bin].T @ (
+                    x_current[idx_x_bin] - x_best[idx_x_bin])
+                - f_fn(x_best, data.p)
             ) >= 0
     elif termination_type == 'equality':
         idx_x_bin = problem.idx_x_bin
-        func = lambda lb=None, ub=None, tol=None, x_best=None, x_current=None: np.allclose(x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False)
+
+        def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
+            return np.allclose(x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False)
     elif termination_type == 'std':
-        func = lambda lb=None, ub=None, tol=None, x_best=None, x_current=None: (lb + tol - ub) >=0
+        def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
+            return (lb + tol - ub) >= 0
     else:
-        raise AttributeError(f"Invalid type of termination condition, you set '{termination_type}' but the only option is 'std'!")
+        raise AttributeError(
+            f"Invalid type of termination condition, you set '{termination_type}' but the only option is 'std'!")
     return func
 
 
 def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats,
-                      with_qp: bool = False, termination_type: str = 'std') -> Tuple[MinlpData, ca.DM]:
+                      with_qp: bool = False, termination_type: str = 'std') -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
-        Create and run benders algorithm.
-        parameters:
-            - termination_type:
-                - std: based on lower and upper bound
+    Create and run benders algorithm.
+
+    parameters:
+        - termination_type:
+            - std: based on lower and upper bound
     """
     if with_qp:
         # This class provides an improved benders implementation
@@ -110,62 +129,81 @@ def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats,
         # This class implements the original benders decomposition
         benders_master = BendersMasterMILP(problem, data, stats)
 
-    termination_condition = get_termination_condition(termination_type, problem, data)
+    termination_condition = get_termination_condition(
+        termination_type, problem, data)
     toc()
     return base_strategy(problem, data, stats, benders_master, termination_condition)
 
 
 def outer_approx_algorithm(
     problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'std'
-) -> Tuple[MinlpData, ca.DM]:
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
-        Create and run outer approximation.
-        parameters:
-            - termination_type:
-                - std: based on lower and upper bound
+    Create and run outer approximation.
+
+    parameters:
+        - termination_type:
+            - std: based on lower and upper bound
     """
     print("Setup OA MILP solver...")
     outer_approx = OuterApproxMILP(problem, data, stats)
-    termination_condition = get_termination_condition(termination_type, problem, data)
+    termination_condition = get_termination_condition(
+        termination_type, problem, data)
     toc()
     return base_strategy(problem, data, stats, outer_approx, termination_condition)
 
 
 def outer_approx_algorithm_improved(
     problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'std'
-) -> Tuple[MinlpData, ca.DM]:
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
-        Create and run improved outer approximation.
-        parameters:
-            - termination_type:
-                - std: based on lower and upper bound
+    Create and run improved outer approximation.
+
+    parameters:
+        - termination_type:
+            - std: based on lower and upper bound
     """
     print("Setup OAI MILP solver...")
     outer_approx = OuterApproxMILPImproved(problem, data, stats)
-    termination_condition = get_termination_condition(termination_type, problem, data)
+    termination_condition = get_termination_condition(
+        termination_type, problem, data)
     toc()
     return base_strategy(problem, data, stats, outer_approx, termination_condition)
 
 
 def benders_constrained_milp(
     problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'std'
-) -> Tuple[MinlpData, ca.DM]:
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
-        Create and run benders constrained milp algorithm.
-        parameters:
-            - termination_type:
-                - gradient: based on local linearization
-                - equality: the binaries of the last solution coincides with the ones of the best solution
-                - std: based on lower and upper bound
+    Create and run benders constrained milp algorithm.
+
+    parameters:
+        - termination_type:
+            - gradient: based on local linearization
+            - equality: the binaries of the last solution coincides with the ones of the best solution
+            - std: based on lower and upper bound
     """
     print("Setup Idea MIQP solver...")
     benders_tr_master = BendersConstraintMILP(problem, data, stats)
-    termination_condition = get_termination_condition(termination_type, problem, data)
+    termination_condition = get_termination_condition(
+        termination_type, problem, data)
     toc()
     return base_strategy(problem, data, stats, benders_tr_master, termination_condition)
 
 
-def bonmin(problem, data, stats, algo_type="B-BB"):
+def relaxed(
+    problem: MinlpProblem, data: MinlpData, stats: Stats
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+    """Create and the relaxed problem."""
+    nlp = NlpSolver(problem, stats)
+    data = nlp.solve(data)
+    return problem, data, data.x_sol
+
+
+def bonmin(
+    problem: MinlpProblem, data: MinlpData, stats: Stats,
+    algo_type="B-BB"
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Create benders algorithm."""
     tic()
     toc()
@@ -179,18 +217,20 @@ def bonmin(problem, data, stats, algo_type="B-BB"):
 
 def voronoi_tr_algorithm(
     problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'gradient'
-) -> Tuple[MinlpData, ca.DM]:
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
-        Create and run voronoi trust region milp algorithm.
-        parameters:
-            - termination_type:
-                - gradient: based on local linearization
-                - equality: the binaries of the last solution coincides with the ones of the best solution
-                - std: based on lower and upper bound
+    Create and run voronoi trust region milp algorithm.
+
+    parameters:
+        - termination_type:
+            - gradient: based on local linearization
+            - equality: the binaries of the last solution coincides with the ones of the best solution
+            - std: based on lower and upper bound
     """
     print("Setup Voronoi trust region MILP solver...")
     benders_tr_master = VoronoiTrustRegionMILP(problem, data, stats)
-    termination_condition = get_termination_condition(termination_type, problem, data)
+    termination_condition = get_termination_condition(
+        termination_type, problem, data)
     toc()
     return base_strategy(problem, data, stats, benders_tr_master, termination_condition)
 
@@ -226,6 +266,7 @@ def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData
         # B-iFP: an iterated feasibility pump algorithm
         "bonmin-ifp": lambda p, d, s: bonmin(p, d, s, "B-iFP"),
         "voronoi_tr": lambda p, d, s: voronoi_tr_algorithm(p, d, s, termination_type='equality'),
+        "relaxed": relaxed,
     }
 
     if mode_name in MODES:
@@ -236,6 +277,7 @@ def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData
 
 
 if __name__ == "__main__":
+    setup_logger(logging.DEBUG)
     if len(argv) == 1:
         print("Usage: mode problem")
         print("Available modes are: benders, idea, ...")
@@ -269,12 +311,14 @@ if __name__ == "__main__":
         fig, axs = plot_trajectory(state, control, meta, title=problem_name)
 
         # TODO the next is only a patch for plotting the demand for the double tank problem
-        time_array = np.linspace(0, meta.dt * state.shape[0], state.shape[0] + 1)
+        time_array = np.linspace(
+            0, meta.dt * state.shape[0], state.shape[0] + 1)
         demand = np.array([2 + 0.5 * np.sin(x) for x in time_array])
         axs[1].plot(time_array, demand, "r--", alpha=0.5)
 
         uptime = problem.meta.min_uptime
-        fig.savefig(f"{IMG_DIR}/ocp_trajectory_{mode}_uptime_{uptime}.pdf", bbox_inches='tight')
+        fig.savefig(
+            f"{IMG_DIR}/ocp_trajectory_{mode}_uptime_{uptime}.pdf", bbox_inches='tight')
         plt.show()
 
     if WITH_PLOT:

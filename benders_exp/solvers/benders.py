@@ -11,9 +11,12 @@ import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, get_idx_linear_bounds_binary_x, regularize_options, \
-    get_idx_inverse
+    get_idx_inverse, extract_bounds
 from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR, WITH_PLOT
 from benders_exp.utils import to_0d
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class BendersMasterMILP(SolverClass):
@@ -25,17 +28,6 @@ class BendersMasterMILP(SolverClass):
         self.setup_common(problem, options)
         if WITH_PLOT:
             self.setup_plot()
-
-        self.idx_g_lin = get_idx_linear_bounds_binary_x(problem)
-        self.nr_g = len(self.idx_g_lin)
-        if self.nr_g > 0:
-            self._g = problem.g[self.idx_g_lin]
-            self._lbg = data.lbg[self.idx_g_lin].flatten().tolist()
-            self._ubg = data.ubg[self.idx_g_lin].flatten().tolist()
-        else:
-            self._g = []
-            self._lbg = []
-            self._ubg = []
 
         self.grad_f_bin = ca.Function(
             "gradient_f_x_bin",
@@ -49,8 +41,12 @@ class BendersMasterMILP(SolverClass):
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
             {"jit": WITH_JIT}
         )
-        self._x = problem.x[problem.idx_x_bin]
-        # self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
+        self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
+
+        idx_g_lin = get_idx_linear_bounds_binary_x(problem)
+        self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
+            problem, data, idx_g_lin, self._x, problem.idx_x_bin
+        )
 
         self.cut_id = 0
         self.visualized_cuts = []
@@ -162,10 +158,14 @@ class BendersMasterMILP(SolverClass):
         """Set up 3d plot."""
         self.fig = plt.figure()
         self.ax = self.fig.add_subplot(111, projection='3d')
-        self.ax.set_xlim(data.lbx[problem.idx_x_bin][0], data.ubx[problem.idx_x_bin][0])
-        self.ax.set_xticks(range(int(data.lbx[problem.idx_x_bin][0]), int(data.ubx[problem.idx_x_bin][0]) + 1))
-        self.ax.set_ylim(data.lbx[problem.idx_x_bin][1], data.ubx[problem.idx_x_bin][1])
-        self.ax.set_yticks(range(int(data.lbx[problem.idx_x_bin][1]), int(data.ubx[problem.idx_x_bin][1]) + 1))
+        self.ax.set_xlim(data.lbx[problem.idx_x_bin]
+                         [0], data.ubx[problem.idx_x_bin][0])
+        self.ax.set_xticks(range(int(data.lbx[problem.idx_x_bin][0]), int(
+            data.ubx[problem.idx_x_bin][0]) + 1))
+        self.ax.set_ylim(data.lbx[problem.idx_x_bin]
+                         [1], data.ubx[problem.idx_x_bin][1])
+        self.ax.set_yticks(range(int(data.lbx[problem.idx_x_bin][1]), int(
+            data.ubx[problem.idx_x_bin][1]) + 1))
 
     def setup_plot(self):
         """Set up plot."""
@@ -179,7 +179,8 @@ class BendersMasterMILP(SolverClass):
         z = np.zeros(xx.shape)
         for i in range(10):
             for j in range(10):
-                z[i, j] = cut(ca.vertcat(xx[i, j], yy[i, j]), nu_val).full()[0, 0]
+                z[i, j] = cut(ca.vertcat(xx[i, j], yy[i, j]),
+                              nu_val).full()[0, 0]
 
         self.visualized_cuts.append(
             self.ax.plot_surface(
@@ -198,7 +199,7 @@ class BendersMasterMILP(SolverClass):
         plt.pause(1)
 
     def visualize_trust_region(self, x_bin, nu, nu_val=0, x_sol_current=None, x_sol_best=None):
-        """Visualize trust region"""
+        """Visualize trust region."""
         g_k = self._g[-self.cut_id:]
         if x_sol_current is not None:
             x_sol_current = deepcopy(x_sol_current)
@@ -226,20 +227,21 @@ class BendersMasterMILP(SolverClass):
                 feasible_c = np.ones(xx.shape, dtype=bool)
                 for i in range(points.shape[0]):
                     for j in range(points.shape[0]):
-                        feasible_c[i, j] = cut(ca.vertcat(xx[i, j], yy[i, j]), nu_val).full()[0, 0] < 0
+                        feasible_c[i, j] = cut(ca.vertcat(
+                            xx[i, j], yy[i, j]), nu_val).full()[0, 0] < 0
                 feasible = feasible & feasible_c
             self.ax.imshow(~feasible, cmap=plt.cm.binary, alpha=0.5,
                            origin="lower",
-                           extent=[xlim[0]-1, xlim[1]+1, ylim[0]-1, ylim[1]+1],
-                        )
+                           extent=[xlim[0]-1, xlim[1]+1, ylim[0]-1, ylim[1]+1]
+                           )
             if x_sol_best is not None:
                 self.ax.scatter(x_sol_best[0], x_sol_best[1], c='tab:orange')
                 if not np.allclose(x_sol_best, x_sol_current):
-                    self.ax.scatter(x_sol_current[0], x_sol_current[1], c='tab:blue')
+                    self.ax.scatter(
+                        x_sol_current[0], x_sol_current[1], c='tab:blue')
 
             plt.show(block=False)
             plt.pause(1)
-
 
 
 class BendersMasterMIQP(BendersMasterMILP):
@@ -351,18 +353,9 @@ class BendersConstraintMILP(BendersMasterMILP):
                                   ca.hessian(problem.f, problem.x)[0]])
 
         self._x = CASADI_VAR.sym("x_benders", problem.x.numel())
-        self.nr_g = len(self.idx_g_lin)
-        if self.nr_g > 0:
-            self._g = ca.Function(
-                "g_lin", [problem.x, problem.p],
-                [problem.g[self.idx_g_lin]]
-            )(self._x, data.p)
-            self._lbg = data.lbg[self.idx_g_lin].flatten().tolist()
-            self._ubg = data.ubg[self.idx_g_lin].flatten().tolist()
-        else:
-            self._g = []
-            self._lbg = []
-            self._ubg = []
+        self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
+            problem, data, self.idx_g_lin, self._x, allow_fail=False
+        )
 
         self.options.update({"discrete": [
                             1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]})
@@ -370,7 +363,7 @@ class BendersConstraintMILP(BendersMasterMILP):
         # We take a point
         self.x_sol_best = data.x0
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False) -> MinlpData:
         """Solve."""
         # Update with the lowest upperbound and the corresponding best solution:
         if nlpdata.obj_val < self.y_N_val:
@@ -399,9 +392,6 @@ class BendersConstraintMILP(BendersMasterMILP):
 
         dx = self._x - self.x_sol_best
 
-        f_k = self.f(self.x_sol_best, nlpdata.p)
-        f_lin = self.grad_f_x_sub(self.x_sol_best, nlpdata.p)
-        f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
         g_lin = self.g(self.x_sol_best, nlpdata.p)[self.idx_g_nonlin]
         if g_lin.numel() > 0:
             jac_g = self.jac_g_sub(self.x_sol_best, nlpdata.p)[
@@ -423,11 +413,16 @@ class BendersConstraintMILP(BendersMasterMILP):
             lbg = self._lbg
             ubg = self._ubg
 
+        f_k = self.f(self.x_sol_best, nlpdata.p)
+        f_lin = self.grad_f_x_sub(self.x_sol_best, nlpdata.p)
+        if is_qp:
+            f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
+            f = f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx
+        else:
+            f = f_k + f_lin.T @ dx
+
         self.solver = ca.qpsol(f"benders_constraint_{self.nr_g}", "gurobi", {
-            # TODO: add a flag to solve the qp
-            # "f": f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx,
-            "f": f_k + f_lin.T @ dx,
-            "g": g, "x": self._x, "p": self._nu
+            "f": f, "g": g, "x": self._x, "p": self._nu
         }, self.options)
 
         nlpdata.prev_solution = self.solver(

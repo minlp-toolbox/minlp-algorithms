@@ -4,7 +4,7 @@ import casadi as ca
 import matplotlib.pyplot as plt
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-    get_idx_linear_bounds, regularize_options, get_idx_inverse
+    get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
 from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR, WITH_PLOT
 from benders_exp.utils import to_0d
 
@@ -78,18 +78,9 @@ class VoronoiTrustRegionMILP(SolverClass):
         self.nr_g_orig = problem.g.shape[0]
         self.nr_x_orig = problem.x.shape[0]
         # Copy the linear constraints in g
-        self.nr_g = len(self.idx_g_lin)
-        if self.nr_g > 0:
-            self._g = ca.Function(
-                "g_lin", [problem.x, problem.p],
-                [problem.g[self.idx_g_lin]]
-            )(self._x, data.p)
-            self._lbg = data.lbg[self.idx_g_lin].flatten().tolist()
-            self._ubg = data.ubg[self.idx_g_lin].flatten().tolist()
-        else:
-            self._g = []
-            self._lbg = []
-            self._ubg = []
+        self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
+            problem, data, self.idx_g_lin, self._x[:-1], allow_fail=False
+        )
 
         self.options.update(GUROBI_SETTINGS)
         self.options["discrete"] = [1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]
@@ -108,7 +99,7 @@ class VoronoiTrustRegionMILP(SolverClass):
     def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False) -> MinlpData:
         """Solve."""
         # Update with the lowest upperbound and the corresponding best solution:
-        if  nlpdata.x_sol.shape[0] == 1:
+        if nlpdata.x_sol.shape[0] == 1:
             x_sol = to_0d(nlpdata.x_sol)[np.newaxis]
         else:
             x_sol = to_0d(nlpdata.x_sol)[:self.nr_x_orig]

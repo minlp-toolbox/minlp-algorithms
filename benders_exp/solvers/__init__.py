@@ -2,11 +2,14 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Dict, List
+from typing import Dict, List, Optional
 from benders_exp.problems import MinlpProblem, MinlpData
 from benders_exp.defines import WITH_LOGGING
 import casadi as ca
 import numpy as np
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -71,28 +74,36 @@ def regularize_options(options, log_opts, nolog_opts):
 
 def get_idx_linear_bounds_binary_x(problem: MinlpProblem):
     """Get the indices for the linear bounds that are purely on the binary x."""
-    x_cont_idx = [
-        i for i in range(problem.x.shape[0]) if i not in problem.idx_x_bin
-    ]
-    g_expr = ca.Function("g_func", [problem.x, problem.p], [problem.g])
-    sp = np.array(g_expr.sparsity_jac(0, 0))
+    if problem.idx_g_lin_bin is None:
+        x_cont_idx = [
+            i for i in range(problem.x.shape[0]) if i not in problem.idx_x_bin
+        ]
+        g_expr = ca.Function("g_func", [problem.x, problem.p], [problem.g])
+        sp = np.array(g_expr.sparsity_jac(0, 0))
 
-    nr_g = problem.g.shape[0]
-    return np.array(list(
-        filter(lambda i: (sum(sp[i, problem.idx_x_bin]) > 0
-                          and sum(sp[i, x_cont_idx]) == 0
-                          and ca.hessian(problem.g[i], problem.x)[0].nnz() == 0),
-               range(nr_g))
-    ))
+        nr_g = problem.g.shape[0]
+        iterator = range(
+            nr_g) if problem.idx_g_lin is None else problem.idx_g_lin
+        problem.idx_g_lin_bin = np.array(list(
+            filter(lambda i: (sum(sp[i, problem.idx_x_bin]) > 0
+                              and sum(sp[i, x_cont_idx]) == 0
+                              and ca.hessian(problem.g[i], problem.x)[0].nnz() == 0),
+                   iterator)
+        ))
+
+    return problem.idx_g_lin_bin
 
 
 def get_idx_linear_bounds(problem: MinlpProblem):
     """Get the indices of the linear bounds."""
-    nr_g = problem.g.shape[0]
-    return np.array(list(
-        filter(lambda i: ca.hessian(problem.g[i], problem.x)[0].nnz() == 0,
-               range(nr_g)))
-    )
+    if problem.idx_g_lin is None:
+        nr_g = problem.g.shape[0]
+        problem.idx_g_lin = np.array(list(
+            filter(lambda i: ca.hessian(problem.g[i], problem.x)[0].nnz() == 0,
+                   range(nr_g)))
+        )
+
+    return problem.idx_g_lin
 
 
 def get_idx_inverse(indices, nr):
@@ -101,6 +112,34 @@ def get_idx_inverse(indices, nr):
     return list(set(full_indices) - set(indices))
 
 
-def extract_bounds(problem: MinlpProblem, data: MinlpData, idx: List[int]):
+def extract_bounds(problem: MinlpProblem, data: MinlpData,
+                   idx_g: List[int], new_x,
+                   idx_x: Optional[List[int]] = None, allow_fail=True):
     """Extract bounds."""
-    return problem.g[idx], data.lbg[idx], data.ubg[idx]
+    empty = False
+    nr_g = len(idx_g)
+    if nr_g == 0:
+        empty = True
+    else:
+        try:
+            if idx_x is None:
+                _x = problem.x
+            else:
+                _x = problem.x[idx_x]
+
+            g = ca.Function("g_lin", [_x, problem.p], [problem.g[idx_g]])(
+                new_x, data.p
+            )
+            lbg = data.lbg[idx_g].flatten().tolist()
+            ubg = data.ubg[idx_g].flatten().tolist()
+        except Exception as e:
+            if allow_fail:
+                logger.warning(str(e))
+                empty = True
+            else:
+                raise e
+
+    if empty:
+        return 0, [], [], []
+    else:
+        return nr_g, g, lbg, ubg
