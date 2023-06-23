@@ -28,6 +28,7 @@ jit_tmp*
 **/*.fdb_latexmk
 # **/*.pdf
 **/report.pdf
+**/report_short.pdf
 **/*.bbl
 **/*.blg
 
