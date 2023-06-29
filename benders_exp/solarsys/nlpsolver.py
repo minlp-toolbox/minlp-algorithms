@@ -199,7 +199,7 @@ class NLPSolverMPCBaseClass(NLPSetupMPC, metaclass=ABCMeta):
         self._setup_additional_nlpsolver_options()
         self._setup_collocation_options()
 
-        logger.debug("NLP solver {solver_name} initialized.")
+        logger.debug(f"NLP solver {self._solver_name} initialized.")
 
     def set_solver_max_cpu_time(self, time_point_to_finish):
 

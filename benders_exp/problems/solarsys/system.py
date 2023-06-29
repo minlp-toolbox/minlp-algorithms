@@ -840,7 +840,7 @@ class System:
             "ode": dt * self.f,
         }
         return ca.integrator(
-            "integrator", "cvodes", ode, {"t0": 0.0, "tf": 1.0}
+            "integrator", "cvodes", ode, 0.0, 1.0
         )
 
     def get_t_ac_min_function(self, use_big_m_constraints=False):

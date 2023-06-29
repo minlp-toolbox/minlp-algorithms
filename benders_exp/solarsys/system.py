@@ -876,7 +876,7 @@ class System(object):
         }
 
         self._integrator = ca.integrator(
-            "integrator", "cvodes", ode, {"t0": 0.0, "tf": 1.0}
+            "integrator", "cvodes", ode, 0.0, 1.0
         )
 
 
