@@ -4,7 +4,7 @@ from typing import Optional, Union, List, Tuple
 from benders_exp.defines import CASADI_VAR
 from casadi import vertcat, inf, hessian, Function, DM, reshape, jacobian
 from math import isinf
-from benders_exp.problems import MinlpProblem, MinlpData
+from benders_exp.problems import MinlpProblem, MinlpData, MetaDataOcp
 import numpy as np
 
 
