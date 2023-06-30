@@ -63,6 +63,7 @@ class CachedFunction:
             if do_compile:
                 logger.debug(f"Compiling function {self.name}")
                 self._save_so()
+                self._load_so()
             else:
                 self._save()
 
@@ -97,6 +98,8 @@ class CachedFunction:
         tmp_file = data["func_name"] + ".c"
         cg = ca.CodeGenerator(tmp_file)
         cg.add(self.f)
+        cg.add(self.f.jacobian())
+        cg.add(self.f.jacobian().jacobian())
         cg.generate()
         rename(tmp_file, data["c_file"])
         compile(data["c_file"], data["lib_file"])

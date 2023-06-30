@@ -44,6 +44,7 @@ class TestSolver(unittest.TestCase):
         f2 = CachedFunction("test", dummy_casadi_function, FILE_PATH, do_compile=False)
         out = f2([2.0, 3.0])
         self.assertEqual(out[0], 7.0)
+        f2.f.jacobian().jacobian()
 
     def test_cached_function_compiled(self):
         """Test a cached function."""
@@ -62,6 +63,8 @@ class TestSolver(unittest.TestCase):
         f2 = CachedFunction("test", dummy_casadi_function, FILE_PATH, do_compile=True)
         out = f2([2.0, 3.0])
         self.assertEqual(out[0], 7.0)
+        f2.f.jacobian().jacobian()
+
 
 if __name__ == "__main__":
     unittest.main()
