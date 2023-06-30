@@ -51,7 +51,7 @@ def create_stcs_problem():
     system = System()
     ambient = Ambient()
     dsc = Description()
-    n_steps = 30
+    n_steps = 83
     dt = timedelta(seconds=1800)
     x0 = convert_to_flat_list(system.nx, system.x_index, get_initial_state())
     collocation_nodes = 2
@@ -200,6 +200,25 @@ def create_stcs_problem():
 
 if __name__ == "__main__":
     from benders_exp.utils import setup_logger, logging
+    from benders_exp.problems import check_solution
+    from benders_exp.solvers import Stats
+    from benders_exp.solvers.nlp import NlpSolver
+    import pickle
 
     setup_logger(logging.DEBUG)
-    create_stcs_problem()
+    prob, data = create_stcs_problem()
+
+    time_grid = np.array(data.p)[prob.meta.indexes_p['dt']]
+    time_grid = [900 if dt<=70 else 1800 for dt in range(83)] # same timegrid of orig problem
+
+    data.p = np.array(data.p)
+    data.p[prob.meta.indexes_p['dt']] = time_grid
+    stats = Stats({})
+    nlp = NlpSolver(prob, stats)
+
+    breakpoint()
+    data = nlp.solve(data, set_x_bin=False) # solve relaxed problem
+    with open("results/x_star_rel_stcs.pickle", "wb") as f:
+        pickle.dump(data.x_sol, f)
+    breakpoint()
+    check_solution(prob, data, data.prev_solution['x'])
