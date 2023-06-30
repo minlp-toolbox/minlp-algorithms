@@ -29,13 +29,6 @@ class BendersMasterMILP(SolverClass):
         if WITH_PLOT:
             self.setup_plot()
 
-        self.grad_f_bin = ca.Function(
-            "gradient_f_x_bin",
-            [problem.x, problem.p], [ca.gradient(
-                problem.f, problem.x
-            )[problem.idx_x_bin]],
-            {"jit": WITH_JIT}
-        )
         self.jac_g_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
