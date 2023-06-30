@@ -203,9 +203,12 @@ PROBLEMS = {
 
 if __name__ == '__main__':
     stats = Stats({})
-    prob, data = create_check_sign_lagrange_problem()
+    prob, data = create_double_pipe_problem()
     nlp = NlpSolver(prob, stats)
     data = nlp.solve(data)
+
+    grad_f = ca.Function('grad_f', [prob.x, prob.p], [ca.gradient(prob.f, prob.x)])
+    grad_g = ca.Function('grad_g', [prob.x, prob.p], [ca.jacobian(prob.g, prob.x).T])
+    lambda_k = grad_f(data.x_sol, data.p) + grad_g(data.x_sol, data.p) @ data.lam_g_sol
+    assert np.allclose(-data.lam_x_sol, lambda_k)
     breakpoint()
-    # prob, data = create_double_pipe_problem()
-    # prob, data = create_dummy_problem()

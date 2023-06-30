@@ -26,18 +26,7 @@ def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
     # when constraints are one sided the convention is -inf <= g <= ubg
     g_extra, g_lb, g_ub = [], [], []
     for i in range(data.lbx.shape[0]):
-        if i not in problem.idx_x_bin:
-            if lbx[i] > -new_inf:
-                g_extra.append(-problem.x[i] + max(lbx[i], -new_inf))
-                g_lb.append(-np.inf)
-                g_ub.append(0)
-                lbx[i] = -1e9  # TODO: for -ca.inf it raises an error (OverflowError: cannot convert float infinity to integer)
-            if ubx[i] < new_inf:
-                g_extra.append(problem.x[i] - min(ubx[i], new_inf))
-                g_lb.append(-np.inf)
-                g_ub.append(0)
-                ubx[i] = new_inf
-        else:
+        if i in problem.idx_x_bin:
             if lbx[i] < -new_inf:
                 lbx[i] = -new_inf
             if ubx[i] > new_inf:
