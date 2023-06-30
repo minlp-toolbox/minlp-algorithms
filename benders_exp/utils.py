@@ -56,6 +56,7 @@ def setup_logger(level=logging.WARNING):
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         level=level
     )
+    logging.getLogger('matplotlib').setLevel(logging.ERROR)
 
 
 def tic():
