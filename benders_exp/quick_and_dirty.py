@@ -2,13 +2,14 @@
 
 import matplotlib.pyplot as plt
 from sys import argv
-
+from os import path
 from typing import Callable, Tuple, Union
 import casadi as ca
 import numpy as np
 from benders_exp.utils import plot_trajectory, tic, to_0d, toc, \
         make_bounded, setup_logger, logging
-from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT
+from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, OUT_DIR, \
+        WITH_LOG_DATA
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
 from benders_exp.solvers import Stats
@@ -402,6 +403,10 @@ if __name__ == "__main__":
     stats.save(stats['iterate_data'], mode, problem_name)
 
     print(f"Objective value: {data.obj_val}")
+    if WITH_LOG_DATA:
+        import pickle
+        with open(path.join(OUT_DIR, f"x_star__{mode}_{problem_name}.pickle"), "wb") as f:
+            pickle.dump(x_star, f)
 
     print(x_star)
     check_solution(problem, data, x_star)
