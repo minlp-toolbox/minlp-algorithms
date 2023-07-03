@@ -24,6 +24,7 @@ class NlpSolver(SolverClass):
 
         self.idx_x_bin = problem.idx_x_bin
         options.update(IPOPT_SETTINGS)
+        options["calc_multipliers"] = True
         # self.callback = DebugCallBack(
         #     'mycallback', problem.x.shape[0],
         #     problem.g.shape[0], problem.p.shape[0]
@@ -116,7 +117,7 @@ class FeasibilityNlpSolver(SolverClass):
         nlpdata.prev_solution = self.solver(
             x0=ca.vcat(
                 [nlpdata.x_sol[:nlpdata.x0.shape[0]],
-                np.zeros(1)]  # slacks initialization
+                 np.zeros(1)]  # slacks initialization
             ),
             lbx=lbx,
             ubx=ubx,
