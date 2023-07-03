@@ -5,11 +5,11 @@ __pycache__/
 .DS_Store
 .python-version
 .vscode/
+.ipynb_checkpoints
 
 # Ignore results
 results/*
 jit_tmp*
-
 
 ## Core latex/pdflatex auxiliary files:
 **/*.aux
@@ -36,6 +36,10 @@ jit_tmp*
 .coverage
 coverage.xml
 
+# Cache and code generated files
 data/cache
 *.so
 *.c
+
+# Generated images
+tutorial-example/img/benders_tr_counterexample.pdf
