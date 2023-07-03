@@ -131,9 +131,9 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
     msg = []
     if abs(data.obj_val - float(f_val)) > 1e-4:
         msg.append("Objective value wrong!")
-    if np.any(data.lbx > x_star):
+    if np.any(data.lbx > x_star + 1e-4):
         msg.append(f"Lbx > x* for indices:\n{np.nonzero(data.lbx > x_star).T}")
-    if np.any(data.ubx < x_star):
+    if np.any(data.ubx < x_star - 1e-4):
         msg.append(f"Ubx > x* for indices:\n{np.nonzero(data.ubx < x_star).T}")
     if np.any(data.lbg > g_val + 1e-4):
         msg.append(f"{g_val=}  {data.lbg=}")
