@@ -13,6 +13,7 @@ from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_sol
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass
 from benders_exp.solvers.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
+from benders_exp.solvers.benders_mix import BendersTRandMaster
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
@@ -226,11 +227,71 @@ def voronoi_tr_algorithm(
             - std: based on lower and upper bound
     """
     print("Setup Voronoi trust region MILP solver...")
-    benders_tr_master = VoronoiTrustRegionMILP(problem, data, stats)
+    voronoi_tr_master = VoronoiTrustRegionMILP(problem, data, stats)
     termination_condition = get_termination_condition(
         termination_type, problem, data)
     toc()
-    return base_strategy(problem, data, stats, benders_tr_master, termination_condition)
+    return base_strategy(problem, data, stats, voronoi_tr_master, termination_condition)
+
+
+def benders_tr_master(
+    problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'equality'
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+    """Run the base strategy."""
+    termination_condition = get_termination_condition(termination_type, problem, data)
+    print("Setup Mixed Benders TR/Master")
+    master_problem = BendersTRandMaster(problem, data, stats)
+    toc()
+    print("Setup NLP solver...")
+    nlp = NlpSolver(problem, stats)
+    toc()
+    print("Setup FNLP solver...")
+    fnlp = FeasibilityNlpSolver(problem, data, stats)
+    stats['total_time_loading'] = toc(reset=True)
+    print("Solver initialized.")
+    # Benders algorithm
+    lb = -ca.inf
+    ub = ca.inf
+    tolerance = 0.04
+    feasible = True
+    x_star = np.nan * np.empty(problem.x.shape[0])
+    x_hat = -np.nan * np.empty(problem.x.shape[0])
+    last_benders = True
+    termination_met = False
+    while feasible and not (last_benders and termination_met):
+        toc()
+        # Solve NLP(y^k)
+        data = nlp.solve(data, set_x_bin=True)
+        prev_feasible = data.solved
+        x_bar = data.x_sol
+        print(f"{x_bar=}")
+
+        if not prev_feasible:
+            # Solve NLPF(y^k)
+            data = fnlp.solve(data)
+            x_bar = data.x_sol
+            print("Infeasible")
+        elif data.obj_val < ub:
+            ub = data.obj_val
+            x_star = x_bar
+            print("Feasible")
+
+        # Solve master^k and set lower bound:
+        data, last_benders = master_problem.solve(
+            data, prev_feasible=prev_feasible, require_benders=termination_met
+        )
+        lb = data.obj_val
+        x_hat = data.x_sol
+        print(f"\n\n\n{x_hat=}")
+        print(f"{ub=}\n{lb=}\n\n\n")
+        stats['iter'] += 1
+
+        feasible = data.solved
+        termination_met = termination_condition(lb, ub, tolerance, x_star, x_hat)
+
+
+    stats['total_time_calc'] = toc(reset=True)
+    return problem, data, x_star
 
 
 def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData, ca.DM]:
@@ -249,7 +310,8 @@ def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData
     MODES = {
         "benders": benders_algorithm,
         "bendersqp": lambda p, d, s: benders_algorithm(p, d, s, with_qp=True),
-        "b_tr": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std'),
+        "benders_tr": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std'),
+        "benders_trm": benders_tr_master,
         "oa": outer_approx_algorithm,
         "oai": outer_approx_algorithm_improved,
         "bonmin": bonmin,

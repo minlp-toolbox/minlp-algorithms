@@ -81,13 +81,10 @@ def get_idx_linear_bounds_binary_x(problem: MinlpProblem):
         g_expr = ca.Function("g_func", [problem.x, problem.p], [problem.g])
         sp = np.array(g_expr.sparsity_jac(0, 0))
 
-        nr_g = problem.g.shape[0]
-        iterator = range(
-            nr_g) if problem.idx_g_lin is None else problem.idx_g_lin
+        iterator = get_idx_linear_bounds(problem)
         problem.idx_g_lin_bin = np.array(list(
             filter(lambda i: (sum(sp[i, problem.idx_x_bin]) > 0
-                              and sum(sp[i, x_cont_idx]) == 0
-                              and ca.hessian(problem.g[i], problem.x)[0].nnz() == 0),
+                              and sum(sp[i, x_cont_idx]) == 0),
                    iterator)
         ))
 

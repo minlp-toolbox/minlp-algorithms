@@ -46,6 +46,7 @@ def setup_logger(level=logging.WARNING):
         level=level
     )
     logging.getLogger('matplotlib').setLevel(logging.ERROR)
+    logging.getLogger('PIL').setLevel(logging.ERROR)
 
 
 def tic():
