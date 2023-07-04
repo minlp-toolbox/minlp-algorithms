@@ -41,3 +41,4 @@ GUROBI_SETTINGS = {
         "gurobi.MIPGap": 0.05,
         "gurobi.NumericFocus": 1,
 }
+EPS = 1e-5
