@@ -197,9 +197,15 @@ def counter_example_nonconvexity():
     x = CASADI_VAR.sym('x')
     f = ca.atan(x-0.3)**2 + x/10 + x**2/50
     problem = MinlpProblem(x=x, f=f, g=[], p=[], idx_x_bin=[0])
-    data = MinlpData(x0=ca.vcat(-4), _ubx=ca.vcat(-5), _lbx=ca.vcat(5),
+    data = MinlpData(x0=np.array([-4]), _lbx=np.array([-5]), _ubx=np.array([5]),
                      _ubg=[], _lbg=[], p=[], solved=True)
     return problem, data
+
+
+def create_from_nl_file(file):
+    """Load from NL file."""
+    print(file)
+    return [], []
 
 
 PROBLEMS = {
@@ -212,7 +218,9 @@ PROBLEMS = {
     "doubletank2": create_double_tank_problem2,
     "gearbox": create_simple_gearbox,
     "gearbox_int": create_gearbox_int,
-    "gearbox_complx": create_gearbox
+    "gearbox_complx": create_gearbox,
+    "nonconvex": counter_example_nonconvexity,
+    "load": create_from_nl_file
 }
 
 
