@@ -1,6 +1,6 @@
 """Global defines."""
 
-from os import path, makedirs
+from os import path, makedirs, environ
 import casadi as ca
 
 SOURCE_FOLDER = path.dirname(path.abspath(__file__))
@@ -19,6 +19,7 @@ WITH_JIT = False
 WITH_LOGGING = True
 WITH_PLOT = False
 CASADI_VAR = ca.SX
+WITH_DEBUG = environ.get("DEBUG", False)
 IPOPT_SETTINGS = {
     # "ipopt.tol": 1e-2,
     # "ipopt.dual_inf_tol": 2,
@@ -35,10 +36,21 @@ IPOPT_SETTINGS = {
     # "ipopt.acceptable_obj_change_tol": 1e-1,
     # "ipopt.mu_strategy": "adaptive",
     # "ipopt.mu_target": 1e-4,
-    "ipopt.print_level": 1,
 }
 GUROBI_SETTINGS = {
-        "gurobi.MIPGap": 0.05,
-        "gurobi.NumericFocus": 1,
+    "gurobi.MIPGap": 0.05,
+    "gurobi.NumericFocus": 1,
 }
 EPS = 1e-5
+
+if not WITH_DEBUG:
+    IPOPT_SETTINGS.update({
+        "ipopt.print_level": 0,
+        "verbose": False,
+        "print_time": 0,
+    })
+    GUROBI_SETTINGS.update({
+        "verbose": False,
+        "print_time": 0,
+        "gurobi.OutputFlag": 0,
+    })
