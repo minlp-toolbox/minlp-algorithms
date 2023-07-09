@@ -1,7 +1,7 @@
 """General problem structure."""
 
 from dataclasses import dataclass
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Callable
 from benders_exp.defines import CASADI_VAR, ca
 from copy import deepcopy
 import numpy as np
@@ -25,6 +25,14 @@ class MetaDataOcp(MetaData):
     dt: Optional[float] = None
     scaling_coeff_control: Optional[List[float]] = None
     min_uptime: Optional[int] = None
+
+
+@dataclass
+class MetaDataMpc(MetaData):
+    """Meta data in case the problem is an OCP."""
+
+    plot: Callable[[MetaData, ca.DM], bool] = None
+    shift: Callable[[MetaData, ca.DM], bool] = None
 
 
 @dataclass

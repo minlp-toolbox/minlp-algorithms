@@ -22,7 +22,8 @@ logger = logging.getLogger(__name__)
 class BendersMasterMILP(SolverClass):
     """Create benders master problem."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats,
+                 options=None, with_lin_bounds=True):
         """Create benders master MILP."""
         super(BendersMasterMILP, self).__init___(problem, stats)
         self.setup_common(problem, options)
@@ -37,9 +38,12 @@ class BendersMasterMILP(SolverClass):
         self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
 
         idx_g_lin = get_idx_linear_bounds_binary_x(problem)
-        self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
-            problem, data, idx_g_lin, self._x, problem.idx_x_bin
-        )
+        if with_lin_bounds:
+            self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
+                problem, data, idx_g_lin, self._x, problem.idx_x_bin
+            )
+        else:
+            self.nr_g, self._g, self._lbg, self._ubg = 0, [], [], []
 
         self.cut_id = 0
         self.visualized_cuts = []

@@ -9,6 +9,8 @@ from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver
 from benders_exp.problems.utils import integrate_rk4  # integrate_ee
 from benders_exp.problems.double_tank import create_double_tank_problem2
+from benders_exp.problems.gearbox import create_simple_gearbox, create_gearbox, \
+        create_gearbox_int
 
 
 def create_check_sign_lagrange_problem():
@@ -198,6 +200,9 @@ PROBLEMS = {
     "doublepipe": create_double_pipe_problem,
     "doubletank": create_double_tank_problem,
     "doubletank2": create_double_tank_problem2,
+    "gearbox": create_simple_gearbox,
+    "gearbox_int": create_gearbox_int,
+    "gearbox_complx": create_gearbox
 }
 
 
