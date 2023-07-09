@@ -79,7 +79,7 @@ class VoronoiTrustRegionMILP(SolverClass):
         self.nr_x_orig = problem.x.shape[0]
         # Copy the linear constraints in g
         self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
-            problem, data, self.idx_g_lin, self._x[:-1], allow_fail=False
+            problem, data, self.idx_g_lin, self._x, allow_fail=False
         )
 
         self.options.update(GUROBI_SETTINGS)

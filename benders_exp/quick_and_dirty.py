@@ -9,7 +9,7 @@ import numpy as np
 from benders_exp.utils import plot_trajectory, tic, to_0d, toc  # , DebugCallBack
 from benders_exp.defines import IMG_DIR, WITH_JIT, WITH_PLOT
 from benders_exp.problems.overview import PROBLEMS
-from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution
+from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass
 from benders_exp.solvers.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
@@ -44,7 +44,6 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
         x_bar = data.x_sol
-        print(f"{x_bar=}")
 
         if not prev_feasible:
             # Solve NLPF(y^k)
@@ -61,7 +60,6 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
         feasible = data.solved
         lb = data.obj_val
         x_hat = data.x_sol
-        print(f"\n\n\n{x_hat=}")
         print(f"{ub=}\n{lb=}\n\n\n")
         stats['iter'] += 1
 
@@ -320,6 +318,8 @@ if __name__ == "__main__":
         fig.savefig(
             f"{IMG_DIR}/ocp_trajectory_{mode}_uptime_{uptime}.pdf", bbox_inches='tight')
         plt.show()
+    elif isinstance(problem.meta, MetaDataMpc):
+        problem.meta.plot(data, x_star)
 
     if WITH_PLOT:
         plt.show()
