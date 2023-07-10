@@ -123,23 +123,40 @@ def almost_equal(a, b):
     return a + EPS > b and a - EPS < b
 
 
-def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad):
+def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad, correction='L2'):
     """Compute gradient correction."""
     # At this moment, we assume norm2
     # We use nlpsol as it is easy to experiment with.
-    # Norm2 can be implemented by taking the distance and divide it accross the
+    # Norm2 can be implemented by taking the distance and divide it across the
     # distance of x_new and x_best. E.g. x_best = [0, 0], x_new = [2, 1] then
     # the gradient correction should be divided using the ratio [2/3. 1/3]
     # Norm1 is equal to dividing the correction on the item with the longest distance.
-    nr_x = x_best.numel()
-    grad_corr = CASADI_VAR.sym("gradient_correction", nr_x)
-    obj = ca.norm_2(grad_corr)
-    g = (obj_best - obj_new) + (grad + grad_corr.T) @ (x_best - x_new)
-    solver = ca.nlpsol("solver", "ipopt", {
-        "f": obj, "g": g, "x": grad_corr}, {})
-    sol = solver(x0=np.abs(x_new - x_best), lbx=-ca.inf * np.ones(nr_x),
-                 ubx=ca.inf * np.ones(nr_x), lbg=[-ca.inf], ubg=[0])
-    return sol["x"] + grad
+    if True:
+        nr_x = x_best.numel()
+        grad_corr = CASADI_VAR.sym("gradient_correction", nr_x)
+        obj = ca.norm_2(grad_corr)**2
+        g = (obj_new - obj_best - EPS) + (grad + grad_corr).T @ (x_best - x_new)
+        solver = ca.nlpsol("solver", "ipopt", {
+            "f": obj, "g": g, "x": grad_corr}, {})
+        sol = solver(x0=np.abs(x_new - x_best), lbx=-ca.inf * np.ones(nr_x),
+                    ubx=ca.inf * np.ones(nr_x), lbg=-ca.inf, ubg=0)
+        print(sol["x"])
+        return sol["x"] + grad
+
+    else:  # TODO: try to debug the following code, it gives different solution from the ipopt-approach (cf. notebook/tests.ipynb)
+        delta_point = x_best - x_new
+        delta_value = obj_best + EPS - obj_new
+        perfect_grad = np.array([float(delta_value)/i for i in np.array(delta_point)]).squeeze()
+        if correction == 'L1':
+            entry_to_correct = np.argmax(perfect_grad)
+            norm_vector = np.zeros_like(perfect_grad)
+            norm_vector[entry_to_correct] = 1
+            return ca.DM(perfect_grad * norm_vector)
+        elif correction == 'L2':
+            norm_vector = perfect_grad/np.sum(np.abs(perfect_grad))
+            return ca.DM(perfect_grad * norm_vector)
+
+
 
 
 class BendersTRandMaster(BendersMasterMILP):
