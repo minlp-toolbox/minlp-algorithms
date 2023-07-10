@@ -11,6 +11,8 @@ from time import perf_counter
 from benders_exp.defines import _DATA_FOLDER
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp
 
+logger = logging.getLogger(__name__)
+
 perf_ti = None
 CALLBACK_INPUTS = dict()
 for i, label in enumerate(ca.nlpsol_out()):
@@ -62,7 +64,7 @@ def toc(reset=False):
         tic()
     tim = perf_counter()
     dt = tim - perf_ti
-    print("  Elapsed time: %s s." % (dt))
+    logger.info(f"Elapsed time: {dt} s")
     if reset:
         perf_ti = tim
     return dt
@@ -178,10 +180,20 @@ class DebugCallBack(ca.Callback):
     """
     Create a debug callback.
 
+    Usage:
+        options = {}
+        mycallback = DebugCallBack('Name', nx, ng, np, options)
+        mycallback.add_to_solver_opts(options)
+        ... Construct your solver as usual with options 'options' ...
+
+        Every few iterations, the values for x will be written to a file in
+        the datafolder.
+
     :param name: name of the callback function
     :param nx: Nr of x variables
     :param ng: Nr of g constraints
     :param np: Nr of parameters p
+    :param opts: Additional options
     """
 
     def __init__(self, name, nx: int, ng: int, np: int, opts=None):
