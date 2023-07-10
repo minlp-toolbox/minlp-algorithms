@@ -6,7 +6,8 @@ from sys import argv
 from typing import Callable, Tuple, Union
 import casadi as ca
 import numpy as np
-from benders_exp.utils import plot_trajectory, tic, to_0d, toc  # , DebugCallBack
+from benders_exp.utils import plot_trajectory, tic, to_0d, toc, \
+        make_bounded, setup_logger, logging
 from benders_exp.defines import IMG_DIR, WITH_JIT, WITH_PLOT
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
@@ -17,7 +18,6 @@ from benders_exp.solvers.benders_mix import BendersTRandMaster
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
-from benders_exp.utils import make_bounded, setup_logger, logging
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
         feasible = data.solved
         lb = data.obj_val
         x_hat = data.x_sol
-        logger.debug(f"{ub=}\n{lb=}\n\n\n")
+        logger.debug(f"{ub=}, {lb=}\n")
         stats['iter'] += 1
 
     stats['total_time_calc'] = toc(reset=True)
@@ -285,7 +285,7 @@ def benders_tr_master(
         lb = data.obj_val
         x_hat = data.x_sol
         logger.debug(f"\n\n\n{x_hat=}")
-        logger.debug(f"{ub=}\n{lb=}\n\n\n")
+        logger.debug(f"{ub=}, {lb=}\n")
         stats['iter'] += 1
 
         feasible = data.solved
