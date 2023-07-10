@@ -291,15 +291,14 @@ def benders_tr_master(
         feasible = data.solved
         termination_met = termination_condition(lb, ub, tolerance, x_star, x_hat)
 
-
     stats['total_time_calc'] = toc(reset=True)
     return problem, data, x_star
 
 
-def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData, ca.DM]:
+def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, MinlpData, ca.DM]:
     """Run a problem and return the results."""
     if problem_name in PROBLEMS:
-        problem, data = PROBLEMS[problem_name]()
+        problem, data = PROBLEMS[problem_name](*args)
         if problem == "orig":
             new_inf = 1e5
         else:
@@ -359,7 +358,7 @@ if __name__ == "__main__":
     stats = Stats({})
     toc()
 
-    problem, data, x_star = run_problem(mode, problem_name, stats)
+    problem, data, x_star = run_problem(mode, problem_name, stats, argv[3:])
     stats.print()
     print(f"Objective value: {data.obj_val}")
 
