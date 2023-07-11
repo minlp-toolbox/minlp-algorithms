@@ -55,7 +55,10 @@ class LowerApproximation:
         self.x_lin.append(point)
         self.g.append(value)
         self.dg.append(gradient)
-        self.multipliers.append(1)
+        if not self.multipliers:
+            self.multipliers.append(1)
+        else:
+            self.multipliers.append(self.multipliers[0])  # the new constraint added should have the same multiplier of the others (cf. gradient-amplification strategy)
 
     def __call__(self, x_value, nu=0):
         """Evaluate the bounds."""
