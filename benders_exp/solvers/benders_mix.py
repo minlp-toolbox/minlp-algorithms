@@ -167,7 +167,7 @@ class BendersTRandMaster(BendersMasterMILP):
         super(BendersTRandMaster, self).__init__(
             problem, data, stats, options)
         # Settings
-        self.nonconvex_strategy = NonconvexStrategy.DISTANCE_BASED
+        self.nonconvex_strategy = NonconvexStrategy.GRADIENT_BASED
         self.nonconvex_strategy_alpha = 0.2
         self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
         self.trust_region_feasibility_rho = 1.01
@@ -207,7 +207,7 @@ class BendersTRandMaster(BendersMasterMILP):
         self.options_master["discrete"] = self.options["discrete"] + [0]
 
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
-        self.x_sol_valid = False
+        self.x_sol_valid = False  # TODO:  can it be removed? after we run update_tr it becomes True and it will never go back to False!
         # We take a point
         self.x_sol_best = data.x0
         self.qp_stagnates = False
@@ -217,7 +217,7 @@ class BendersTRandMaster(BendersMasterMILP):
         g = ca.Function("g", [self._x, self._nu], [g_k])
         value = g(x_sol, 0)
         print(f"Cut valid (lower bound)?: {value} vs real {x_sol_obj}")
-        return (value - EPS <= x_sol_obj)
+        return (value - EPS <= x_sol_obj)  # TODO: EPS has wrong sign?
 
     def _add_infeasible_cut(self, nlpdata: MinlpData):
         """Create infeasibility cut."""
@@ -229,7 +229,7 @@ class BendersTRandMaster(BendersMasterMILP):
         )
         self.g_infeasible.add(-ca.inf, g_k, 0)
 
-    def _add_benders_cut_if_valid(self, nlpdata: MinlpData):
+    def _add_benders_cut_if_valid(self, nlpdata: MinlpData) -> bool:
         """Add a benders cut if it is valid. If it is not, it returns False."""
         lambda_k = -nlpdata.lam_x_sol[self.idx_x_bin]  # TODO: understand why need the minus!
         f_k = self.f(nlpdata.x_sol, nlpdata.p)
@@ -239,8 +239,9 @@ class BendersTRandMaster(BendersMasterMILP):
         )
         if not self.x_sol_valid or self._check_cut_valid(g_k, self.x_sol_best, self.y_N_val):
             colored("Benders cut", "green")
-            self.g_lowerapprox.add(nlpdata.x_sol[self.idx_x_bin], f_k, lambda_k)
+            self.g_lowerapprox.add(nlpdata.x_sol[self.idx_x_bin], f_k, lambda_k) # add Benders cut
             return True
+
         return False
 
     def _add_nonconvex_cut(self, nlpdata: MinlpData):
@@ -285,12 +286,13 @@ class BendersTRandMaster(BendersMasterMILP):
         self.x_sol_best = x_sol[:self.nr_x_orig]
         self.x_sol_valid = True
         self.qp_stagnates = False
-        # Update trust region bounds
-        self.y_N_val = obj_val
-        if self.g_lowerapprox.nr == 0:
+        self.y_N_val = obj_val  # Set new best objective
+
+        if self.g_lowerapprox.nr == 0:  # There are no inequalities to generate cuts
             return
 
-        # Make best point feasible
+        # Make best point feasible by modifying the TR: different strategies are available.
+
         if self.trust_region_feasibility_strategy == TrustRegionStrategy.DISTANCE_CORRECTION:
             g_val = self.g_lowerapprox(self.x_sol_best[self.idx_x_bin])
             if (diff := np.max(np.array(g_val) - self.y_N_val)) > 0:
@@ -298,10 +300,10 @@ class BendersTRandMaster(BendersMasterMILP):
                     g_lin - diff for g_lin in self.g_lowerapprox.g
                 ]
         elif self.trust_region_feasibility_strategy == TrustRegionStrategy.TRUSTREGION_EXPANSION:
-            # Ok, this is also a bit more tricky then first thougth. Only multiply gradients?
+            # Ok, this is also a bit more tricky then first thought. Only multiply gradients?
             raise NotImplementedError()
         elif self.trust_region_feasibility_strategy == TrustRegionStrategy.GRADIENT_AMPLIFICATION:
-            # Always do at least one iteration!
+            # Always do at least one iteration! -- TODO: why? we dont want to increase the multiplier if the original cuts are already feasible for y_star
             g_val = [self.y_N_val + 1]
             itr = 0
             while (diff := np.max(np.array(g_val) - self.y_N_val)) > 0 and itr < 100:
@@ -403,13 +405,13 @@ class BendersTRandMaster(BendersMasterMILP):
             require_benders = True
 
         if prev_feasible and nlpdata.obj_val < self.y_N_val:
-            # New upper bound found + benders cut might need update!
+            # New best solution found: compute new TR and make sure is feasible for all the cuts (also the previous one)
             self._update_tr_bound(x_sol, nlpdata.obj_val)
             print(f"NEW BOUND {self.y_N_val}")
 
         if not prev_feasible:
             # Benders infeasibility cut is always valid
-            colored("Nonconvex Cut", "blue")
+            colored("Infeasibility Cut", "blue")
             self._add_infeasible_cut(nlpdata)
         elif not self._add_benders_cut_if_valid(nlpdata):
             colored("Nonconvex Cut", "red")
