@@ -11,7 +11,7 @@ options = [
     for solver in ["benders", "bendersqp", "bonmin", "b_tr"]
     for problem in PROBLEMS.keys()
     if (
-        problem not in ["orig", "doubletank2", "doubletank"]
+        problem not in ["orig", "doubletank2", "doubletank", "gearbox", "gearbox_int", "gearbox_complx"]
         # and (problem, solver) not in [("doubletank", "bonmin")]
     )
 ]
