@@ -125,7 +125,6 @@ def almost_equal(a, b):
     """Check if almost equal."""
     return a + EPS > b and a - EPS < b
 
-
 def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad, correction='L2'):
     """Compute gradient correction."""
     # At this moment, we assume norm2
@@ -158,8 +157,6 @@ def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad, correcti
         elif correction == 'L2':
             norm_vector = perfect_grad/np.sum(np.abs(perfect_grad))
             return ca.DM(perfect_grad * norm_vector)
-
-
 
 
 class BendersTRandMaster(BendersMasterMILP):
@@ -303,6 +300,12 @@ class BendersTRandMaster(BendersMasterMILP):
         else:
             raise NotImplementedError()
 
+    def _trust_region_is_empty(self):
+        g_val = self.g_lowerapprox(self.x_sol_best[self.idx_x_bin])
+        if (diff := np.max(np.array(g_val) - self.y_N_val)) > 0:
+            return True
+
+
     def _get_g_linearized_nonlin(self, x, dx, nlpdata):
         g_lin = self.g(x, nlpdata.p)[self.idx_g_nonlin]
         if g_lin.numel() > 0:
@@ -404,6 +407,9 @@ class BendersTRandMaster(BendersMasterMILP):
             self._add_nonconvex_cut(nlpdata)  # Benders cut was not valid, hence add the cut with gradient correction
 
         self._trust_region_expansion()
+        if self._trust_region_is_empty():
+            logger.warning("Best point is not included in the new trust region, aborting.")
+            return nlpdata, True
 
         if not require_benders:
             nlpdata.prev_solution = self._solve_trust_region_problem(nlpdata)
