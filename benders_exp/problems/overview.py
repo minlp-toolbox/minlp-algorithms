@@ -195,9 +195,11 @@ def create_double_tank_problem(p_val=[2, 2.5]):
 def counter_example_nonconvexity():
     """Nonconvexity example."""
     x = CASADI_VAR.sym('x')
-    f = ca.atan(x-0.3)**2 + x/10 + x**2/50
-    problem = MinlpProblem(x=x, f=f, g=[], p=[], idx_x_bin=[0])
-    data = MinlpData(x0=np.array([-4]), _lbx=np.array([-5]), _ubx=np.array([5]),
+    y = CASADI_VAR.sym('y')
+
+    f = ca.atan(x-0.3)**2 + x/10 + x**2/50 + y**2
+    problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=[], p=[], idx_x_bin=[0])
+    data = MinlpData(x0=np.array([-4, 2]), _lbx=np.array([-5, -5]), _ubx=np.array([5, 5]),
                      _ubg=[], _lbg=[], p=[], solved=True)
     return problem, data
 
