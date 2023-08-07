@@ -8,7 +8,7 @@ import casadi as ca
 import numpy as np
 from benders_exp.utils import plot_trajectory, tic, to_0d, toc, \
         make_bounded, setup_logger, logging
-from benders_exp.defines import IMG_DIR, WITH_JIT, WITH_PLOT
+from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
 from benders_exp.solvers import Stats
@@ -97,6 +97,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
         idx_x_bin = problem.idx_x_bin
 
         def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
+            # TODO: check termination on the list of x_best solutions
             return np.allclose(x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False)
     elif termination_type == 'std':
         def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
@@ -258,7 +259,8 @@ def benders_tr_master(
     feasible = True
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
-    last_benders = True
+    x_star_list = []
+    last_benders = True # only for doing at least one iteration of the while-loop
     termination_met = False
     while feasible and not (last_benders and termination_met):
         toc()
@@ -273,10 +275,13 @@ def benders_tr_master(
             data = fnlp.solve(data)
             x_bar = data.x_sol
             logger.debug("Infeasible")
-        elif data.obj_val < ub:
+        elif data.obj_val + EPS < ub:
             ub = data.obj_val
-            x_star = x_bar
+            x_star_list.append(x_bar)
+            x_star = x_star_list[-1]
             logger.info("Feasible")
+        elif np.allclose(data.obj_val, ub, atol=EPS):
+            x_star_list.append(x_bar)
 
         # Solve master^k and set lower bound:
         data, last_benders = master_problem.solve(
