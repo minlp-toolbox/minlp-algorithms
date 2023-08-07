@@ -97,8 +97,13 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
         idx_x_bin = problem.idx_x_bin
 
         def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
-            # TODO: check termination on the list of x_best solutions
-            return np.allclose(x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False)
+            if isinstance(x_best, list):
+                for x in x_best:
+                    if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS):
+                        return True
+            else:
+                return np.allclose(x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS)
+
     elif termination_type == 'std':
         def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
             return (lb + tol - ub) >= 0
@@ -268,7 +273,6 @@ def benders_tr_master(
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
         x_bar = data.x_sol
-        logger.info(f"{x_bar=}")
 
         if not prev_feasible:
             # Solve NLPF(y^k)
@@ -289,12 +293,12 @@ def benders_tr_master(
         )
         lb = data.obj_val
         x_hat = data.x_sol
-        logger.debug(f"\n\n\n{x_hat=}")
-        logger.debug(f"{ub=}, {lb=}\n")
+        logger.debug(f"{x_bar=}")
+        logger.debug(f"{ub=}, {lb=}")
         stats['iter'] += 1
 
         feasible = data.solved
-        termination_met = termination_condition(lb, ub, tolerance, x_star, x_hat)
+        termination_met = termination_condition(lb, ub, tolerance, x_star_list, x_hat)
 
     stats['total_time_calc'] = toc(reset=True)
     return problem, data, x_star
