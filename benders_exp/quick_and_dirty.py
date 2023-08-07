@@ -272,19 +272,19 @@ def benders_tr_master(
         toc()
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
+        logger.info("SOLVED NLP")
         prev_feasible = data.solved
         x_bar = data.x_sol
         if not prev_feasible:
             # Solve NLPF(y^k)
             data = fnlp.solve(data)
             x_bar = data.x_sol
-            logger.debug("Infeasible")
+            logger.debug("SOLVED FEASIBILITY NLP")
         elif data.obj_val + EPS < ub:
             ub = data.obj_val
             data.best_solutions = []
             data.best_solutions.append(x_bar)
             x_star = data.best_solutions[-1]
-            logger.info("Feasible")
         elif np.allclose(data.obj_val, ub, atol=EPS):
             data.best_solutions.append(x_bar)
 
@@ -294,8 +294,7 @@ def benders_tr_master(
         )
         lb = data.obj_val
         x_hat = data.x_sol
-        logger.debug(f"{x_bar=}")
-        logger.debug(f"{ub=}, {lb=}")
+        logger.debug(f"{data.obj_val=}, {ub=}, {lb=}")
         stats['iter'] += 1
 
         feasible = data.solved

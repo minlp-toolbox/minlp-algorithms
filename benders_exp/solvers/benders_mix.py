@@ -310,7 +310,7 @@ class BendersTRandMaster(BendersMasterMILP):
             "f": f, "g": g_total.eq, "x": self._x, "p": self._nu
         }, self.options)
 
-        colored("SOLVED TR-MIQP", "blue")
+        logger.info("SOLVED TR-MIQP")
         return self.solver(
             x0=self.x_sol_best,
             lbx=nlpdata.lbx, ubx=nlpdata.ubx,
@@ -349,7 +349,7 @@ class BendersTRandMaster(BendersMasterMILP):
         )
 
         solution['x'] = solution['x'][:-1]
-        colored("SOLVED LB-MILP")
+        logger.info("SOLVED LB-MILP")
         return solution
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True, require_benders=False) -> MinlpData:
