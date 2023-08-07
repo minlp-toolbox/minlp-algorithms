@@ -63,6 +63,7 @@ class MinlpData:
     _ubg: ca.DM
     solved: bool
     prev_solution: Optional[Dict[str, Any]] = None
+    best_solutions: Optional[list] = None
 
     @property
     def _sol(self):

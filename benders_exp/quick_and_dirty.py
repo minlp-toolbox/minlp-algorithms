@@ -262,18 +262,18 @@ def benders_tr_master(
     ub = ca.inf
     tolerance = 0.04
     feasible = True
+    data.best_solutions = []
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
-    x_star_list = []
     last_benders = True # only for doing at least one iteration of the while-loop
     termination_met = False
+
     while feasible and not (last_benders and termination_met):
         toc()
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
         x_bar = data.x_sol
-
         if not prev_feasible:
             # Solve NLPF(y^k)
             data = fnlp.solve(data)
@@ -281,11 +281,12 @@ def benders_tr_master(
             logger.debug("Infeasible")
         elif data.obj_val + EPS < ub:
             ub = data.obj_val
-            x_star_list.append(x_bar)
-            x_star = x_star_list[-1]
+            data.best_solutions = []
+            data.best_solutions.append(x_bar)
+            x_star = data.best_solutions[-1]
             logger.info("Feasible")
         elif np.allclose(data.obj_val, ub, atol=EPS):
-            x_star_list.append(x_bar)
+            data.best_solutions.append(x_bar)
 
         # Solve master^k and set lower bound:
         data, last_benders = master_problem.solve(
@@ -298,7 +299,7 @@ def benders_tr_master(
         stats['iter'] += 1
 
         feasible = data.solved
-        termination_met = termination_condition(lb, ub, tolerance, x_star_list, x_hat)
+        termination_met = termination_condition(lb, ub, tolerance, data.best_solutions, x_hat)
 
     stats['total_time_calc'] = toc(reset=True)
     return problem, data, x_star

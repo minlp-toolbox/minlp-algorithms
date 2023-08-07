@@ -373,14 +373,12 @@ class BendersTRandMaster(BendersMasterMILP):
 
         if not require_benders:
             nlpdata.prev_solution = self._solve_trust_region_problem(nlpdata)
-            if np.allclose(nlpdata.x_sol[self.idx_x_bin], self.x_sol_best[self.idx_x_bin], atol=EPS): # TODO: check if the solution is one of the best solutions...
-                require_benders = True
+            for x_best in nlpdata.best_solutions:
+                    if np.allclose(nlpdata.x_sol[self.idx_x_bin], x_best[self.idx_x_bin], equal_nan=False, atol=EPS):
+                        require_benders = True
 
         if require_benders:
             nlpdata.prev_solution = self._solve_benders_problem(nlpdata)
-            # TODO: if nlpdata.x_sol[self.idx_x_bin] is in best_solutions:
-                # retrieve the optimal continuous part of the solution
-                # return nlpdata, True
 
         nlpdata.solved, _ = self.collect_stats("milp_bconstraint")
         return nlpdata, require_benders
