@@ -2,12 +2,14 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import os
 from typing import Dict, List, Optional
 from benders_exp.problems import MinlpProblem, MinlpData
-from benders_exp.defines import WITH_LOGGING
+from benders_exp.defines import _DATA_FOLDER, WITH_LOGGING
 import casadi as ca
 import numpy as np
 import logging
+import pickle
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +36,21 @@ class Stats:
         for k, v in sorted(self.data.items()):
             print(f"\t{k}: {v}")
 
+    @staticmethod
+    def create_iter_dict(iter_nr, best_iter, prev_feasible, ub, nlp_obj, last_benders, lb, x_sol):
+        return {"iter_nr": iter_nr,
+                "best_iter": best_iter,
+                "prev_feasible": prev_feasible,
+                "ub": ub,
+                "nlp_obj": nlp_obj,
+                "last_benders": last_benders,
+                "lb": lb,
+                "x_sol": x_sol}
+
+    @staticmethod
+    def save(obj, method_name, problem_name):
+        with open(os.path.join(_DATA_FOLDER, f'{method_name}_{problem_name}.pkl'), 'wb') as handle:
+            pickle.dump(obj, handle)
 
 class SolverClass(ABC):
     """Create solver class."""

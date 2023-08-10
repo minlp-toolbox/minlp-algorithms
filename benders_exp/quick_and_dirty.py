@@ -267,40 +267,47 @@ def benders_tr_master(
     x_hat = -np.nan * np.empty(problem.x.shape[0])
     last_benders = True # only for doing at least one iteration of the while-loop
     termination_met = False
+    stats['iterate_data'] = []
 
-    while feasible and not (last_benders and termination_met):
-        toc()
-        # Solve NLP(y^k)
-        data = nlp.solve(data, set_x_bin=True)
-        logger.info("SOLVED NLP")
-        prev_feasible = data.solved
-        x_bar = data.x_sol
-        if not prev_feasible:
-            # Solve NLPF(y^k)
-            data = fnlp.solve(data)
+    try:
+        while feasible and not (last_benders and termination_met):
+            toc()
+            # Solve NLP(y^k)
+            data = nlp.solve(data, set_x_bin=True)
+            logger.info("SOLVED NLP")
+            prev_feasible = data.solved
             x_bar = data.x_sol
-            logger.debug("SOLVED FEASIBILITY NLP")
-        elif data.obj_val + EPS < ub:
-            ub = data.obj_val
-            data.best_solutions = []
-            data.best_solutions.append(x_bar)
-            x_star = data.best_solutions[-1]
-        elif np.allclose(data.obj_val, ub, atol=EPS):
-            data.best_solutions.append(x_bar)
+            if not prev_feasible:
+                # Solve NLPF(y^k)
+                data = fnlp.solve(data)
+                x_bar = data.x_sol
+                logger.debug("SOLVED FEASIBILITY NLP")
+            elif data.obj_val + EPS < ub:
+                ub = data.obj_val
+                data.best_solutions = []
+                data.best_solutions.append(x_bar)
+                x_star = data.best_solutions[-1]
+                best_iter = stats['iter_nr']
+            elif np.allclose(data.obj_val, ub, atol=EPS):
+                data.best_solutions.append(x_bar)
+            nlp_obj = data.obj_val
+            # Solve master^k and set lower bound:
+            data, last_benders = master_problem.solve(data, prev_feasible=prev_feasible)
+            if last_benders:
+                lb = data.obj_val
+            x_hat = data.x_sol
+            logger.debug(f"{data.obj_val=}, {ub=}, {lb=}")
+            stats['iterate_data'].append((stats.create_iter_dict(
+                stats['iter_nr'], best_iter, prev_feasible,
+                ub, nlp_obj, last_benders, lb, to_0d(x_bar))
+            ))
+            stats['iter_nr'] += 1
 
-        # Solve master^k and set lower bound:
-        data, last_benders = master_problem.solve(
-            data, prev_feasible=prev_feasible, require_benders=termination_met
-        )
-        lb = data.obj_val
-        x_hat = data.x_sol
-        logger.debug(f"{data.obj_val=}, {ub=}, {lb=}")
-        stats['iter'] += 1
+            feasible = data.solved
+            termination_met = termination_condition(lb, ub, tolerance, data.best_solutions, x_hat)
 
-        feasible = data.solved
-        termination_met = termination_condition(lb, ub, tolerance, data.best_solutions, x_hat)
-
-    stats['total_time_calc'] = toc(reset=True)
+        stats['total_time_calc'] = toc(reset=True)
+    except: KeyboardInterrupt
     return problem, data, x_star
 
 
@@ -369,6 +376,8 @@ if __name__ == "__main__":
 
     problem, data, x_star = run_problem(mode, problem_name, stats, argv[3:])
     stats.print()
+    stats.save(stats['iterate_data'], mode, problem_name)
+
     print(f"Objective value: {data.obj_val}")
 
     print(x_star)

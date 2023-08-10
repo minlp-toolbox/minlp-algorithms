@@ -310,13 +310,14 @@ class BendersTRandMaster(BendersMasterMILP):
             "f": f, "g": g_total.eq, "x": self._x, "p": self._nu
         }, self.options)
 
-        logger.info("SOLVED TR-MIQP")
-        return self.solver(
+        solution = self.solver(
             x0=self.x_sol_best,
             lbx=nlpdata.lbx, ubx=nlpdata.ubx,
             lbg=g_total.lb, ubg=g_total.ub,
             p=[self.y_N_val + EPS]
         )
+        logger.info("SOLVED TR-MIQP")
+        return solution
 
     def _solve_benders_problem(self, nlpdata: MinlpData) -> MinlpData:
         """Solve benders master problem with one OA constraint."""
@@ -352,9 +353,9 @@ class BendersTRandMaster(BendersMasterMILP):
         logger.info("SOLVED LB-MILP")
         return solution
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, require_benders=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
         """Solve."""
-        # Update with the lowest upperbound and the corresponding best solution:
+        require_benders = False
         x_sol = nlpdata.x_sol[:self.nr_x_orig]
 
         if almost_equal(nlpdata.obj_val, self.y_N_val):
