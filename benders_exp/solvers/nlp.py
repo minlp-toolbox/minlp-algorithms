@@ -56,7 +56,7 @@ class NlpSolver(SolverClass):
             lbg=nlpdata.lbg, ubg=nlpdata.ubg
         )
 
-        nlpdata.solved, _ = self.collect_stats("nlp")
+        nlpdata.solved, _ = self.collect_stats("NLP")
         if not nlpdata.solved:
             print("NLP not solved")
         else:

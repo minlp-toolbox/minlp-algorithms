@@ -373,12 +373,13 @@ class BendersTRandMaster(BendersMasterMILP):
 
         if not require_benders:
             nlpdata.prev_solution = self._solve_trust_region_problem(nlpdata)
+            nlpdata.solved, _ = self.collect_stats("TR-MIQP")
             for x_best in nlpdata.best_solutions:
                     if np.allclose(nlpdata.x_sol[self.idx_x_bin], x_best[self.idx_x_bin], equal_nan=False, atol=EPS):
                         require_benders = True
 
         if require_benders:
             nlpdata.prev_solution = self._solve_benders_problem(nlpdata)
+            nlpdata.solved, _ = self.collect_stats("LB-MILP")
 
-        nlpdata.solved, _ = self.collect_stats("milp_bconstraint")
         return nlpdata, require_benders
