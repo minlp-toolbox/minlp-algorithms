@@ -378,6 +378,7 @@ class BendersTRandMaster(BendersMasterMILP):
             for x_best in nlpdata.best_solutions:
                     if np.allclose(nlpdata.x_sol[self.idx_x_bin], x_best[self.idx_x_bin], equal_nan=False, atol=EPS):
                         require_benders = True
+                        break
 
         if require_benders:
             nlpdata.prev_solution = self._solve_benders_problem(nlpdata)
