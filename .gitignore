@@ -31,6 +31,8 @@ jit_tmp*
 **/report_short.pdf
 **/*.bbl
 **/*.blg
+**/*.nav
+**/*.snm
 
 # Coverage files
 .coverage
