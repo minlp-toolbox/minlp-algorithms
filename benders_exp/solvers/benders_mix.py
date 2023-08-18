@@ -202,6 +202,7 @@ class BendersTRandMaster(BendersMasterMILP):
 
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
         self.x_sol_best = data.x0 # take a point as initialization
+        self.qp_stagnates = False
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
@@ -358,12 +359,13 @@ class BendersTRandMaster(BendersMasterMILP):
         require_benders = False
         x_sol = nlpdata.x_sol[:self.nr_x_orig]
 
-        if almost_equal(nlpdata.obj_val, self.y_N_val):
+        if self.qp_stagnates or almost_equal(nlpdata.obj_val, self.y_N_val):
             require_benders = True
 
         if prev_feasible and nlpdata.obj_val + EPS < self.y_N_val:  # check if new best solution found
             self.x_sol_best = x_sol[:self.nr_x_orig]
             self.y_N_val = nlpdata.obj_val  # update best objective
+            self.qp_stagnates = False
             logger.info(f"NEW UPPER BOUND: {self.y_N_val}")
 
         if not prev_feasible:
@@ -378,6 +380,7 @@ class BendersTRandMaster(BendersMasterMILP):
             for x_best in nlpdata.best_solutions:
                     if np.allclose(nlpdata.x_sol[self.idx_x_bin], x_best[self.idx_x_bin], equal_nan=False, atol=EPS):
                         require_benders = True
+                        self.qp_stagnates = True
                         break
 
         if require_benders:
