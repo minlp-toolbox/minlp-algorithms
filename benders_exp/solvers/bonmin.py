@@ -43,5 +43,5 @@ class BonminSolver(SolverClass):
             p=nlpdata.p,
         )
         nlpdata.prev_solution['x'] = nlpdata.prev_solution['x']
-        nlpdata.solved, stats = self.collect_stats("minlp")
+        nlpdata.solved, stats = self.collect_stats("MINLP")
         return nlpdata

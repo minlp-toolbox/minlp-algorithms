@@ -6,30 +6,33 @@ from sys import argv
 from typing import Callable, Tuple, Union
 import casadi as ca
 import numpy as np
-from benders_exp.utils import plot_trajectory, tic, to_0d, toc  # , DebugCallBack
-from benders_exp.defines import IMG_DIR, WITH_JIT, WITH_PLOT
+from benders_exp.utils import plot_trajectory, tic, to_0d, toc, \
+        make_bounded, setup_logger, logging
+from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass
 from benders_exp.solvers.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
+from benders_exp.solvers.benders_mix import BendersTRandMaster
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
-from benders_exp.utils import make_bounded, setup_logger, logging
+
+logger = logging.getLogger(__name__)
 
 
 def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
                   master_problem: SolverClass, termination_condition: Callable[..., bool]
                   ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
-    print("Setup NLP solver...")
+    logger.info("Setup NLP solver...")
     nlp = NlpSolver(problem, stats)
     toc()
-    print("Setup FNLP solver...")
+    logger.info("Setup FNLP solver...")
     fnlp = FeasibilityNlpSolver(problem, data, stats)
     stats['total_time_loading'] = toc(reset=True)
-    print("Solver initialized.")
+    logger.info("Solver initialized.")
     # Benders algorithm
     lb = -ca.inf
     ub = ca.inf
@@ -49,18 +52,18 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
             # Solve NLPF(y^k)
             data = fnlp.solve(data)
             x_bar = data.x_sol
-            print("Infeasible")
+            logger.debug("Infeasible")
         elif data.obj_val < ub:
             ub = data.obj_val
             x_star = x_bar
-            print("Feasible")
+            logger.debug("Feasible")
 
         # Solve master^k and set lower bound:
         data = master_problem.solve(data, prev_feasible=prev_feasible)
         feasible = data.solved
         lb = data.obj_val
         x_hat = data.x_sol
-        print(f"{ub=}\n{lb=}\n\n\n")
+        logger.debug(f"{ub=}, {lb=}\n")
         stats['iter'] += 1
 
     stats['total_time_calc'] = toc(reset=True)
@@ -94,7 +97,13 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
         idx_x_bin = problem.idx_x_bin
 
         def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
-            return np.allclose(x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False)
+            if isinstance(x_best, list):
+                for x in x_best:
+                    if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS):
+                        return True
+            else:
+                return np.allclose(x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS)
+
     elif termination_type == 'std':
         def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
             return (lb + tol - ub) >= 0
@@ -120,10 +129,10 @@ def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats,
         # original function. Of course the lower bound can no longer
         # be guaranteed, so care should be taken with this approach as it
         # might only work in some circumstances!
-        print("Setup Benders MIQP solver...")
+        logger.info("Setup Benders MIQP solver...")
         benders_master = BendersMasterMIQP(problem, data, stats)
     else:
-        print("Setup Benders MILP solver...")
+        logger.info("Setup Benders MILP solver...")
         # This class implements the original benders decomposition
         benders_master = BendersMasterMILP(problem, data, stats)
 
@@ -143,7 +152,7 @@ def outer_approx_algorithm(
         - termination_type:
             - std: based on lower and upper bound
     """
-    print("Setup OA MILP solver...")
+    logger.info("Setup OA MILP solver...")
     outer_approx = OuterApproxMILP(problem, data, stats)
     termination_condition = get_termination_condition(
         termination_type, problem, data)
@@ -161,7 +170,7 @@ def outer_approx_algorithm_improved(
         - termination_type:
             - std: based on lower and upper bound
     """
-    print("Setup OAI MILP solver...")
+    logger.info("Setup OAI MILP solver...")
     outer_approx = OuterApproxMILPImproved(problem, data, stats)
     termination_condition = get_termination_condition(
         termination_type, problem, data)
@@ -181,7 +190,7 @@ def benders_constrained_milp(
             - equality: the binaries of the last solution coincides with the ones of the best solution
             - std: based on lower and upper bound
     """
-    print("Setup Idea MIQP solver...")
+    logger.info("Setup Idea MIQP solver...")
     benders_tr_master = BendersTrustRegionMIP(problem, data, stats)
     termination_condition = get_termination_condition(
         termination_type, problem, data)
@@ -205,7 +214,7 @@ def bonmin(
     """Create benders algorithm."""
     tic()
     toc()
-    print("Create bonmin.")
+    logger.info("Create bonmin.")
     minlp = BonminSolver(problem, stats, algo_type=algo_type)
     stats['total_time_loading'] = toc(reset=True)
     data = minlp.solve(data)
@@ -225,31 +234,105 @@ def voronoi_tr_algorithm(
             - equality: the binaries of the last solution coincides with the ones of the best solution
             - std: based on lower and upper bound
     """
-    print("Setup Voronoi trust region MILP solver...")
-    benders_tr_master = VoronoiTrustRegionMILP(problem, data, stats)
+    logger.info("Setup Voronoi trust region MILP solver...")
+    voronoi_tr_master = VoronoiTrustRegionMILP(problem, data, stats)
     termination_condition = get_termination_condition(
         termination_type, problem, data)
     toc()
-    return base_strategy(problem, data, stats, benders_tr_master, termination_condition)
+    return base_strategy(problem, data, stats, voronoi_tr_master, termination_condition)
 
 
-def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData, ca.DM]:
+def benders_tr_master(
+    problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'equality'
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+    """Run the base strategy."""
+    termination_condition = get_termination_condition(termination_type, problem, data)
+    logger.info("Setup Mixed Benders TR/Master")
+    master_problem = BendersTRandMaster(problem, data, stats)
+    toc()
+    logger.info("Setup NLP solver...")
+    nlp = NlpSolver(problem, stats)
+    toc()
+    logger.info("Setup FNLP solver...")
+    fnlp = FeasibilityNlpSolver(problem, data, stats)
+    stats['total_time_loading'] = toc(reset=True)
+    logger.info("Solver initialized.")
+    # Benders algorithm
+    lb = -ca.inf
+    ub = ca.inf
+    tolerance = 0.04
+    feasible = True
+    data.best_solutions = []
+    x_star = np.nan * np.empty(problem.x.shape[0])
+    x_hat = -np.nan * np.empty(problem.x.shape[0])
+    last_benders = True  # only for doing at least one iteration of the while-loop
+    termination_met = False
+    stats['iterate_data'] = []
+    best_iter = None
+
+    try:
+        while feasible and not (last_benders and termination_met):
+            toc()
+            # Solve NLP(y^k)
+            data = nlp.solve(data, set_x_bin=True)
+            logger.info("SOLVED NLP")
+            prev_feasible = data.solved
+            x_bar = data.x_sol
+            if not prev_feasible:
+                # Solve NLPF(y^k)
+                data = fnlp.solve(data)
+                x_bar = data.x_sol
+                logger.debug("SOLVED FEASIBILITY NLP")
+            elif data.obj_val + EPS < ub:
+                ub = data.obj_val
+                data.best_solutions = []
+                data.best_solutions.append(x_bar)
+                x_star = data.best_solutions[-1]
+                best_iter = stats['iter_nr']
+            elif np.allclose(data.obj_val, ub, atol=EPS):
+                data.best_solutions.append(x_bar)
+            nlp_obj = data.obj_val
+            # Solve master^k and set lower bound:
+            data, last_benders = master_problem.solve(data, prev_feasible=prev_feasible)
+            if last_benders:
+                lb = data.obj_val
+            x_hat = data.x_sol
+            logger.debug(f"{data.obj_val=}, {ub=}, {lb=}")
+            stats['iterate_data'].append((stats.create_iter_dict(
+                stats['iter_nr'], best_iter, prev_feasible,
+                ub, nlp_obj, last_benders, lb, to_0d(x_bar))
+            ))
+            stats['iter_nr'] += 1
+
+            feasible = data.solved
+            termination_met = termination_condition(lb, ub, tolerance, data.best_solutions, x_hat)
+
+        stats['total_time_calc'] = toc(reset=True)
+
+    except KeyboardInterrupt:
+        exit(0)
+
+    return problem, data, x_star
+
+
+def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, MinlpData, ca.DM]:
     """Run a problem and return the results."""
     if problem_name in PROBLEMS:
-        problem, data = PROBLEMS[problem_name]()
+        problem, data = PROBLEMS[problem_name](*args)
         if problem == "orig":
             new_inf = 1e5
         else:
             new_inf = 1e3
         make_bounded(problem, data, new_inf=new_inf)
-        print(f"Problem {problem_name} loaded")
+        logger.info(f"Problem {problem_name} loaded")
     else:
         raise Exception(f"No {problem_name=}, available: {PROBLEMS.keys()}")
 
     MODES = {
         "benders": benders_algorithm,
         "bendersqp": lambda p, d, s: benders_algorithm(p, d, s, with_qp=True),
-        "b_tr": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std'),
+        "benders_tr": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std'),
+        "benders_trm": benders_tr_master,
         "oa": outer_approx_algorithm,
         "oai": outer_approx_algorithm_improved,
         "bonmin": bonmin,
@@ -268,7 +351,7 @@ def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData
     }
 
     if mode_name in MODES:
-        print(f"Start mode {mode_name}")
+        logger.info(f"Start mode {mode_name}")
         return MODES[mode_name](problem, data, stats)
     else:
         raise Exception(f"No mode {mode_name=}, available {MODES.keys()}")
@@ -277,9 +360,9 @@ def run_problem(mode_name, problem_name, stats) -> Union[MinlpProblem, MinlpData
 if __name__ == "__main__":
     setup_logger(logging.DEBUG)
     if len(argv) == 1:
-        print("Usage: mode problem")
-        print("Available modes are: benders, idea, ...")
-        print("Available problems are: %s" % ", ".join(PROBLEMS.keys()))
+        logger.info("Usage: mode problem")
+        logger.info("Available modes are: benders, idea, ...")
+        logger.info("Available problems are: %s" % ", ".join(PROBLEMS.keys()))
 
     if len(argv) > 1:
         mode = argv[1]
@@ -295,8 +378,10 @@ if __name__ == "__main__":
     stats = Stats({})
     toc()
 
-    problem, data, x_star = run_problem(mode, problem_name, stats)
+    problem, data, x_star = run_problem(mode, problem_name, stats, argv[3:])
     stats.print()
+    stats.save(stats['iterate_data'], mode, problem_name)
+
     print(f"Objective value: {data.obj_val}")
 
     print(x_star)

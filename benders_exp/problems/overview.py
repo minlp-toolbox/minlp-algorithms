@@ -192,6 +192,24 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     return problem, data
 
 
+def counter_example_nonconvexity():
+    """Nonconvexity example."""
+    x = CASADI_VAR.sym('x')
+    y = CASADI_VAR.sym('y')
+
+    f = ca.atan(x-0.3)**2 + x/10 + x**2/50 + y**2
+    problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=[], p=[], idx_x_bin=[0])
+    data = MinlpData(x0=np.array([-4, 2]), _lbx=np.array([-5, -5]), _ubx=np.array([5, 5]),
+                     _ubg=[], _lbg=[], p=[], solved=True)
+    return problem, data
+
+
+def create_from_nl_file(file):
+    """Load from NL file."""
+    print(file)
+    return [], []
+
+
 PROBLEMS = {
     "sign_check": create_check_sign_lagrange_problem,
     "dummy": create_dummy_problem,
@@ -202,7 +220,9 @@ PROBLEMS = {
     "doubletank2": create_double_tank_problem2,
     "gearbox": create_simple_gearbox,
     "gearbox_int": create_gearbox_int,
-    "gearbox_complx": create_gearbox
+    "gearbox_complx": create_gearbox,
+    "nonconvex": counter_example_nonconvexity,
+    "load": create_from_nl_file
 }
 
 

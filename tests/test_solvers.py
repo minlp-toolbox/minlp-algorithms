@@ -8,10 +8,12 @@ from benders_exp.problems import check_solution
 
 options = [
     (solver, problem)
-    for solver in ["benders", "bendersqp", "bonmin", "b_tr"]
+    for solver in ["benders", "bendersqp", "bonmin", "benders_tr", "benders_trm"]
     for problem in PROBLEMS.keys()
     if (
-        problem not in ["orig", "doubletank2", "doubletank", "gearbox", "gearbox_int", "gearbox_complx"]
+        problem not in ["orig", "doubletank2", "doubletank",
+                        "gearbox", "gearbox_int", "gearbox_complx",
+                        "load", "nonconvex"]
         # and (problem, solver) not in [("doubletank", "bonmin")]
     )
 ]
@@ -22,6 +24,7 @@ obj_val = {
     "dummy2": 0,
     "doubletank": 18.6826,
     "sign_check": 9,
+    "nonconvex": 0.0567471,
 }
 
 # Number of digits after the komma to be accurate:
@@ -38,7 +41,7 @@ class TestSolver(unittest.TestCase):
     def test_solver(self, mode, problem_name):
         """Test runner."""
         stats = Stats({})
-        problem, data, x_star = run_problem(mode, problem_name, stats)
+        problem, data, x_star = run_problem(mode, problem_name, stats, [])
         desired_obj = obj_val.get(problem_name, -1)
         desired_tol = obj_tolerance.get(problem_name, obj_tolerance_default)
         self.assertAlmostEqual(data.obj_val, desired_obj, desired_tol,

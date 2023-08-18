@@ -169,7 +169,7 @@ class VoronoiTrustRegionMILP(SolverClass):
             lbg=lbg, ubg=ubg,
         )
 
-        nlpdata.solved, stats = self.collect_stats("milp_bconstraint")
+        nlpdata.solved, stats = self.collect_stats("VTR-MILP")
         return nlpdata
 
     def _generate_infeasible_cut(self, x, x_sol, lam_g, p):

@@ -101,7 +101,7 @@ class OuterApproxMILP(SolverClass):
             ubg=self._ubg,
         )
         nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x]
-        nlpdata.solved, stats = self.collect_stats("milp_oa")
+        nlpdata.solved, stats = self.collect_stats("OA-MILP")
         return nlpdata
 
 
@@ -193,5 +193,5 @@ class OuterApproxMILPImproved(SolverClass):
             ubg=self._ubg,
         )
         nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x]
-        nlpdata.solved, stats = self.collect_stats("milp_oai")
+        nlpdata.solved, stats = self.collect_stats("OAI-MILP")
         return nlpdata
