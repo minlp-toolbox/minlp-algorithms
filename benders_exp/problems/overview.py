@@ -4,6 +4,7 @@ from benders_exp.problems import MinlpProblem, CASADI_VAR, MinlpData, \
     MetaDataOcp
 import casadi as ca
 import numpy as np
+from benders_exp.problems.dsc import Description
 from benders_exp.solarsys import extract as extract_solarsys
 from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver
@@ -12,6 +13,77 @@ from benders_exp.problems.double_tank import create_double_tank_problem2
 from benders_exp.problems.gearbox import create_simple_gearbox, create_gearbox, \
         create_gearbox_int
 
+
+def create_ocp_unstable_system(p_val=[0.8, 0.7]):
+    """
+    OCP of a unstable system subject to min uptime constraints.
+
+    Example taken from preprint of A. Buerger. Inspired by a textbook example of the MPC book by Rawlings, Mayne, Diehl
+    """
+
+    dt = 0.05
+    N = 30
+    min_uptime = 2  # in time steps
+
+    dsc = Description()
+    x = CASADI_VAR.sym('x')  # state
+    u = CASADI_VAR.sym('u')  # control
+    Xref = dsc.add_parameters("Xk_ref", 1, p_val[1])
+
+    xdot = x ** 3 - u
+    r = ca.Function('residual_obj', [x, Xref], [x - Xref])
+    F = integrate_rk4(x, u, xdot, dt, m_steps=1)
+
+    Xk = dsc.add_parameters("Xk0", 1, p_val[0])
+    BigM = 1e3
+    Uprev = None
+    for k in range(N):
+        Uk = dsc.sym("Uk", 1, lb=0, ub=1, w0=1, discrete=True)
+        if Uprev is not None and min_uptime > 0:
+            uptime_step = 0
+            while uptime_step < min_uptime:
+                idx_1 = k - 1
+                idx_2 = k - (uptime_step + 2)
+
+                if idx_1 >= 0:
+                    b_idx_1 = int(np.array(dsc.get_indices("Uk")[idx_1]))
+                else:
+                    b_idx_1 = 0
+                b_idx_1 = dsc.w[b_idx_1]
+
+                if idx_2 >= 0:
+                    b_idx_2 = int(np.array(dsc.get_indices("Uk")[idx_2]))
+                else:
+                    b_idx_2 = 0
+                b_idx_2 = dsc.w[b_idx_2]
+
+                dsc.leq(-Uk + b_idx_1 - b_idx_2, 0)
+                uptime_step += 1
+
+        # Integrate till the end of the interval
+        Xk_end = F(Xk, Uk)
+        dsc.f += 0.5 * (Xk - Xref) ** 2
+        dsc.r += [r(Xk, Xref)]
+
+        # New NLP variable for state at end of interval
+        Xk = dsc.sym("Xk", 1, lb=-BigM, ub=BigM, w0=p_val[0])
+        dsc.eq(Xk_end, Xk)
+
+        Uprev = Uk
+    dsc.f += 0.5 * (Xk - Xref) ** 2
+
+    meta = MetaDataOcp(
+        dt=dt, n_state=1, n_control=1,
+        initial_state=p_val[0], idx_control=np.hstack(dsc.get_indices("Uk")),
+        idx_state=np.hstack(dsc.get_indices("Xk")),
+        scaling_coeff_control=[1],
+        min_uptime=min_uptime
+    )
+    problem = dsc.get_problem()
+    problem.meta = meta
+    data = dsc.get_data()
+
+    return problem, data
 
 def create_check_sign_lagrange_problem():
     """Create a problem to check the sign of the multipliers."""
@@ -222,18 +294,41 @@ PROBLEMS = {
     "gearbox_int": create_gearbox_int,
     "gearbox_complx": create_gearbox,
     "nonconvex": counter_example_nonconvexity,
-    "load": create_from_nl_file
+    "load": create_from_nl_file,
+    "unstable_ocp": create_ocp_unstable_system,
 }
 
 
 if __name__ == '__main__':
-    stats = Stats({})
-    prob, data = create_double_pipe_problem()
-    nlp = NlpSolver(prob, stats)
-    data = nlp.solve(data)
+    from benders_exp.utils import to_0d, plot_trajectory
+    import matplotlib.pyplot as plt
+    from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
 
-    grad_f = ca.Function('grad_f', [prob.x, prob.p], [ca.gradient(prob.f, prob.x)])
-    grad_g = ca.Function('grad_g', [prob.x, prob.p], [ca.jacobian(prob.g, prob.x).T])
-    lambda_k = grad_f(data.x_sol, data.p) + grad_g(data.x_sol, data.p) @ data.lam_g_sol
-    assert np.allclose(-data.lam_x_sol, lambda_k)
-    breakpoint()
+    stats = Stats({})
+    prob, data = create_ocp_unstable_system()
+
+    nlp = NlpSolver(prob, stats)
+    data = nlp.solve(data, set_x_bin=False)
+    print(f"Relaxed  {data.obj_val=}")
+
+    # Solve MIQP around MINLP solution
+    miqp = VoronoiTrustRegionMILP(prob, data, stats)
+    data = miqp.solve(data, prev_feasible=True, is_qp=True)
+
+    data = nlp.solve(data, set_x_bin=True)
+    x_star = data.x_sol
+    print(f"{data.obj_val=}")
+
+    if isinstance(prob.meta, MetaDataOcp):
+        meta = prob.meta
+        state = to_0d(x_star)[meta.idx_state].reshape(-1, meta.n_state)
+        state = np.vstack([meta.initial_state, state])
+        control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_control)
+        fig, axs = plot_trajectory(state, control, meta, title='problem name')
+        plt.show()
+
+    # grad_f = ca.Function('grad_f', [prob.x, prob.p], [ca.gradient(prob.f, prob.x)])
+    # grad_g = ca.Function('grad_g', [prob.x, prob.p], [ca.jacobian(prob.g, prob.x).T])
+    # lambda_k = grad_f(data.x_sol, data.p) + grad_g(data.x_sol, data.p) @ data.lam_g_sol
+    # assert np.allclose(-data.lam_x_sol, lambda_k)
+    # breakpoint()

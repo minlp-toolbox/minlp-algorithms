@@ -13,7 +13,7 @@ options = [
     if (
         problem not in ["orig", "doubletank2", "doubletank",
                         "gearbox", "gearbox_int", "gearbox_complx",
-                        "load", "nonconvex"]
+                        "load", "nonconvex", "unstable_ocp"]
         # and (problem, solver) not in [("doubletank", "bonmin")]
     )
 ]

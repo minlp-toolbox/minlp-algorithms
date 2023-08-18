@@ -43,6 +43,8 @@ class MinlpProblem:
     g: CASADI_VAR
     x: CASADI_VAR
     p: CASADI_VAR
+    gn_hessian: Optional[CASADI_VAR] = None
+
     idx_x_bin: List[float]
     idx_g_lin: Optional[List[int]] = None
     idx_g_lin_bin: Optional[List[int]] = None

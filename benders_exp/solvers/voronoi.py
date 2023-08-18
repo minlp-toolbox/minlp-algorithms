@@ -44,7 +44,11 @@ class VoronoiTrustRegionMILP(SolverClass):
                 problem.f, problem.x
             )], {"jit": WITH_JIT}
         )
-        self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
+        if problem.gn_hessian is not None:
+            self.f_hess = ca.Function("gn_hess_f_x", [problem.x, problem.p], [
+                                ca.hessian(problem.f, problem.x)[0]])
+        else:
+            self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
                                   ca.hessian(problem.f, problem.x)[0]])
 
         self.g = ca.Function(

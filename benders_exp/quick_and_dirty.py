@@ -47,6 +47,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
         x_bar = data.x_sol
+        logger.info(f"\n{x_bar=}")
 
         if not prev_feasible:
             # Solve NLPF(y^k)
@@ -63,6 +64,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
         feasible = data.solved
         lb = data.obj_val
         x_hat = data.x_sol
+        logger.debug(f"\n{x_hat=}")
         logger.debug(f"{ub=}, {lb=}\n")
         stats['iter'] += 1
 
@@ -394,10 +396,11 @@ if __name__ == "__main__":
         fig, axs = plot_trajectory(state, control, meta, title=problem_name)
 
         # TODO the next is only a patch for plotting the demand for the double tank problem
-        time_array = np.linspace(
-            0, meta.dt * state.shape[0], state.shape[0] + 1)
-        demand = np.array([2 + 0.5 * np.sin(x) for x in time_array])
-        axs[1].plot(time_array, demand, "r--", alpha=0.5)
+        if problem_name == 'doubletank2':
+            time_array = np.linspace(
+                0, meta.dt * state.shape[0], state.shape[0] + 1)
+            demand = np.array([2 + 0.5 * np.sin(x) for x in time_array])
+            axs[1].plot(time_array, demand, "r--", alpha=0.5)
 
         uptime = problem.meta.min_uptime
         fig.savefig(
