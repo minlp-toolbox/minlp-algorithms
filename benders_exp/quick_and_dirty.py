@@ -307,7 +307,10 @@ def benders_tr_master(
             termination_met = termination_condition(lb, ub, tolerance, data.best_solutions, x_hat)
 
         stats['total_time_calc'] = toc(reset=True)
-    except: KeyboardInterrupt
+
+    except KeyboardInterrupt:
+        exit(0)
+
     return problem, data, x_star
 
 
