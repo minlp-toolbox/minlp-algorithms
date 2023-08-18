@@ -265,9 +265,10 @@ def benders_tr_master(
     data.best_solutions = []
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
-    last_benders = True # only for doing at least one iteration of the while-loop
+    last_benders = True  # only for doing at least one iteration of the while-loop
     termination_met = False
     stats['iterate_data'] = []
+    best_iter = None
 
     try:
         while feasible and not (last_benders and termination_met):
