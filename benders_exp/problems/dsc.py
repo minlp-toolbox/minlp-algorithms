@@ -2,7 +2,7 @@
 
 from typing import Optional, Union, List, Tuple
 from benders_exp.defines import CASADI_VAR
-from casadi import vertcat, inf, hessian, Function, DM, reshape
+from casadi import vertcat, inf, hessian, Function, DM, reshape, jacobian
 from math import isinf
 from benders_exp.problems import MinlpProblem, MinlpData
 import numpy as np
@@ -59,6 +59,7 @@ class Description:
         self.ubw = []
         self.discrete = []
         self.f = CASADI_VAR(0)
+        self.r = []  # residual for GN hessian computation
         self.check_illconditioned = False
 
     def add_w(
@@ -210,11 +211,21 @@ class Description:
         """Create a symbolic boolean."""
         return self.sym(name, nr, 0, 1, w0=1, discrete=True)
 
+    def get_gauss_newton_hessian(self) -> CASADI_VAR:
+        x = vertcat(*self.w)
+        r = vertcat(*self.r)
+        dr = jacobian(r, x)
+        return dr.T @ dr
+
     def get_problem(self) -> MinlpProblem:
         """Extract problem."""
         idx_x_bin = [i for i, v in enumerate(self.discrete) if v == 1]
+        if self.r:
+            gn_hessian = self.get_gauss_newton_hessian()
+        else:
+            gn_hessian = None
         return MinlpProblem(f=self.f, g=vertcat(*self.g),
-                            x=vertcat(*self.w), idx_x_bin=idx_x_bin, p=vertcat(*self.p))
+                            x=vertcat(*self.w), idx_x_bin=idx_x_bin, p=vertcat(*self.p), gn_hessian=gn_hessian)
 
     def get_data(self) -> MinlpData:
         """Get data structure."""
