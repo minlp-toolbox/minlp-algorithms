@@ -11,7 +11,7 @@ from benders_exp.solvers.nlp import NlpSolver
 from benders_exp.problems.utils import integrate_rk4  # integrate_ee
 from benders_exp.problems.double_tank import create_double_tank_problem2
 from benders_exp.problems.gearbox import create_simple_gearbox, create_gearbox, \
-        create_gearbox_int
+    create_gearbox_int
 
 
 def create_ocp_unstable_system(p_val=[0.8, 0.7]):
@@ -20,7 +20,6 @@ def create_ocp_unstable_system(p_val=[0.8, 0.7]):
 
     Example taken from preprint of A. Buerger. Inspired by a textbook example of the MPC book by Rawlings, Mayne, Diehl
     """
-
     dt = 0.05
     N = 30
     min_uptime = 2  # in time steps
@@ -85,12 +84,14 @@ def create_ocp_unstable_system(p_val=[0.8, 0.7]):
 
     return problem, data
 
+
 def create_check_sign_lagrange_problem():
     """Create a problem to check the sign of the multipliers."""
     x = CASADI_VAR.sym("x")
     p = CASADI_VAR.sym("p")
 
-    problem = MinlpProblem(x=x, f=(x - 2)**2, g=ca.vcat([x]), p=p, idx_x_bin=[0])
+    problem = MinlpProblem(
+        x=x, f=(x - 2)**2, g=ca.vcat([x]), p=p, idx_x_bin=[0])
     data = MinlpData(
         x0=np.array([0]), _ubx=np.array([np.inf]), _lbx=np.array([-np.inf]),
         _ubg=np.array([-1]), _lbg=np.array([-7]), p=np.array([0]), solved=True)
@@ -278,8 +279,17 @@ def counter_example_nonconvexity():
 
 def create_from_nl_file(file):
     """Load from NL file."""
-    print(file)
-    return [], []
+    # Create an NLP instance
+    nl = ca.NlpBuilder()
+
+    # Parse an NL-file
+    nl.import_nl(file, {"verbose": False})
+    print(f"Loading MINLP with: {nl.repr()}")
+
+    problem = MinlpProblem(x=nl.x, f=nl.f, g=nl.g, idx_x_bin=nl.discrete)
+    data = MinlpData(x0=nl.x_init, _lbx=nl.x_lb, _ubx=nl.x_ub,
+                     _lbg=nl.g_lb, _ubg=nl.g_ub, p=[], solved=True)
+    return problem, data
 
 
 PROBLEMS = {
@@ -296,6 +306,7 @@ PROBLEMS = {
     "nonconvex": counter_example_nonconvexity,
     "load": create_from_nl_file,
     "unstable_ocp": create_ocp_unstable_system,
+    "nl_file": create_from_nl_file
 }
 
 

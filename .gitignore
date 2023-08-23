@@ -10,6 +10,7 @@ __pycache__/
 # Ignore results
 results/*
 jit_tmp*
+*.pkl
 
 ## Core latex/pdflatex auxiliary files:
 **/*.aux
@@ -45,3 +46,4 @@ data/cache
 
 # Generated images
 tutorial-example/img/benders_tr_counterexample.pdf
+
