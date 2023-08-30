@@ -19,14 +19,14 @@ class AmplSolver(SolverClass):
         discrete = [0] * self.nr_x
         for i in problem.idx_x_bin:
             discrete[i] = 1
-        options.update({
-            "discrete": discrete,
-        })
+        # options.update({
+        #     "discrete": discrete,
+        # })
         minlp = {
             "f": problem.f,
             "g": problem.g,
             "x": problem.x,
-            "p": problem.p
+            # "p": problem.p
         }
         self.solver = ca.nlpsol(
             "ampl", "ampl", minlp, options
@@ -39,7 +39,7 @@ class AmplSolver(SolverClass):
                 x0=nlpdata.x0,
                 lbx=nlpdata.lbx, ubx=nlpdata.ubx,
                 lbg=nlpdata.lbg, ubg=nlpdata.ubg,
-                p=nlpdata.p,
+                # p=nlpdata.p,
             )
         finally:
             print("File saved to /tmp/out.nl")

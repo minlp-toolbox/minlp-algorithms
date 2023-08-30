@@ -147,7 +147,7 @@ def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats,
 def export_ampl(problem: MinlpProblem, data: MinlpData, stats: Stats) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Export AMPL."""
     from benders_exp.solvers.ampl import AmplSolver
-    AmplSolver(problem, data, stats).solve(data)
+    AmplSolver(problem, stats).solve(data)
     raise Exception("DONE")
 
 
