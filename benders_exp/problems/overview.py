@@ -304,7 +304,6 @@ PROBLEMS = {
     "gearbox_int": create_gearbox_int,
     "gearbox_complx": create_gearbox,
     "nonconvex": counter_example_nonconvexity,
-    "load": create_from_nl_file,
     "unstable_ocp": create_ocp_unstable_system,
     "nl_file": create_from_nl_file
 }
