@@ -6,6 +6,7 @@ __pycache__/
 .python-version
 .vscode/
 .ipynb_checkpoints
+.venv*
 
 # Ignore results
 results/*
