@@ -20,7 +20,7 @@ class MetaDataOcp(MetaData):
     n_control: Optional[int] = None
     idx_state: Optional[List[float]] = None
     idx_control: Optional[List[float]] = None
-    indexes_p: Optional[dict] = None
+    idx_param: Optional[dict] = None
     # TODO: initial_state needs to become an index list of p
     initial_state: Optional[List[float]] = None
     dt: Optional[float] = None
