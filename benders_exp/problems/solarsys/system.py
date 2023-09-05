@@ -910,6 +910,10 @@ class System:
             "T_ac_max_fcn", [self.x, self.c, self.b, s_ac_ub], [T_ac_max]
         )
 
+    def get_slacked_state_fcn(self):
+        s_x = ca.MX.sym("s_x", self.nx)
+        return ca.Function("s_x_fcn", [self.x, s_x], [self.x + s_x])
+
     def get_v_ppsc_so_fpsc_fcn(self):
         """Get v_ppsc so function."""
         # Assure ppsc is running at high speed when collector temperature is high

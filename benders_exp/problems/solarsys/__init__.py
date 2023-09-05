@@ -6,6 +6,8 @@ Solar Thermal Climate System (STCS) at Karsruhe University of Applied Sciences.
 """
 
 import numpy as np
+from benders_exp.defines import CASADI_VAR
+from benders_exp.problems import MetaDataOcp
 from benders_exp.problems.solarsys.system import System, ca
 from benders_exp.problems.solarsys.ambient import Ambient
 from benders_exp.problems.dsc import Description
@@ -88,6 +90,7 @@ def create_stcs_problem():
     F = system.get_system_dynamics_collocation(collocation_nodes)
     T_ac_min_fcn = CachedFunction("stcs", system.get_t_ac_min_function)
     T_ac_max_fcn = CachedFunction("stcs", system.get_t_ac_max_function)
+    slacked_state_fcn = CachedFunction("stcs", system.get_slacked_state_fcn)
     v_ppsc_so_fpsc_fcn = CachedFunction("stcs", system.get_v_ppsc_so_fpsc_fcn)
     v_ppsc_so_vtsc_fcn = CachedFunction("stcs", system.get_v_ppsc_so_vtsc_fcn)
     v_ppsc_so_fcn = CachedFunction("stcs", system.get_v_ppsc_so_fcn)
@@ -97,7 +100,8 @@ def create_stcs_problem():
     F2_fcn = CachedFunction("stcs", system.get_F2_fcn)
 
     logger.debug("Create NLP problem")
-    x_k_prev = dsc.add_parameters("x0", system.nx, x0)
+    # x_k_prev = dsc.add_parameters("x0", system.nx, x0) # TODO add it as parameter when debugging is finished!
+    x_k_0 = dsc.sym("x_0_0", system.nx, lb=x0, ub=x0)
     u_k_prev = None
     tk = ambient.get_t0()
     F1 = []
@@ -106,19 +110,21 @@ def create_stcs_problem():
         logger.debug(f"Create NLP step {k}")
         tk += dt
 
-        x_k_full = [x_k_prev] + [
+        x_k_full = [x_k_0] + [
             dsc.sym(f"x_{k}_c", system.nx,
-                    lb=x_min[k + 1, :], ub=x_max[k + 1, :])
-            for _ in range(1, collocation_nodes + 1)
+                    lb=-np.inf, ub=np.inf)
+            for j in range(1, collocation_nodes + 1)
         ]
-        x_k = dsc.sym("x", system.nx,
-                      lb=x_min[k + 1, :], ub=x_max[k + 1, :])
+        x_k_next_0 = CASADI_VAR.sym(f"x_{k+1}_0", system.nx) # NOTE: append later to decision variables
+        # x_k_next_0 = dsc.sym(f"x_{k+1}_0", system.nx,
+                    #   lb=-ca.inf, ub=ca.inf)
 
         # Add new binary controls
         b_k = dsc.sym_bool("b", system.nb)
 
         # Add new continuous controls
-        u_k = dsc.sym("u", system.nu, lb=u_min[k, :], ub=u_max[k, :])
+        u_k = CASADI_VAR.sym(f"u_{k}", system.nu) # NOTE: append later to decision variables
+        # u_k = dsc.sym("u", system.nu, lb=u_min[k, :], ub=u_max[k, :])
 
         if u_k_prev is None:
             u_k_prev = u_k
@@ -133,7 +139,7 @@ def create_stcs_problem():
         F_k_inp = {"x_k_" + str(i): x_k_i for i, x_k_i in enumerate(x_k_full)}
         F_k_inp.update(
             {
-                "x_k_next": x_k,
+                "x_k_next": x_k_next_0,
                 "c_k": c_k,
                 "u_k": u_k,
                 "b_k": b_k,
@@ -148,25 +154,25 @@ def create_stcs_problem():
         s_ac_lb_k = dsc.sym("s_ac_lb", system.n_s_ac_lb, 0, ca.inf)
 
         # Setup T_ac_min conditions
-        dsc.leq(0, T_ac_min_fcn(x_k, c_k, b_k, s_ac_lb_k))
+        dsc.leq(0, T_ac_min_fcn(x_k_0, c_k, b_k, s_ac_lb_k))
 
         # Add new slack variable for T_ac_max condition
         s_ac_ub_k = dsc.sym("s_ac_ub", system.n_s_ac_ub, 0, ca.inf)
 
         # Setup T_ac_max conditions
-        dsc.leq(T_ac_max_fcn(x_k, c_k, b_k, s_ac_ub_k), 0)
+        dsc.leq(T_ac_max_fcn(x_k_0, c_k, b_k, s_ac_ub_k), 0)
 
         # Add new slack variable for state limits soft constraints
-        s_x_k = dsc.sym("s_x", system.nx, lb=0, ub=ca.inf)
+        s_x_k = dsc.sym("s_x", system.nx, -ca.inf, ca.inf)
 
         # Setup state limits as soft constraints to prevent infeasibility
-        dsc.add_g(x_min[k + 1, :], s_x_k + x_k, x_max[k + 1, :])
+        dsc.add_g(x_min[k + 1, :], slacked_state_fcn(x_k_next_0, s_x_k), x_max[k + 1, :])
 
         # Assure ppsc is running at high speed when collector temperature is high
-        s_ppsc_k = dsc.sym("s_ppsc_fpsc", 1, lb=0, ub=ca.inf)
+        s_ppsc_k = dsc.sym("s_ppsc_fpsc", 1, lb=0, ub=1)
 
-        dsc.leq(v_ppsc_so_fpsc_fcn(x_k, s_ppsc_k), 0)
-        dsc.leq(v_ppsc_so_vtsc_fcn(x_k, s_ppsc_k), 0)
+        dsc.leq(v_ppsc_so_fpsc_fcn(x_k_0, s_ppsc_k), 0)
+        dsc.leq(v_ppsc_so_vtsc_fcn(x_k_0, s_ppsc_k), 0)
         dsc.leq(v_ppsc_so_fcn(u_k, s_ppsc_k), 0)
 
         # Assure HTS bottom layer mass flows are always smaller or equal to
@@ -174,10 +180,17 @@ def create_stcs_problem():
         dsc.leq(mdot_hts_b_max_fcn(u_k, b_k), 0)
 
         # Electric power balance
-        dsc.eq(electric_power_balance_fcn(x_k, u_k, b_k, c_k), 0)
+        dsc.eq(electric_power_balance_fcn(x_k_0, u_k, b_k, c_k), 0)
 
         # SOS1 constraint
         dsc.add_g(0, ca.sum1(b_k), 1)
+
+        # Append u_k and x_k_next_0 to the vector of variables
+        dsc.add_w(lb=list(u_min[k, :]), ub=list(u_max[k, :]), w=u_k, w0=np.zeros(system.nu).tolist())
+        dsc.add_w(lb=(-np.inf * np.ones(system.nx)).tolist(),
+                  w=x_k_next_0,
+                  ub=(np.inf * np.ones(system.nx)).tolist(),
+                  w0=(0 * np.ones(system.nx)).tolist())
 
         F1.append(
             np.sqrt(dt_k / 3600)
@@ -185,8 +198,11 @@ def create_stcs_problem():
         )
         F2.append((dt_k / 3600) * F2_fcn(u_k, c_k))
 
-        x_k_prev = x_k
+        x_k_0 = x_k_next_0
         u_k_prev = u_k
+
+    # Specify residual for GN Hessian computation
+    dsc.r = F1
 
     # Concatenate objects
     F1 = 0.1 * ca.veccat(*F1)
@@ -195,7 +211,15 @@ def create_stcs_problem():
     # Setup objective
     dsc.f = 0.5 * ca.mtimes(F1.T, F1) + F2
     logger.debug("NLP created")
-    return dsc.get_problem(), dsc.get_data()
+    prob = dsc.get_problem()
+    meta = MetaDataOcp(
+        # n_state=len(dsc.indices['x'][0]), n_control=len(dsc.indices['u'][0]),
+        idx_param=dsc.indices_p,
+        # idx_state=np.hstack(dsc.indices['x']),
+        # idx_control=np.hstack(dsc.indices['u']),
+        )
+    prob.meta = meta
+    return prob, dsc.get_data()
 
 
 if __name__ == "__main__":
@@ -208,15 +232,18 @@ if __name__ == "__main__":
     setup_logger(logging.DEBUG)
     prob, data = create_stcs_problem()
 
-    time_grid = np.array(data.p)[prob.meta.indexes_p['dt']]
-    time_grid = [900 if dt<=70 else 1800 for dt in range(83)] # same timegrid of orig problem
-
-    data.p = np.array(data.p)
-    data.p[prob.meta.indexes_p['dt']] = time_grid
     stats = Stats({})
     nlp = NlpSolver(prob, stats)
 
-    breakpoint()
+    with open("data/nlpargs_adrian.pickle", 'rb') as f:
+        nlpargs_adrian = pickle.load(f)
+    data.x0 = nlpargs_adrian['x0']
+    data.p = nlpargs_adrian['p']
+    data.lbx = nlpargs_adrian['lbx']
+    data.ubx = nlpargs_adrian['ubx']
+    data.lbg = nlpargs_adrian['lbg']
+    data.ubg = nlpargs_adrian['ubg']
+
     data = nlp.solve(data, set_x_bin=False) # solve relaxed problem
     with open("results/x_star_rel_stcs.pickle", "wb") as f:
         pickle.dump(data.x_sol, f)

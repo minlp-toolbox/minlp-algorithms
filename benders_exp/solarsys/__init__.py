@@ -76,6 +76,35 @@ def extract():
         _ubg=nlp_args['ubg'],
         p=nlp_args['p'],
     )
-    breakpoint()
 
     return problem, data
+
+
+if __name__ == "__main__":
+    from benders_exp.utils import setup_logger, logging
+    from benders_exp.solvers import Stats
+    from benders_exp.solvers.nlp import NlpSolver
+    from benders_exp.problems import check_solution
+    import pickle
+
+    setup_logger(logging.DEBUG)
+    prob, data = extract()
+
+    stats = Stats({})
+    nlp = NlpSolver(prob, stats)
+
+    with open("data/nlpargs_adrian.pickle", 'rb') as f:
+        nlpargs_adrian = pickle.load(f)
+    data.x0 = nlpargs_adrian['x0']
+    data.p = nlpargs_adrian['p']
+    data.lbx = nlpargs_adrian['lbx']
+    data.ubx = nlpargs_adrian['ubx']
+    data.lbg = nlpargs_adrian['lbg']
+    data.ubg = nlpargs_adrian['ubg']
+
+    data = nlp.solve(data, set_x_bin=False) # solve relaxed problem
+    with open("results/x_star_rel_orig.pickle", "wb") as f:
+        pickle.dump(data.x_sol, f)
+    breakpoint()
+    check_solution(prob, data, data.prev_solution['x'])
+    breakpoint()
