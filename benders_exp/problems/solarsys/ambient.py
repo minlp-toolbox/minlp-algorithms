@@ -50,7 +50,7 @@ class Ambient:
 
     def get_t0(self):
         """Get start time."""
-        return self._df_ambient.index[0]
+        return self._df_ambient.index[6]
 
     def interpolate(self, value: datetime):
         """Interpolate a value."""
