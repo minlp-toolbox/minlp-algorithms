@@ -19,6 +19,22 @@ logger = logging.getLogger(__name__)
 class System:
     """System dynamics."""
 
+    @staticmethod
+    def get_default_initial_state():
+        """Get default initial states."""
+        return {
+            'T_hts': [70.0, 65.0, 63.0, 60.0],
+            'T_lts': 14.0,
+            'T_fpsc': 20.0,
+            'T_fpsc_s': 20.0,
+            'T_vtsc': 22.0,
+            'T_vtsc_s': 22.0,
+            'T_pscf': 18.0,
+            'T_pscr': 20.0,
+            'T_shx_psc': [11.0, 11.0, 11.0, 11.0],
+            'T_shx_ssc': [32.0, 32.0, 32.0, 32.0],
+            }
+
     def _setup_system_dimensions(self):
         self.nx = 19
         self.nb = 3
@@ -834,10 +850,12 @@ class System:
     def get_integrator(self):
         """Set up simulator."""
         dt = ca.MX.sym("dt")
+        f = CachedFunction("stcs_f", self.get_f_fcn)
+
         ode = {
             "x": self.x,
             "p": ca.veccat(dt, self.c, self.u, self.b),
-            "ode": dt * self.f,
+            "ode": dt * f(self.x, self.c, self.u, self.b),
         }
         return ca.integrator(
             "integrator", "cvodes", ode, 0.0, 1.0

@@ -15,36 +15,9 @@ from benders_exp.cache_utils import CachedFunction
 from datetime import timedelta
 import logging
 
+from benders_exp.utils import convert_to_flat_list
+
 logger = logging.getLogger(__name__)
-
-
-def get_initial_state():
-    """Get initial states."""
-    return {
-        'T_hts': [70.0, 65.0, 63.0, 60.0],
-        'T_lts': 14.0,
-        'T_fpsc': 20.0,
-        'T_fpsc_s': 20.0,
-        'T_vtsc': 22.0,
-        'T_vtsc_s': 22.0,
-        'T_pscf': 18.0,
-        'T_pscr': 20.0,
-        'T_shx_psc': [11.0, 11.0, 11.0, 11.0],
-        'T_shx_ssc': [32.0, 32.0, 32.0, 32.0],
-    }
-
-
-def convert_to_flat_list(nr, indices, data):
-    """Convert data to a flat list."""
-    out = np.zeros((nr,))
-    for key, indices in indices.items():
-        values = data[key]
-        if isinstance(indices, list):
-            for idx, val in zip(indices, values):
-                out[idx] = val
-        else:
-            out[indices] = values
-    return out
 
 
 def create_stcs_problem():
@@ -55,7 +28,7 @@ def create_stcs_problem():
     dsc = Description()
     n_steps = 83
     dt = timedelta(seconds=1800)
-    x0 = convert_to_flat_list(system.nx, system.x_index, get_initial_state())
+    x0 = convert_to_flat_list(system.nx, system.x_index, system.get_default_initial_state())
     collocation_nodes = 2
 
     logger.debug("Constructing bounds")
