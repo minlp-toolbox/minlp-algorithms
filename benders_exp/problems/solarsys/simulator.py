@@ -1,21 +1,20 @@
 # Adrian Buerger, 2022
 # Adapted by Andrea Ghezzi and Wim Van Roy, 2023
 
-import datetime as dt
 import numpy as np
-import casadi as ca
+from datetime import timedelta
 
 import logging
-from benders_exp.solarsys.defines import _PATH_TO_ODE_OBJECT
-from benders_exp.solarsys.system import System
+from benders_exp.problems.solarsys.system import System, ca
+from benders_exp.problems.solarsys.ambient import Ambient
+from benders_exp.cache_utils import CachedFunction
+from benders_exp.utils import convert_to_flat_list
+
 
 logger = logging.getLogger(__name__)
 
 
 class Simulator(System):
-
-    _ODE_OBJECT_FILENAME = "ode.so"
-    _PATH_TO_ODE_OBJECT = _PATH_TO_ODE_OBJECT
 
     @property
     def time_grid(self):
@@ -23,7 +22,7 @@ class Simulator(System):
 
     @property
     def time_steps(self):
-        return self._timing.time_steps
+        return [self._dt.total_seconds() for _ in range(self._N)] # NOTE Uniform grid
 
     @property
     def x_data(self):
@@ -54,38 +53,37 @@ class Simulator(System):
 
     @property
     def c_data(self):
-        return self._ambient.c_data
+        try:
+            return self._c_data
+        except AttributeError:
+            msg = "Ambient parameters not available yet, call solve() first."
+            logging.error(msg)
+            raise RuntimeError(msg)
 
-    def _setup_timing(self, timing):
+    def _get_ambient_paramaters(self):
 
-        self._timing = timing
+        self._c_data = []
+        for i in range(self._N):
+            self._c_data.append(convert_to_flat_list(
+                self.nc,
+                self.c_index,
+                self._ambient.interpolate(self._ambient.get_t0() + i * self._dt)))
+        self._c_data = ca.DM(self._c_data)
 
-    def _setup_state(self, state):
-
-        self._state = state
-
-    def _setup_ambient(self, ambient):
-
-        self._ambient = ambient
-
-    def __init__(self, timing, state, ambient):
-
-        super().__init__()
+    def __init__(self, ambient: Ambient, N: int, dt: timedelta):
 
         logger.debug("Initializing simulator ...")
-
-        self._setup_timing(timing=timing)
-        self._setup_state(state=state)
-        self._setup_ambient(ambient=ambient)
-        self.load_ode_object()
-        self._setup_simulator()
-        self._remove_unserializable_attributes()
-
+        super().__init__()
+        self._ambient = ambient
+        self._N = N
+        self._dt = dt
+        self._integrator = self.get_integrator()
+        self._get_ambient_paramaters()
         logger.debug("Simulator initialized.")
 
     def _set_initial_state(self):
 
-        self._x_data = [self._state.x_hat]
+        self._x_data = [convert_to_flat_list(self.nx, self.x_index, self.get_default_initial_state())]
 
     def _setup_controls(self):
 
@@ -260,7 +258,7 @@ class Simulator(System):
                     self._integrator(
                         x0=self.x_data[-1],
                         p=ca.veccat(
-                            step, self.c_data[pos], self.u_data[-1], self.b_data[-1]
+                            step, self.c_data[pos, :], self.u_data[-1], self.b_data[-1]
                         ),
                     )["xf"]
                 )
@@ -304,18 +302,14 @@ class Simulator(System):
 
 
 if __name__ == "__main__":
-
-    import datetime as dt
-    import matplotlib.pyplot as plt
-
+    from datetime import timedelta
     from ambient import Ambient
-    from system import System
+    from benders_exp.utils import setup_logger, logging
 
-    startup_time = dt.datetime.fromisoformat("2010-08-19 06:00:00+02:00")
-    timing = TimingMPC(startup_time=startup_time)
+    setup_logger(logging.DEBUG)
 
     ambient = Ambient()
-    state.initialize()
+    dt = timedelta(seconds=900)
 
-    simulator = Simulator(timing=timing, ambient=ambient, state=state)
+    simulator = Simulator(ambient=ambient, N=10, dt=dt)
     simulator.solve()
