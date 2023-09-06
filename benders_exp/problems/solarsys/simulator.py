@@ -300,6 +300,24 @@ class Simulator(System):
 
         self._run_simulation()
 
+    def predict(self, n_steps=1):
+        """
+        Predict the next initial state.
+        Starting always from first element of c_data, u_data, b_data
+        """
+
+        x_hat = self.x_data[0, :]
+
+        for k in range(n_steps):
+            k += 1  # TODO make initial time instant editable
+            x_hat = self._integrator(
+                x0=x_hat,
+                p=ca.veccat(
+                    self._dt.total_seconds(), self.c_data[k,:], self.u_data[k,:], self.b_data[k,:]
+                    ))["xf"]
+
+        return x_hat
+
 
 if __name__ == "__main__":
     from datetime import timedelta
@@ -313,3 +331,4 @@ if __name__ == "__main__":
 
     simulator = Simulator(ambient=ambient, N=10, dt=dt)
     simulator.solve()
+    x_hat = simulator.predict()
