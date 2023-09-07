@@ -27,7 +27,7 @@ class Simulator(System):
     @property
     def x_data(self):
         try:
-            return np.asarray(self._x_data)
+            return ca.DM(self._x_data)
         except AttributeError:
             msg = "Simulation results (states) not available yet, call solve() first."
             logging.error(msg)
@@ -272,11 +272,9 @@ class Simulator(System):
                 )
             )
 
-        self._x_data.append(self._x_data[-1])
-
     def _finalize_simulation_results(self):
 
-        self._x_data = ca.horzcat(*self.x_data).T
+        # self._x_data = ca.horzcat(*self.x_data).T
         self._u_data = ca.horzcat(*self.u_data).T
         self._b_data = ca.horzcat(*self.b_data).T
 
