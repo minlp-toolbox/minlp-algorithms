@@ -20,10 +20,9 @@ class NlpSolver(SolverClass):
     def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
         """Create NLP problem."""
         super(NlpSolver, self).__init___(problem, stats)
-        options = regularize_options(options, {}, {"ipopt.print_level": 0})
+        options = regularize_options(options, IPOPT_SETTINGS)
 
         self.idx_x_bin = problem.idx_x_bin
-        options.update(IPOPT_SETTINGS)
         options["calc_multipliers"] = True
         # self.callback = DebugCallBack(
         #     'mycallback', problem.x.shape[0],
@@ -70,7 +69,7 @@ class FeasibilityNlpSolver(SolverClass):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Create benders master MILP."""
         super(FeasibilityNlpSolver, self).__init___(problem, stats)
-        options = regularize_options(options, {}, {"ipopt.print_level": 0})
+        options = regularize_options(options, IPOPT_SETTINGS)
 
         g = []
         self.g_idx = []
@@ -99,7 +98,6 @@ class FeasibilityNlpSolver(SolverClass):
         p = ca.vertcat(*[problem.p])
         self.idx_x_bin = problem.idx_x_bin
         options.update({"jit": WITH_JIT})
-        options.update(IPOPT_SETTINGS)
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": f, "g": g, "x": x, "p": p
         }, options)

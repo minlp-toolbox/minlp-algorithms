@@ -16,10 +16,12 @@ if not path.exists(CACHE_FOLDER):
 
 
 WITH_JIT = False
-WITH_LOGGING = True
 WITH_PLOT = False
-CASADI_VAR = ca.SX
+EPS = 1e-5
 WITH_DEBUG = environ.get("DEBUG", False)
+MIP_SOLVER = environ.get("MIP_SOLVER", "gurobi")
+
+CASADI_VAR = ca.SX
 IPOPT_SETTINGS = {
     # "ipopt.tol": 1e-2,
     # "ipopt.dual_inf_tol": 2,
@@ -37,20 +39,27 @@ IPOPT_SETTINGS = {
     # "ipopt.mu_strategy": "adaptive",
     # "ipopt.mu_target": 1e-4,
 }
+BONMIN_SETTINGS = {}
 GUROBI_SETTINGS = {
     "gurobi.MIPGap": 0.05,
     "gurobi.NumericFocus": 1,
 }
-EPS = 1e-5
+HIGHS_SETTINGS = {}
+MIP_SETTINGS_ALL = {
+    "gurobi": GUROBI_SETTINGS,
+    "highs": HIGHS_SETTINGS
+}
+if MIP_SOLVER not in MIP_SETTINGS_ALL:
+    raise Exception("Configure a MIP_SOLVER from the list: {}" % ", ".join(
+        MIP_SETTINGS_ALL.keys()
+    ))
 
+# Adapt settings based on configuration
+MIP_SETTINGS = MIP_SETTINGS_ALL[MIP_SOLVER]
 if not WITH_DEBUG:
     IPOPT_SETTINGS.update({
         "ipopt.print_level": 0,
-        "verbose": False,
-        "print_time": 0,
     })
     GUROBI_SETTINGS.update({
-        "verbose": False,
-        "print_time": 0,
-        "gurobi.OutputFlag": 0,
+        "gurobi.output_flag": 0,
     })

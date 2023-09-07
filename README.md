@@ -32,3 +32,19 @@
 # Plotting
 
 The Jupyter notebook `plot_results.ipynb` can produce some figures from the saved pickle files.
+
+# Usage
+
+You can use the repo as follows:
+
+```
+pip3 install -e . 
+cd benders_exp
+python3 quick_and_dirty.py <solver> <problem>
+```
+
+You can enable or change options using environmental variables:
+| Environmental variable |     Value    | Description                 |
+| ---------------------- | ------------ | ----------------------------|
+|         DEBUG          |  True/False  | Toggle debugging output     |
+|        MIP_SOLVER      | gurobi/highs | Configure MIP solver        |

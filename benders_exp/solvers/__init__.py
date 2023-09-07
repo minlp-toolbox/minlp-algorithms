@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import os
 from typing import Dict, List, Optional
 from benders_exp.problems import MinlpProblem, MinlpData
-from benders_exp.defines import _DATA_FOLDER, WITH_LOGGING
+from benders_exp.defines import _DATA_FOLDER, WITH_DEBUG
 import casadi as ca
 import numpy as np
 import logging
@@ -77,16 +77,16 @@ class SolverClass(ABC):
         return stats["success"], stats
 
 
-def regularize_options(options, log_opts, nolog_opts):
+def regularize_options(options, default):
     """Regularize options."""
-    if options is None:
-        if WITH_LOGGING:
-            return log_opts
-        else:
-            nolog_opts.update({"verbose": False, "print_time": 0})
-            return nolog_opts
-    else:
-        return options.copy()
+    ret = {} if options is None else options.copy()
+
+    if WITH_DEBUG:
+        ret.update({"verbose": False, "print_time": 0})
+
+    ret.update(default)
+
+    return ret
 
 
 def get_idx_linear_bounds_binary_x(problem: MinlpProblem):

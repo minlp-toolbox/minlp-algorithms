@@ -307,9 +307,11 @@ class BendersTRandMaster(BendersMasterMILP):
             + self.g_infeasible + self.g_other
         )
 
-        self.solver = ca.qpsol(f"benders_constraint_{self.g_lowerapprox.nr}", "gurobi", {
-            "f": f, "g": g_total.eq, "x": self._x, "p": self._nu
-        }, self.options)
+        self.solver = ca.qpsol(
+            f"benders_constraint_{self.g_lowerapprox.nr}", MIP_SOLVER, {
+                "f": f, "g": g_total.eq, "x": self._x, "p": self._nu
+            }, self.options
+        )
 
         solution = self.solver(
             x0=self.x_sol_best,
@@ -338,10 +340,12 @@ class BendersTRandMaster(BendersMasterMILP):
         g_total.add(-ca.inf, f - self._nu, 0)
         g, ubg, lbg = g_total.eq, g_total.ub, g_total.lb
 
-        self.solver = ca.qpsol(f"benders_with_{self.g_lowerapprox.nr}_cut", "gurobi", {
-            "f": self._nu, "g": g,
-            "x": ca.vertcat(self._x, self._nu),
-        }, self.options_master)
+        self.solver = ca.qpsol(
+            f"benders_with_{self.g_lowerapprox.nr}_cut", MIP_SOLVER, {
+                "f": self._nu, "g": g,
+                "x": ca.vertcat(self._x, self._nu),
+            }, self.options_master
+        )
 
         solution = self.solver(
             x0=ca.vertcat(nlpdata.x_sol[:self.nr_x_orig], nlpdata.obj_val),

@@ -3,6 +3,7 @@
 import casadi as ca
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
         regularize_options
+from benders_exp.defines import BONMIN_SETTINGS
 
 
 class BonminSolver(SolverClass):
@@ -14,7 +15,7 @@ class BonminSolver(SolverClass):
         :param algo_type: Algorithm type, options: B-BB, B-OA, B-QG, or B-Hyb
         """
         super(BonminSolver, self).__init___(problem, stats)
-        options = regularize_options(options, {}, {"ipopt.print_level": 0})
+        options = regularize_options(options, BONMIN_SETTINGS)
 
         self.nr_x = problem.x.shape[0]
         discrete = [0] * self.nr_x
