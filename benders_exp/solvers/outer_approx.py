@@ -4,7 +4,8 @@ import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
-from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR
+from benders_exp.defines import MIP_SETTINGS, WITH_JIT, CASADI_VAR, \
+        MIP_SOLVER
 
 
 class OuterApproxMILP(SolverClass):
@@ -25,9 +26,7 @@ class OuterApproxMILP(SolverClass):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Create benders master MILP."""
         super(OuterApproxMILP, self).__init___(problem, stats)
-        self.options = regularize_options(
-            options, {}, {"gurobi.output_flag": 0}
-        )
+        self.options = regularize_options(options, MIP_SETTINGS)
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
             {"jit": WITH_JIT}
@@ -61,7 +60,6 @@ class OuterApproxMILP(SolverClass):
         discrete = [0] * (self.nr_x+1)
         for i in problem.idx_x_bin:
             discrete[i] = 1
-        self.options.update(GUROBI_SETTINGS)
         self.options.update({
             "discrete": discrete,
         })
@@ -88,7 +86,7 @@ class OuterApproxMILP(SolverClass):
         self._ubg = ca.vertcat(self._ubg, ca.inf *
                                np.ones((self.nr_g_orig, 1)))
 
-        self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", "gurobi", {
+        self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", MIP_SOLVER, {
             "f": self._alpha, "g": self._g,
             "x": self._x,
         }, self.options)
@@ -111,9 +109,7 @@ class OuterApproxMILPImproved(SolverClass):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Improved outer approximation."""
         super(OuterApproxMILPImproved, self).__init___(problem, stats)
-        self.options = regularize_options(
-            options, {}, {"gurobi.output_flag": 0}
-        )
+        self.options = regularize_options(options)
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
             {"jit": WITH_JIT}
@@ -155,7 +151,6 @@ class OuterApproxMILPImproved(SolverClass):
             discrete[i] = 1
         self.options.update({
             "discrete": discrete,
-            "gurobi.MIPGap": 0.05
         })
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
@@ -180,7 +175,7 @@ class OuterApproxMILPImproved(SolverClass):
         self._ubg = ca.vertcat(self._ubg, ca.inf *
                                np.ones((len(self.idx_g_nonlin), 1)))
 
-        self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", "gurobi", {
+        self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", MIP_SOLVER, {
             "f": self._alpha, "g": self._g,
             "x": self._x,
         }, self.options)

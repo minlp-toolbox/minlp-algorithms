@@ -12,7 +12,7 @@ import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, get_idx_linear_bounds_binary_x, regularize_options, \
     get_idx_inverse, extract_bounds
-from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR, WITH_PLOT
+from benders_exp.defines import MIP_SETTINGS, WITH_JIT, CASADI_VAR, WITH_PLOT, MIP_SOLVER
 from benders_exp.utils import to_0d
 import logging
 
@@ -50,9 +50,7 @@ class BendersMasterMILP(SolverClass):
 
     def setup_common(self, problem: MinlpProblem, options=None):
         """Set up common data."""
-        self.options = regularize_options(
-            options, {}, {"gurobi.output_flag": 0}
-        )
+        self.options = regularize_options(options, MIP_SETTINGS)
 
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
@@ -66,7 +64,6 @@ class BendersMasterMILP(SolverClass):
         self.idx_x_bin = problem.idx_x_bin
         self.nr_x_bin = len(problem.idx_x_bin)
         self._nu = CASADI_VAR.sym("nu", 1)
-        self.options.update(GUROBI_SETTINGS)
         self.options["discrete"] = [1] * (self.nr_x_bin + 1)
         self.options["discrete"][-1] = 0
         self.nr_g_orig = problem.g.shape[0]
@@ -130,7 +127,7 @@ class BendersMasterMILP(SolverClass):
                                         x_sol_current=x_bin_star,
                                         x_sol_best=x_bin_star)
 
-        self.solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", "gurobi", {
+        self.solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", MIP_SOLVER, {
             "f": self._nu, "g": self._g,
             "x": ca.vertcat(self._x, self._nu),
         }, self.options)
@@ -274,7 +271,7 @@ class BendersMasterMIQP(BendersMasterMILP):
                                         x_sol_current=x_bin_star)
 
         dx = self._x - x_bin_star
-        self.solver = ca.qpsol(f"benders_qp{self.nr_g}", "gurobi", {
+        self.solver = ca.qpsol(f"benders_qp{self.nr_g}", MIP_SOLVER, {
             "f": self._nu + 0.5 * dx.T @ f_hess @ dx,
             "g": self._g,
             "x": ca.vertcat(self._x, self._nu),
@@ -422,7 +419,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         else:
             f = f_k + f_lin.T @ dx
 
-        self.solver = ca.qpsol(f"benders_constraint_{self.nr_g}", "gurobi", {
+        self.solver = ca.qpsol(f"benders_constraint_{self.nr_g}", MIP_SOLVER, {
             "f": f, "g": g, "x": self._x, "p": self._nu
         }, self.options)
 

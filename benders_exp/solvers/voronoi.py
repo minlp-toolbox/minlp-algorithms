@@ -5,7 +5,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
-from benders_exp.defines import GUROBI_SETTINGS, WITH_JIT, CASADI_VAR, WITH_PLOT
+from benders_exp.defines import MIP_SETTINGS, MIP_SOLVER, WITH_JIT, \
+        CASADI_VAR, WITH_PLOT
 from benders_exp.utils import to_0d
 
 
@@ -30,9 +31,7 @@ class VoronoiTrustRegionMILP(SolverClass):
         super(VoronoiTrustRegionMILP, self).__init___(problem, stats)
         if WITH_PLOT:
             self.setup_plot()
-        self.options = regularize_options(
-            options, {}, {"gurobi.output_flag": 0}
-        )
+        self.options = regularize_options(options, MIP_SOLVER)
 
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
@@ -86,8 +85,8 @@ class VoronoiTrustRegionMILP(SolverClass):
             problem, data, self.idx_g_lin, self._x, allow_fail=False
         )
 
-        self.options.update(GUROBI_SETTINGS)
-        self.options["discrete"] = [1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]
+        self.options["discrete"] = [1 if elm in problem.idx_x_bin else 0
+                                    for elm in range(self._x.shape[0])]
 
         # Initialization for algorithm iterates
         self.ub = 1e15  # UB
@@ -163,7 +162,8 @@ class VoronoiTrustRegionMILP(SolverClass):
         )
         self.nr_g = ubg.numel()
 
-        self.solver = ca.qpsol(f"voronoi_tr_milp_with_{self.nr_g}_constraints", "gurobi", {
+        self.solver = ca.qpsol(
+            f"voronoi_tr_milp_with_{self.nr_g}_constraints", "highs", {
             "f": f, "g": g, "x": self._x,
         }, self.options)
 
