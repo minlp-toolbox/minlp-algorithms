@@ -216,10 +216,10 @@ class Description:
         dr = jacobian(r, x)
         return dr.T @ dr
 
-    def get_problem(self) -> MinlpProblem:
+    def get_problem(self, with_gn=True) -> MinlpProblem:
         """Extract problem."""
         idx_x_bin = [i for i, v in enumerate(self.discrete) if v == 1]
-        if self.r:
+        if self.r and with_gn:
             gn_hessian = self.get_gauss_newton_hessian()
         else:
             gn_hessian = None

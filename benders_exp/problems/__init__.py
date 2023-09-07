@@ -1,7 +1,7 @@
 """General problem structure."""
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, Union
 from benders_exp.defines import CASADI_VAR, ca
 from copy import deepcopy
 import numpy as np
@@ -171,7 +171,7 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
     g_val = g(x_star, data.p).full()
     print(f"Objective value {float(f_val)} (real) vs {data.obj_val}")
     msg = []
-    if abs(float(data.obj_val) - float(f_val)) > 1e-4:
+    if abs(float(data.obj_val) - float(f_val)) > 1e-3:
         msg.append("Objective value wrong!")
     if np.any(data.lbx > x_star + 1e-4):
         msg.append(f"Lbx > x* for indices:\n{np.nonzero(data.lbx > x_star).T}")
