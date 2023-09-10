@@ -25,6 +25,7 @@ class Ambient:
         self._load_forecast_data()
         self._fill_remaining_nan_values()
         self._compute_load_forecast()
+        self._manual_tuning_of_forecasts()
 
     def _load_forecast_data(self, method="csv"):
         """Load forecast data."""
