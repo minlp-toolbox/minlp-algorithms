@@ -147,6 +147,9 @@ def plot_trajectory(
         alpha = 0.7
     if isinstance(s_collection, np.ndarray):
         s_collection = [s_collection]
+    if isinstance(meta.scaling_coeff_control, type(None)):
+        meta.scaling_coeff_control = [1 for _ in range(a_collection[0].shape[0])]
+
     N = a_collection[0].shape[0]
     dt = meta.dt
     time_array = np.linspace(0, N * dt, N + 1)

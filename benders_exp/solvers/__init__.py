@@ -138,12 +138,20 @@ def extract_bounds(problem: MinlpProblem, data: MinlpData,
         try:
             if idx_x is None:
                 _x = problem.x
+                g = ca.Function("g_lin", [_x, problem.p], [problem.g[idx_g]])(new_x, data.p)
             else:
-                _x = problem.x[idx_x]
+                vec = []
+                j=0
+                for i in range(problem.x.shape[0]):
+                    if i in idx_x:
+                        vec.append(new_x[j])
+                        j += 1
+                    else:
+                        vec.append(0)
+                vec = ca.vertcat(*vec)
+                vec_fn = ca.Function("v", [new_x], [vec])
+                g = ca.Function("g_lin", [problem.x, problem.p], [problem.g[idx_g]])(vec_fn(new_x), data.p)
 
-            g = ca.Function("g_lin", [_x, problem.p], [problem.g[idx_g]])(
-                new_x, data.p
-            )
             lbg = data.lbg[idx_g].flatten().tolist()
             ubg = data.ubg[idx_g].flatten().tolist()
         except Exception as e:

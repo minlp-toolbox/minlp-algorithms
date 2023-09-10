@@ -18,6 +18,7 @@ class MetaDataOcp(MetaData):
 
     n_state: Optional[int] = None
     n_control: Optional[int] = None
+    n_discrete_control: Optional[int] = None
     idx_state: Optional[List[float]] = None
     idx_control: Optional[List[float]] = None
     idx_param: Optional[dict] = None
