@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import os
 from typing import Dict, List, Optional
 from benders_exp.problems import MinlpProblem, MinlpData
-from benders_exp.defines import _DATA_FOLDER, WITH_DEBUG
+from benders_exp.defines import OUT_DIR, WITH_DEBUG
 import casadi as ca
 import numpy as np
 import logging
@@ -51,7 +51,7 @@ class Stats:
                 "x_sol": x_sol}
 
     def save(self, x_star):
-        with open(os.path.join(_DATA_FOLDER, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl'), 'wb') as handle:
+        with open(os.path.join(OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl'), 'wb') as handle:
             pickle.dump(self.data, handle)
 
 

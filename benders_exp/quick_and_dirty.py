@@ -398,7 +398,7 @@ if __name__ == "__main__":
     else:
         problem_name = "dummy"
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
     tic()
     stats = Stats(mode, problem_name, timestamp, {})
     toc()
