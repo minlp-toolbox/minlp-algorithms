@@ -63,7 +63,9 @@ class LowerApproximation:
         if not self.multipliers:
             self.multipliers.append(1)
         else:
-            self.multipliers.append(self.multipliers[0])  # the new constraint added should have the same multiplier of the others (cf. gradient-amplification strategy)
+            # the new constraint added should have the same multiplier
+            # of the others (cf. gradient-amplification strategy)
+            self.multipliers.append(self.multipliers[0])
 
     def __call__(self, x_value, nu=0):
         """Evaluate the bounds."""
@@ -130,22 +132,24 @@ def almost_equal(a, b):
     """Check if almost equal."""
     return a + EPS > b and a - EPS < b
 
+
 def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad):
     """Compute gradient correction, based on L2 norm."""
 
     with_ipopt = False
-    W = np.eye(x_best.shape[0]) # weighting matrix L2-norm
+    W = np.eye(x_best.shape[0])  # weighting matrix L2-norm
     W_inv = np.linalg.inv(W)
 
     if with_ipopt:
         nr_x = x_best.numel()
         grad_corr = CASADI_VAR.sym("gradient_correction", nr_x)
         obj = ca.norm_2(grad_corr)**2
-        g = (obj_new - obj_best - EPS) + (grad + grad_corr).T @ (x_best - x_new)
+        g = (obj_new - obj_best - EPS) + \
+            (grad + grad_corr).T @ (x_best - x_new)
         solver = ca.nlpsol("solver", "ipopt", {
             "f": obj, "g": g, "x": grad_corr}, {})
         sol = solver(x0=np.abs(x_new - x_best), lbx=-ca.inf * np.ones(nr_x),
-                    ubx=ca.inf * np.ones(nr_x), lbg=-ca.inf, ubg=0)
+                     ubx=ca.inf * np.ones(nr_x), lbg=-ca.inf, ubg=0)
         print(sol["x"])
         return sol["x"] + grad
     else:
@@ -201,42 +205,42 @@ class BendersTRandMaster(BendersMasterMILP):
         self.options_master["discrete"] = self.options["discrete"] + [0]
 
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
-        self.x_sol_best = data.x0 # take a point as initialization
+        self.x_sol_best = data.x0  # take a point as initialization
         self.qp_stagnates = False
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
         value = g + grad_g.T @ (x_best - x_sol)
         # print(f"Cut valid (lower bound)?: {value} vs real {x_sol_obj}")
-        return (value - EPS <= x_sol_obj) # TODO: check sign EPS
+        return (value - EPS <= x_sol_obj)  # TODO: check sign EPS
 
-    def _add_infeasible_cut(self, nlpdata: MinlpData):
+    def _add_infeasible_cut(self, x_sol, lam_g_sol, nlpdata: MinlpData):
         """Create infeasibility cut."""
-        x_sol = nlpdata.x_sol[:self.nr_x_orig]
+        x_sol = x_sol[:self.nr_x_orig]
         h_k = self.g(x_sol, nlpdata.p)
         jac_h_k = self.jac_g_bin(x_sol, nlpdata.p)
-        g_k = nlpdata.lam_g_sol.T @ (
+        g_k = lam_g_sol.T @ (
             h_k + jac_h_k @ (self._x_bin - x_sol[self.idx_x_bin])
         )
         self.g_infeasible.add(-ca.inf, g_k, 0)
 
     def _gradient_amplification(self):
         if self.trust_region_feasibility_strategy == TrustRegionStrategy.GRADIENT_AMPLIFICATION:
-        # Amplify the gradient of every new cut with the chosen rho.
+            # Amplify the gradient of every new cut with the chosen rho.
             for i, m in enumerate(self.g_lowerapprox.multipliers):
                 if m != self.trust_region_feasibility_rho:
                     self.g_lowerapprox.multipliers[i] = self.trust_region_feasibility_rho
         else:
             raise NotImplementedError()
 
-    def _gradient_correction(self, nlpdata: MinlpData):
+    def _gradient_correction(self, x_sol, lam_x_sol, nlpdata: MinlpData):
         # TODO: (to improve computation speed) if the best point does not change, check only the last point
         x_sol_best_bin = self.x_sol_best[self.idx_x_bin]
 
         # On the last integer point: check, correct (if needed) and add to g_lowerapprox
-        lambda_k = -nlpdata.lam_x_sol[self.idx_x_bin]
-        f_k = self.f(nlpdata.x_sol, nlpdata.p)
-        x_bin_new = nlpdata.x_sol[self.idx_x_bin]
+        lambda_k = -lam_x_sol[self.idx_x_bin]
+        f_k = self.f(x_sol, nlpdata.p)
+        x_bin_new = x_sol[self.idx_x_bin]
 
         if not self._check_cut_valid(f_k, lambda_k, x_sol_best_bin, x_bin_new, self.y_N_val):
             grad_corr = compute_gradient_correction(
@@ -248,7 +252,8 @@ class BendersTRandMaster(BendersMasterMILP):
 
         # Check and correct - if necessary - all the points in memory
         for i in range(self.g_lowerapprox.nr - 1):
-            self.g_lowerapprox.dg_corrected[i] = self.g_lowerapprox.dg[i] # Reset the corrected gradient to original
+            # Reset the corrected gradient to original
+            self.g_lowerapprox.dg_corrected[i] = self.g_lowerapprox.dg[i]
             if not self._check_cut_valid(
                 self.g_lowerapprox.g[i], self.g_lowerapprox.dg[i],
                 x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val
@@ -256,23 +261,14 @@ class BendersTRandMaster(BendersMasterMILP):
                 self.g_lowerapprox.dg_corrected[i] = compute_gradient_correction(
                     x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val,
                     self.g_lowerapprox.g[i], self.g_lowerapprox.dg[i])
-                logger.debug(f"Correcting gradient at {self.g_lowerapprox.x_lin[i]=}")
-
-    def _trust_region_update(self, nlpdata: MinlpData):
-        """
-        Update TR via gradient correction and amplification
-        """
-        # if self.g_lowerapprox.nr == 0:  # There are no inequalities to generate cuts
-        #     return
-
-        self._gradient_correction(nlpdata)
-        self._gradient_amplification()
+                logger.debug(
+                    f"Correcting gradient at {self.g_lowerapprox.x_lin[i]=}")
 
     def _trust_region_is_empty(self):
         if self.g_lowerapprox.nr == 0:
             return False
         g_val = self.g_lowerapprox(self.x_sol_best[self.idx_x_bin])
-        if (diff := np.max(np.array(g_val) - self.y_N_val)) > 0:
+        if np.max(np.array(g_val) - self.y_N_val) > 0:
             return True
 
     def _get_g_linearized_nonlin(self, x, dx, nlpdata):
@@ -358,37 +354,55 @@ class BendersTRandMaster(BendersMasterMILP):
         logger.info("SOLVED LB-MILP")
         return solution
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
+    def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve."""
         require_benders = False
-        x_sol = nlpdata.x_sol[:self.nr_x_orig]
-
         if self.qp_stagnates or almost_equal(nlpdata.obj_val, self.y_N_val):
             require_benders = True
 
-        if prev_feasible and nlpdata.obj_val + EPS < self.y_N_val:  # check if new best solution found
-            self.x_sol_best = x_sol[:self.nr_x_orig]
-            self.y_N_val = nlpdata.obj_val  # update best objective
-            self.qp_stagnates = False
-            logger.info(f"NEW UPPER BOUND: {self.y_N_val}")
+        needs_trust_region_update = False
+        for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
+            if prev_feasible and float(sol['f']) + EPS < self.y_N_val:  # check if new best solution found
+                self.x_sol_best = sol['x'][:self.nr_x_orig]
+                self.y_N_val = nlpdata.obj_val  # update best objective
+                self.qp_stagnates = False
+                logger.info(f"NEW UPPER BOUND: {self.y_N_val}")
 
-        if not prev_feasible:
-            colored("Infeasibility Cut", "blue")
-            self._add_infeasible_cut(nlpdata)
-        else:
-            self._trust_region_update(nlpdata)
+            if not prev_feasible:
+                colored("Infeasibility Cut", "blue")
+                self._add_infeasible_cut(sol['x'], sol['lam_g'], nlpdata)
+            else:
+                self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
+                needs_trust_region_update = True
 
+        if needs_trust_region_update:
+            self._gradient_amplification()
+
+        stats = None
         if not require_benders:
-            nlpdata.prev_solution = self._solve_trust_region_problem(nlpdata)
-            nlpdata.solved, _ = self.collect_stats("TR-MIQP")
+            solution = self._solve_trust_region_problem(nlpdata)
+            success, stats = self.collect_stats("TR-MIQP")
             for x_best in nlpdata.best_solutions:
-                    if np.allclose(nlpdata.x_sol[self.idx_x_bin], x_best[self.idx_x_bin], equal_nan=False, atol=EPS):
-                        require_benders = True
-                        self.qp_stagnates = True
-                        break
+                if np.allclose(nlpdata.x_sol[self.idx_x_bin], x_best[self.idx_x_bin], equal_nan=False, atol=EPS):
+                    require_benders = True
+                    self.qp_stagnates = True
+                    break
 
         if require_benders:
-            nlpdata.prev_solution = self._solve_benders_problem(nlpdata)
-            nlpdata.solved, _ = self.collect_stats("LB-MILP")
+            solution = self._solve_benders_problem(nlpdata)
+            success, stats = self.collect_stats("LB-MILP")
+
+        if stats and "pool_sol_nr" in stats:
+            nlpdata.prev_solutions = [solution] + [
+                {"f": stats["pool_obj_val"][i], "x": ca.DM(
+                    stats["pool_solutions"][i])}
+                for i in range(1, stats["pool_sol_nr"])
+            ]
+            nlpdata.solved_all = [
+                success for i in range(stats["pool_sol_nr"])
+            ]
+        else:
+            nlpdata.prev_solutions = [solution]
+            nlpdata.solved_all = [success]
 
         return nlpdata, require_benders

@@ -94,7 +94,7 @@ def create_check_sign_lagrange_problem():
         x=x, f=(x - 2)**2, g=ca.vcat([x]), p=p, idx_x_bin=[0])
     data = MinlpData(
         x0=np.array([0]), _ubx=np.array([np.inf]), _lbx=np.array([-np.inf]),
-        _ubg=np.array([-1]), _lbg=np.array([-7]), p=np.array([0]), solved=True)
+        _ubg=np.array([-1]), _lbg=np.array([-7]), p=np.array([0]))
 
     return problem, data
 
@@ -122,7 +122,7 @@ def create_dummy_problem(p_val=[1000, 3]):
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
-                     _ubg=ubg, _lbg=lbg, p=p_val, solved=True)
+                     _ubg=ubg, _lbg=lbg, p=p_val)
     return problem, data
 
 
@@ -144,7 +144,7 @@ def create_dummy_problem_2():
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
-                     _ubg=ubg, _lbg=lbg, p=[3], solved=True)
+                     _ubg=ubg, _lbg=lbg, p=[3])
     return problem, data
 
 
@@ -173,7 +173,7 @@ def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
-                     _ubg=ubg, _lbg=lbg, p=p_val, solved=True)
+                     _ubg=ubg, _lbg=lbg, p=p_val)
     return problem, data
 
 
@@ -261,7 +261,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     problem = MinlpProblem(x=ca.vcat(w), f=J, g=ca.vcat(
         g), p=x_0, idx_x_bin=np.hstack(idx_x_bin), meta=meta)
     data = MinlpData(x0=ca.vcat(w0), _ubx=ca.vcat(ubw), _lbx=ca.vcat(lbw),
-                     _ubg=np.array(ubg), _lbg=np.array(lbg), p=p_val, solved=True)
+                     _ubg=np.array(ubg), _lbg=np.array(lbg), p=p_val)
     return problem, data
 
 
@@ -273,7 +273,7 @@ def counter_example_nonconvexity():
     f = ca.atan(x-0.3)**2 + x/10 + x**2/50 + y**2
     problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=[], p=[], idx_x_bin=[0])
     data = MinlpData(x0=np.array([-4, 2]), _lbx=np.array([-5, -5]), _ubx=np.array([5, 5]),
-                     _ubg=[], _lbg=[], p=[], solved=True)
+                     _ubg=[], _lbg=[], p=[])
     return problem, data
 
 
@@ -288,7 +288,7 @@ def create_from_nl_file(file):
 
     problem = MinlpProblem(x=nl.x, f=nl.f, g=nl.g, idx_x_bin=nl.discrete)
     data = MinlpData(x0=nl.x_init, _lbx=nl.x_lb, _ubx=nl.x_ub,
-                     _lbg=nl.g_lb, _ubg=nl.g_ub, p=[], solved=True)
+                     _lbg=nl.g_lb, _ubg=nl.g_ub, p=[])
     return problem, data
 
 

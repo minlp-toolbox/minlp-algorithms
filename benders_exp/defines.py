@@ -43,6 +43,9 @@ BONMIN_SETTINGS = {}
 GUROBI_SETTINGS = {
     "gurobi.MIPGap": 0.05,
     "gurobi.NumericFocus": 1,
+    # "gurobi.PoolSearchMode": 2,  # Default 0
+    # "gurobi.PoolSolutions": 100,  # Default 10
+    # "gurobi.PoolObjBound" # Discard avoce this value
 }
 HIGHS_SETTINGS = {}
 MIP_SETTINGS_ALL = {

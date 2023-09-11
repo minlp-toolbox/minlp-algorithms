@@ -74,7 +74,7 @@ def extract():
         _ubx=nlp_args['ubx'],
         _lbg=nlp_args['lbg'],
         _ubg=nlp_args['ubg'],
-        p=nlp_args['p'], solved=True,
+        p=nlp_args['p'],
     )
 
     return problem, data
