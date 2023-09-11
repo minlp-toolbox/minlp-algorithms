@@ -178,12 +178,10 @@ class NLPSetupMPC(NLPSetupBaseClass):
     def _setup_nlp_functions(self, use_big_m_constraints):
 
         f = ca.Function("f", [self.x, self.c, self.u, self.b], [self.f])
-
         C = np.zeros((self.d + 1, self.d + 1))
         D = np.zeros(self.d + 1)
 
         for j in range(self.d + 1):
-
             p = np.poly1d([1])
             for r in range(self.d + 1):
                 if r != j:
@@ -249,7 +247,7 @@ class NLPSetupMPC(NLPSetupBaseClass):
         }
 
         self._integrator = ca.integrator(
-            "integrator", "cvodes", ode, {"t0": 0.0, "tf": 1.0}
+            "integrator", "cvodes", ode, 0.0, 1.0
         )
 
         eq_ms = (

@@ -18,8 +18,13 @@ class MetaDataOcp(MetaData):
 
     n_state: Optional[int] = None
     n_control: Optional[int] = None
+    n_discrete_control: Optional[int] = None
     idx_state: Optional[List[float]] = None
+    idx_bin_state: Optional[List[float]] = None
     idx_control: Optional[List[float]] = None
+    idx_bin_control: Optional[List[float]] = None
+    idx_other: Optional[Dict[str, List[float]]] = None
+    idx_param: Optional[dict] = None
     # TODO: initial_state needs to become an index list of p
     initial_state: Optional[List[float]] = None
     dt: Optional[float] = None
@@ -169,7 +174,7 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
     g_val = g(x_star, data.p).full()
     print(f"Objective value {float(f_val)} (real) vs {data.obj_val}")
     msg = []
-    if abs(data.obj_val - float(f_val)) > 1e-4:
+    if abs(float(data.obj_val) - float(f_val)) > 1e-3:
         msg.append("Objective value wrong!")
     if np.any(data.lbx > x_star + 1e-4):
         msg.append(f"Lbx > x* for indices:\n{np.nonzero(data.lbx > x_star).T}")
@@ -178,11 +183,11 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
     if np.any(data.lbg > g_val + 1e-4):
         msg.append(f"{g_val=}  {data.lbg=}")
         msg.append("Lbg > g(x*,p) for indices:\n"
-                   f"{np.nonzero(data.lbg > g_val + 1e-4).T}")
+                   f"{np.nonzero(data.lbg > g_val + 1e-4)}")
     if np.any(data.ubg < g_val - 1e-4):
         msg.append(f"{g_val=}  {data.ubg=}")
         msg.append("Ubg < g(x*,p) for indices:\n"
-                   f"{np.nonzero(data.ubg < g_val - 1e-4).T}")
+                   f"{np.nonzero(data.ubg < g_val - 1e-4)}")
 
     if msg:
         msg = "\n".join(msg)

@@ -4,7 +4,7 @@ from typing import Optional, Union, List, Tuple
 from benders_exp.defines import CASADI_VAR
 from casadi import vertcat, inf, hessian, Function, DM, reshape, jacobian
 from math import isinf
-from benders_exp.problems import MinlpProblem, MinlpData
+from benders_exp.problems import MinlpProblem, MinlpData, MetaDataOcp
 import numpy as np
 
 
@@ -16,10 +16,12 @@ def extract(sol, lst):
 def make_list(value, nr=1):
     """Make list."""
     if isinstance(value, np.ndarray):
-        return reshape(value, (nr, 1))
+        return list(np.reshape(value, (nr,)))
     elif not isinstance(value, list):
         return [value] * nr
-    else:
+    elif isinstance(value, list):
+        if len(value) != nr:
+            raise Exception("Value error!")
         return value
 
 
@@ -148,9 +150,6 @@ class Description:
         p = CASADI_VAR.sym("%s[%d]" % (name, len(idx_list)), nr)
         values = make_list(values, nr)
 
-        if len(values) != nr:
-            raise Exception("Values error!")
-
         # Create & Collect
         new_idx = [i + len(self.p0) for i in range(nr)]
         self.p += [p]
@@ -217,10 +216,10 @@ class Description:
         dr = jacobian(r, x)
         return dr.T @ dr
 
-    def get_problem(self) -> MinlpProblem:
+    def get_problem(self, with_gn=True) -> MinlpProblem:
         """Extract problem."""
         idx_x_bin = [i for i, v in enumerate(self.discrete) if v == 1]
-        if self.r:
+        if self.r and with_gn:
             gn_hessian = self.get_gauss_newton_hessian()
         else:
             gn_hessian = None

@@ -1,14 +1,16 @@
 """Quick and dirty implementation."""
 
+from datetime import datetime
 import matplotlib.pyplot as plt
 from sys import argv
-
+from os import path
 from typing import Callable, Tuple, Union
 import casadi as ca
 import numpy as np
 from benders_exp.utils import plot_trajectory, tic, to_0d, toc, \
         make_bounded, setup_logger, logging
-from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT
+from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, OUT_DIR, \
+        WITH_LOG_DATA
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
 from benders_exp.solvers import Stats
@@ -105,6 +107,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
                 for x in x_best:
                     if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS):
                         return True
+                return False
             else:
                 return np.allclose(x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS)
 
@@ -321,6 +324,8 @@ def benders_tr_master(
                 ub, data.obj_val, last_benders, lb, to_0d(data.x_sol))
             ))
             stats['iter_nr'] += 1
+            if WITH_LOG_DATA:
+                stats.save(x_star)
 
             feasible = data.solved
             termination_met = termination_condition(lb, ub, tolerance, data.best_solutions, x_hat)
@@ -393,13 +398,15 @@ if __name__ == "__main__":
     else:
         problem_name = "dummy"
 
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     tic()
-    stats = Stats({})
+    stats = Stats(mode, problem_name, timestamp, {})
     toc()
 
     problem, data, x_star = run_problem(mode, problem_name, stats, argv[3:])
     stats.print()
-    stats.save(stats['iterate_data'], mode, problem_name)
+    if WITH_LOG_DATA:
+        stats.save(x_star)
 
     print(f"Objective value: {data.obj_val}")
 

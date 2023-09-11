@@ -8,7 +8,7 @@ import numpy as np
 import casadi as ca
 
 from benders_exp.solarsys.nlpsetup import NLPSetupMPC
-from benders_exp.solarsys.defines import _PATH_TO_NLP_OBJECT, NLP_OPTIONS_GENERAL, \
+from benders_exp.solarsys.defines import _PATH_TO_NLP_OBJECT, NLP_OPTIONS_ADDITIONAL, NLP_OPTIONS_GENERAL, \
         _NLP_OBJECT_FILENAME
 
 from abc import ABCMeta, abstractmethod
@@ -199,7 +199,7 @@ class NLPSolverMPCBaseClass(NLPSetupMPC, metaclass=ABCMeta):
         self._setup_additional_nlpsolver_options()
         self._setup_collocation_options()
 
-        logger.debug("NLP solver {solver_name} initialized.")
+        logger.debug(f"NLP solver {self._solver_name} initialized.")
 
     def set_solver_max_cpu_time(self, time_point_to_finish):
 
@@ -656,15 +656,7 @@ class NLPSolverBin(NLPSolverMPCBaseClass):
 
     def _setup_additional_nlpsolver_options(self):
 
-        self._nlpsolver_options["ipopt.acceptable_tol"] = 0.2
-        self._nlpsolver_options["ipopt.acceptable_iter"] = 8
-        self._nlpsolver_options["ipopt.acceptable_constr_viol_tol"] = 10.0
-        self._nlpsolver_options["ipopt.acceptable_dual_inf_tol"] = 10.0
-        self._nlpsolver_options["ipopt.acceptable_compl_inf_tol"] = 10.0
-        self._nlpsolver_options["ipopt.acceptable_obj_change_tol"] = 1e-1
-
-        self._nlpsolver_options["ipopt.mu_strategy"] = "adaptive"
-        self._nlpsolver_options["ipopt.mu_target"] = 1e-5
+        self._nlpsolver_options.update(NLP_OPTIONS_ADDITIONAL)
 
     def _set_binary_control_bounds(self):
 
@@ -703,15 +695,8 @@ class NLPSolverRel(NLPSolverMPCBaseClass):
 
     def _setup_additional_nlpsolver_options(self):
 
-        self._nlpsolver_options["ipopt.acceptable_tol"] = 0.2
-        self._nlpsolver_options["ipopt.acceptable_iter"] = 8
-        self._nlpsolver_options["ipopt.acceptable_constr_viol_tol"] = 10.0
-        self._nlpsolver_options["ipopt.acceptable_dual_inf_tol"] = 10.0
-        self._nlpsolver_options["ipopt.acceptable_compl_inf_tol"] = 10.0
-        self._nlpsolver_options["ipopt.acceptable_obj_change_tol"] = 1e-1
+        self._nlpsolver_options.update(NLP_OPTIONS_ADDITIONAL)
 
-        self._nlpsolver_options["ipopt.mu_strategy"] = "adaptive"
-        self._nlpsolver_options["ipopt.mu_target"] = 1e-5
 
     def _set_binary_control_bounds(self):
 

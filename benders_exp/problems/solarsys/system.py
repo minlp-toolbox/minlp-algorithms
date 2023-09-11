@@ -1,31 +1,42 @@
-# Adrian Buerger, 2022
+"""
+Solar Thermal Climate System (STCS) at Karsruhe University of Applied Sciences.
 
-import os
+# Adrian Buerger, 2022
+# Adapted by Wim Van Roy, 2023
+"""
+
 import numpy as np
 import casadi as ca
-import subprocess
 
+from benders_exp.problems import CASADI_VAR
+from benders_exp.cache_utils import CachedFunction
 from collections import OrderedDict
-from benders_exp.solarsys.defines import _PATH_TO_ODE_FILE
-
 import logging
 
 logger = logging.getLogger(__name__)
 
 
-class System(object):
+class System:
+    """System dynamics."""
 
-    _ODE_FILENAME = "ode.casadi"
-
-    _CXX_COMPILERS = ["clang", "gcc"]
-    _CXX_FLAGS = ["-fPIC", "-v", "-shared", "-fno-omit-frame-pointer"]
-    _CXX_FLAG_NO_OPT = ["-O0"]
-    _CXX_FLAG_OPT = ["-O1"]
+    @staticmethod
+    def get_default_initial_state():
+        """Get default initial states."""
+        return {
+            'T_hts': [70.0, 65.0, 63.0, 60.0],
+            'T_lts': 14.0,
+            'T_fpsc': 20.0,
+            'T_fpsc_s': 20.0,
+            'T_vtsc': 22.0,
+            'T_vtsc_s': 22.0,
+            'T_pscf': 18.0,
+            'T_pscr': 20.0,
+            'T_shx_psc': [11.0, 11.0, 11.0, 11.0],
+            'T_shx_ssc': [32.0, 32.0, 32.0, 32.0],
+            }
 
     def _setup_system_dimensions(self):
-
         self.nx = 19
-        self.nx_aux = 0
         self.nb = 3
         self.nu = 6
         self.nc = 6
@@ -34,9 +45,7 @@ class System(object):
         self.n_s_ac_ub = 2
 
     def _setup_system_components(self):
-
         # Model parameters
-
         self.p = {
             # Media
             "rho_w": 1.0e3,
@@ -208,23 +217,27 @@ class System(object):
         }
 
     def __init__(self):
-
+        """Create system."""
+        logger.debug("Creating system")
         self._setup_system_dimensions()
         self._setup_system_components()
         self._setup_operation_specifications_and_limits()
         self._setup_simulation_control_parameters()
+        logger.debug("Creating system variables")
+        self._setup_model_variables()
+        logger.debug("System initialized")
 
     def _setup_model_variables(self):
+        """Set up variables."""
+        self.x = CASADI_VAR.sym("x", self.nx)
+        self.b = CASADI_VAR.sym("b", self.nb)
+        self.u = CASADI_VAR.sym("u", self.nu)
+        self.c = CASADI_VAR.sym("c", self.nc)
 
-        self.x = ca.MX.sym("x", self.nx)
-        self.b = ca.MX.sym("b", self.nb)
-        self.u = ca.MX.sym("u", self.nu)
-        self.c = ca.MX.sym("c", self.nc)
-
-    def _setup_model(self):
-
+    def get_f_fcn(self):
+        """Create solar thermal climate system model."""
+        logger.debug("Creating system model")
         # States
-
         T_hts = self.x[self.x_index["T_hts"]]
         T_lts = self.x[self.x_index["T_lts"]]
 
@@ -240,13 +253,11 @@ class System(object):
         T_shx_ssc = self.x[self.x_index["T_shx_ssc"]]
 
         # Discrete controls
-
         b_ac = self.b[self.b_index["b_ac"]]
         b_fc = self.b[self.b_index["b_fc"]]
         b_hp = self.b[self.b_index["b_hp"]]
 
         # Continuous controls
-
         v_ppsc = self.u[self.u_index["v_ppsc"]]
         p_mpsc = self.u[self.u_index["p_mpsc"]]
         v_pssc = self.u[self.u_index["v_pssc"]]
@@ -255,7 +266,6 @@ class System(object):
         mdot_i_hts_b = self.u[self.u_index["mdot_i_hts_b"]]
 
         # Time-varying parameters
-
         T_amb = self.c[self.c_index["T_amb"]]
         I_vtsc = self.c[self.c_index["I_vtsc"]]
         I_fpsc = self.c[self.c_index["I_fpsc"]]
@@ -373,13 +383,16 @@ class System(object):
                     for T_mts_m in T_mts:
 
                         T_lts_s = max(
-                            self.p["T_ac_lt_min"], min(self.p["T_ac_lt_max"], T_lts_k)
+                            self.p["T_ac_lt_min"], min(
+                                self.p["T_ac_lt_max"], T_lts_k)
                         )
                         T_hts_s = max(
-                            self.p["T_ac_ht_min"], min(self.p["T_ac_ht_max"], T_hts_l)
+                            self.p["T_ac_ht_min"], min(
+                                self.p["T_ac_ht_max"], T_hts_l)
                         )
                         T_mts_s = max(
-                            self.p["T_ac_mt_min"], min(self.p["T_ac_mt_max"], T_mts_m)
+                            self.p["T_ac_mt_min"], min(
+                                self.p["T_ac_mt_max"], T_mts_m)
                         )
 
                         if (
@@ -390,7 +403,8 @@ class System(object):
                             data.append(lb)
                         else:
                             data.append(
-                                data_fcn(T_lts=T_lts_s, T_hts=T_hts_s, T_mts=T_mts_s)
+                                data_fcn(T_lts=T_lts_s,
+                                         T_hts=T_hts_s, T_mts=T_mts_s)
                             )
 
             data = np.asarray(data)
@@ -407,14 +421,16 @@ class System(object):
         )
 
         Qdot_ac_lt = (
-            iota_qdot(ca.veccat(T_amb + self.p["dT_rc"], T_hts[0], T_lts)) * 1e3
+            iota_qdot(
+                ca.veccat(T_amb + self.p["dT_rc"], T_hts[0], T_lts)) * 1e3
         )
         # Better would be to limit COP_ac!
         COP_ac = iota_cop(ca.veccat(T_amb + self.p["dT_rc"], T_hts[0], T_lts))
 
         # TODO: Possible error
         T_ac_ht = T_hts[0] - (
-            (Qdot_ac_lt) / ca.fmax(COP_ac, 1e-6) / (self.p["mdot_ac_ht"] * self.p["c_w"])
+            (Qdot_ac_lt) / ca.fmax(COP_ac, 1e-6) /
+            (self.p["mdot_ac_ht"] * self.p["c_w"])
         )
         T_ac_lt = T_lts - (Qdot_ac_lt / (self.p["mdot_ac_lt"] * self.p["c_w"]))
 
@@ -453,7 +469,8 @@ class System(object):
                     mdot_hts_t_s * ((T_hts[0] + T_hts[1]) / 2.0)
                     + mdot_hts_t_sbar * ((T_hts[0] - T_hts[1]) / 2.0)
                 )
-                - (self.p["lambda_hts"][0] / self.p["c_w"] * (T_hts[0] - T_amb))
+                - (self.p["lambda_hts"][0] /
+                   self.p["c_w"] * (T_hts[0] - T_amb))
             )
         )
 
@@ -470,7 +487,8 @@ class System(object):
                     mdot_hts_b_s * ((T_hts[2] + T_hts[1]) / 2.0)
                     + mdot_hts_b_sbar * ((T_hts[2] - T_hts[1]) / 2.0)
                 )
-                - (self.p["lambda_hts"][3] / self.p["c_w"] * (T_hts[1] - T_amb))
+                - (self.p["lambda_hts"][3] /
+                   self.p["c_w"] * (T_hts[1] - T_amb))
             )
         )
 
@@ -481,7 +499,8 @@ class System(object):
                 * (((T_hts[-1] + T_hts[-2]) / 2.0) - ((T_hts[-2] + T_hts[-3]) / 2.0))
                 + mdot_hts_b_sbar
                 * (((T_hts[-1] - T_hts[-2]) / 2.0) - ((T_hts[-2] - T_hts[-3]) / 2.0))
-                - (self.p["lambda_hts"][-2] / self.p["c_w"] * (T_hts[-2] - T_amb))
+                - (self.p["lambda_hts"][-2] /
+                   self.p["c_w"] * (T_hts[-2] - T_amb))
             )
         )
 
@@ -494,7 +513,8 @@ class System(object):
                     mdot_hts_b_s * ((T_hts[-1] + T_hts[-2]) / 2.0)
                     + mdot_hts_b_sbar * ((T_hts[-1] - T_hts[-2]) / 2.0)
                 )
-                - (self.p["lambda_hts"][-1] / self.p["c_w"] * (T_hts[-1] - T_amb))
+                - (self.p["lambda_hts"][-1] /
+                   self.p["c_w"] * (T_hts[-1] - T_amb))
             )
         )
 
@@ -602,13 +622,15 @@ class System(object):
         )
 
         iota_mdot_fpsc = ca.interpolant(
-            "iota_mdot_fpsc", "bspline", [data_v_ppsc, data_p_mpsc], data_mdot_fpsc
+            "iota_mdot_fpsc", "bspline", [
+                data_v_ppsc, data_p_mpsc], data_mdot_fpsc
         )
 
         mdot_fpsc = iota_mdot_fpsc(ca.veccat(v_ppsc, p_mpsc))
 
         Qdot_fpsc = self.p["eta_fpsc"] * self.p["A_fpsc"] * I_fpsc
-        Qdot_fpsc_amb = self.p["alpha_fpsc"] * self.p["A_fpsc"] * (T_fpsc - T_amb)
+        Qdot_fpsc_amb = self.p["alpha_fpsc"] * \
+            self.p["A_fpsc"] * (T_fpsc - T_amb)
 
         f.append(
             (1.0 / self.p["C_fpsc"])
@@ -712,13 +734,15 @@ class System(object):
         )
 
         iota_mdot_vtsc = ca.interpolant(
-            "iota_mdot_vtsc", "bspline", [data_v_ppsc, data_p_mpsc], data_mdot_vtsc
+            "iota_mdot_vtsc", "bspline", [
+                data_v_ppsc, data_p_mpsc], data_mdot_vtsc
         )
 
         mdot_vtsc = iota_mdot_vtsc(ca.veccat(v_ppsc, p_mpsc))
 
         Qdot_vtsc = self.p["eta_vtsc"] * self.p["A_vtsc"] * I_vtsc
-        Qdot_vtsc_amb = self.p["alpha_vtsc"] * self.p["A_vtsc"] * (T_vtsc - T_amb)
+        Qdot_vtsc_amb = self.p["alpha_vtsc"] * \
+            self.p["A_vtsc"] * (T_vtsc - T_amb)
 
         f.append(
             (1.0 / self.p["C_vtsc"])
@@ -743,7 +767,8 @@ class System(object):
             1.0
             / self.p["C_psc"]
             * (
-                (mdot_fpsc + mdot_vtsc) * self.p["c_sl"] * (T_shx_psc[-1] - T_pscf)
+                (mdot_fpsc + mdot_vtsc) *
+                self.p["c_sl"] * (T_shx_psc[-1] - T_pscf)
                 - self.p["lambda_psc"] * (T_pscf - T_amb)
             )
         )
@@ -769,8 +794,10 @@ class System(object):
         f.append(
             (1.0 / (m_shx_psc * self.p["c_sl"]))
             * (
-                (mdot_fpsc + mdot_vtsc) * self.p["c_sl"] * (T_pscr - T_shx_psc[0])
-                - (A_shx_k * self.p["alpha_shx"] * (T_shx_psc[0] - T_shx_ssc[-1]))
+                (mdot_fpsc + mdot_vtsc) *
+                self.p["c_sl"] * (T_pscr - T_shx_psc[0])
+                - (A_shx_k * self.p["alpha_shx"] *
+                   (T_shx_psc[0] - T_shx_ssc[-1]))
             )
         )
 
@@ -793,9 +820,11 @@ class System(object):
         f.append(
             (1.0 / (m_shx_ssc * self.p["c_w"]))
             * (
-                (mdot_ssc - mdot_o_hts_b) * self.p["c_w"] * (T_hts[1] - T_shx_ssc[0])
+                (mdot_ssc - mdot_o_hts_b) *
+                self.p["c_w"] * (T_hts[1] - T_shx_ssc[0])
                 + mdot_o_hts_b * self.p["c_w"] * (T_hts[-1] - T_shx_ssc[0])
-                + (A_shx_k * self.p["alpha_shx"] * (T_shx_psc[-1] - T_shx_ssc[0]))
+                + (A_shx_k * self.p["alpha_shx"] *
+                   (T_shx_psc[-1] - T_shx_ssc[0]))
             )
         )
 
@@ -804,7 +833,8 @@ class System(object):
             f.append(
                 (1.0 / (m_shx_ssc * self.p["c_w"]))
                 * (
-                    mdot_ssc * self.p["c_w"] * (T_shx_ssc[k - 1] - T_shx_ssc[k])
+                    mdot_ssc * self.p["c_w"] *
+                    (T_shx_ssc[k - 1] - T_shx_ssc[k])
                     + (
                         A_shx_k
                         * self.p["alpha_shx"]
@@ -813,74 +843,267 @@ class System(object):
                 )
             )
 
-        self.f = ca.veccat(*f)
-
-    def _remove_unserializable_attributes(self):
-
-        for attrib in ["x", "u", "b", "c", "f"]:
-
-            try:
-                delattr(self, attrib)
-            except AttributeError:
-                print("No attribute ", attrib, ", therefore not deleted")
-
-    def _setup_directory(self):
-
-        if not os.path.exists(_PATH_TO_ODE_FILE):
-            os.mkdir(_PATH_TO_ODE_FILE)
-
-    def _save_ode_to_file(self):
-
-        f = ca.Function("f", [self.x, ca.veccat(self.c, self.u, self.b)], [self.f])
-        f.save(self._ODE_FILENAME)
-
-        os.rename(
-            self._ODE_FILENAME,
-            os.path.join(_PATH_TO_ODE_FILE, self._ODE_FILENAME),
+        return ca.Function(
+            "f", [self.x, self.c, self.u, self.b], [ca.veccat(*f)]
         )
 
-    def generate_ode_file(self):
-
-        logger.info("Generating ODE file ...")
-
-        self._setup_model_variables()
-        self._setup_model()
-        self._setup_directory()
-        self._save_ode_to_file()
-
-        logger.info("Finished generating ODE file.")
-
-    def _load_ode_from_file(self):
-
-        path_to_ode_object = os.path.join(
-            _PATH_TO_ODE_FILE, self._ODE_FILENAME
-        )
-
-        f = ca.Function.load(path_to_ode_object)
-
-        self.f = f(self.x, ca.veccat(self.c, self.u, self.b))
-
-    def load_ode_object(self):
-
-        self._setup_model_variables()
-        self._load_ode_from_file()
-
-    def _setup_simulator(self):
-
+    def get_integrator(self):
+        """Set up simulator."""
         dt = ca.MX.sym("dt")
+        f = CachedFunction("stcs_f", self.get_f_fcn)
 
         ode = {
             "x": self.x,
             "p": ca.veccat(dt, self.c, self.u, self.b),
-            "ode": dt * self.f,
+            "ode": dt * f(self.x, self.c, self.u, self.b),
         }
-
-        self._integrator = ca.integrator(
+        return ca.integrator(
             "integrator", "cvodes", ode, 0.0, 1.0
+        )
+
+    def get_t_ac_min_function(self, use_big_m_constraints=False):
+        """
+        Create a function to represent the minimum uptime.
+
+        Function has as argument x, c, b, slack_variables
+        The output is the T_ac_min constraint (>0).
+        """
+        # ACM operation condition equations
+        s_ac_lb = ca.MX.sym("s_ac_lb", self.n_s_ac_lb)
+        if use_big_m_constraints:
+            T_ac_min = ca.veccat(
+                self.x[self.x_index["T_lts"]]
+                - self.p_op["T"]["min"]
+                - self.b[self.b_index["b_ac"]]
+                * (self.p["T_ac_lt_min"] - self.p_op["T"]["min"])
+                + s_ac_lb[0],
+                self.x[self.x_index["T_hts"][0]]
+                - self.p_op["T"]["min"]
+                - self.b[self.b_index["b_ac"]]
+                * (self.p["T_ac_ht_min"] - self.p_op["T"]["min"])
+                + s_ac_lb[1],
+            )
+        else:
+            T_ac_min = self.b[self.b_index["b_ac"]] * ca.veccat(
+                self.x[self.x_index["T_lts"]] -
+                self.p["T_ac_lt_min"] + s_ac_lb[0],
+                self.x[self.x_index["T_hts"][0]] -
+                self.p["T_ac_ht_min"] + s_ac_lb[1],
+            )
+
+        return ca.Function(
+            "T_ac_min_fcn", [self.x, self.c, self.b, s_ac_lb], [T_ac_min]
+        )
+
+    def get_t_ac_max_function(self, use_big_m_constraints=False):
+        """
+        Create a function to represent the maximum uptime.
+
+        Function has as argument x, c, b, slack_variables
+        The output is the T_ac_min constraint (>0).
+        """
+        s_ac_ub = ca.MX.sym("s_ac_ub", self.n_s_ac_ub)
+        if use_big_m_constraints:
+            T_ac_max = ca.veccat(
+                self.x[self.x_index["T_lts"]]
+                - self.p_op["T"]["max"]
+                - self.b[self.b_index["b_ac"]]
+                * (self.p["T_ac_lt_max"] - self.p_op["T"]["max"])
+                - s_ac_ub[0],
+                self.x[self.x_index["T_hts"][0]]
+                - self.p_op["T"]["max"]
+                - self.b[self.b_index["b_ac"]]
+                * (self.p["T_ac_ht_min"] - self.p_op["T"]["max"])
+                - s_ac_ub[1],
+            )
+        else:
+            T_ac_max = self.b[self.b_index["b_ac"]] * ca.veccat(
+                self.x[self.x_index["T_lts"]] -
+                self.p["T_ac_lt_max"] - s_ac_ub[0],
+                self.x[self.x_index["T_hts"][0]] -
+                self.p["T_ac_ht_max"] - s_ac_ub[1],
+            )
+
+        return ca.Function(
+            "T_ac_max_fcn", [self.x, self.c, self.b, s_ac_ub], [T_ac_max]
+        )
+
+    def get_slacked_state_fcn(self):
+        s_x = ca.MX.sym("s_x", self.nx)
+        return ca.Function("s_x_fcn", [self.x, s_x], [self.x + s_x])
+
+    def get_v_ppsc_so_fpsc_fcn(self):
+        """Get v_ppsc so function."""
+        # Assure ppsc is running at high speed when collector temperature is high
+        s_ppsc = ca.MX.sym("s_ppsc")
+        return ca.Function(
+            "v_ppsc_so_fpsc_fcn",
+            [self.x, s_ppsc],
+            [
+                (self.x[self.x_index["T_fpsc"]] - self.p_op["T_sc"]["T_sc_so"])
+                * (self.p_op["T_sc"]["v_ppsc_so"] - s_ppsc)
+            ],
+        )
+
+    def get_v_ppsc_so_vtsc_fcn(self):
+        """V ppsc."""
+        s_ppsc = ca.MX.sym("s_ppsc")
+        return ca.Function(
+            "v_ppsc_so_vtsc_fcn",
+            [self.x, s_ppsc],
+            [
+                (self.x[self.x_index["T_vtsc"]] - self.p_op["T_sc"]["T_sc_so"])
+                * (self.p_op["T_sc"]["v_ppsc_so"] - s_ppsc)
+            ],
+        )
+
+    def get_v_ppsc_so_fcn(self):
+        """Get v ppsc so function."""
+        s_ppsc = ca.MX.sym("s_ppsc")
+        return ca.Function(
+            "v_ppsc_so_fcn", [self.u, s_ppsc], [
+                s_ppsc - self.u[self.u_index["v_ppsc"]]]
+        )
+
+    def get_mdot_hts_b_max_fcn(self):
+        """Get mdot hts b max function."""
+        # Assure HTS bottom layer mass flows are always smaller or equal to
+        # the corresponding total pump flow
+
+        mdot_hts_b_max = ca.veccat(
+            self.u[self.u_index["mdot_o_hts_b"]]
+            - self.p["mdot_ssc_max"] * self.u[self.u_index["v_pssc"]],
+            self.u[self.u_index["mdot_i_hts_b"]]
+            - self.b[self.b_index["b_ac"]] * self.p["mdot_ac_ht"],
+        )
+
+        return ca.Function(
+            "mdot_hts_b_max_fcn", [self.u, self.b], [mdot_hts_b_max]
+        )
+
+    def get_electric_power_balance_fcn(self):
+        """Get electric power balance fcn."""
+        P_hp = (
+            0.006381135707410529 * self.x[self.x_index["T_lts"]]
+            + 0.06791020408163258 *
+            (self.c[self.c_index["T_amb"]] + self.p["dT_rc"])
+            + 1.7165550470428876
+        ) * 1e3  # + 8e2
+
+        electricity_consumption = (
+            self.p_op["acm"]["Pmax"][0] * self.b[self.b_index["b_ac"]]
+            + self.p_op["acm"]["Pmax"][1] * self.b[self.b_index["b_fc"]]
+            + P_hp * self.b[self.b_index["b_hp"]]
+            + self.p_op["v_ppsc"]["Pmax"] * self.u[self.u_index["v_ppsc"]]
+            + self.p_op["v_pssc"]["Pmax"] * self.u[self.u_index["v_pssc"]]
+        )
+
+        electric_power_balance = (
+            -electricity_consumption
+            + self.p["P_pv_p"] * self.c[self.c_index["P_pv_kWp"]]
+            + self.p_op["grid"]["P_g_max"] * self.u[self.u_index["P_g"]]
+        )
+
+        return ca.Function(
+            "electric_power_balance_fcn",
+            [self.x, self.u, self.b, self.c],
+            [electric_power_balance],
+        )
+
+    def get_F1_fcn(self):
+        """Get F1."""
+        s_ac_lb = ca.MX.sym("s_ac_lb", self.n_s_ac_lb)
+        s_ac_ub = ca.MX.sym("s_ac_ub", self.n_s_ac_ub)
+        s_x = ca.MX.sym("s_x", self.nx)
+        u_prev = ca.MX.sym("u_prev", self.nu)
+
+        F1 = ca.veccat(
+            5e0 * s_ac_lb,
+            5e0 * s_ac_ub,
+            1e1 * s_x,
+            1e2 * s_x[self.x_index["T_lts"]],
+            self.p_op["dp_mpsc"]["Pmax"]
+            * (u_prev[self.u_index["p_mpsc"]] -
+               self.u[self.u_index["p_mpsc"]]),
+            self.p_op["dp_mssc"]["Pmax"]
+            * (
+                u_prev[self.u_index["mdot_o_hts_b"]]
+                - self.u[self.u_index["mdot_o_hts_b"]]
+            ),
+            self.p_op["dp_macm"]["Pmax"]
+            * (
+                u_prev[self.u_index["mdot_i_hts_b"]]
+                - self.u[self.u_index["mdot_i_hts_b"]]
+            ),
+        )
+
+        return ca.Function(
+            "F1_fcn", [s_ac_lb, s_ac_ub, s_x, self.u, u_prev], [F1]
+        )
+
+    def get_F2_fcn(self):
+        """Get F2."""
+        F2 = (
+            self.c[self.c_index["p_g"]]
+            * self.p_op["grid"]["P_g_max"]
+            * self.u[self.u_index["P_g"]]
+        )
+
+        return ca.Function("F2_fcn", [self.u, self.c], [F2])
+
+    def get_system_dynamics_collocation(system, d=2):
+        """Create collocation."""
+        tau_root = [0] + ca.collocation_points(d, "radau")
+
+        f = CachedFunction("stcs_f", system.get_f_fcn)
+        C = np.zeros((d + 1, d + 1))
+        D = np.zeros(d + 1)
+
+        for j in range(d + 1):
+            p = np.poly1d([1])
+            for r in range(d + 1):
+                if r != j:
+                    p *= np.poly1d([1, -tau_root[r]]) / (
+                        tau_root[j] - tau_root[r]
+                    )
+
+            D[j] = p(1.0)
+            pder = np.polyder(p)
+            for r in range(d + 1):
+                C[j, r] = pder(tau_root[r])
+
+        # Collocation equations
+        x_k_c = [ca.MX.sym("x_k_c_" + str(j), system.nx) for j in range(d + 1)]
+        x_k_next_c = ca.MX.sym("x_k_next_c", system.nx)
+        c_k_c = ca.MX.sym("c_k_c", system.nc)
+        u_k_c = ca.MX.sym("u_k_c", system.nu)
+        b_k_c = ca.MX.sym("b_k_c", system.nb)
+        dt_k_c = ca.MX.sym("dt_k_c")
+
+        eq_c = []
+        for j in range(1, d + 1):
+            x_p_c = 0
+            for r in range(d + 1):
+                x_p_c += C[r, j] * x_k_c[r]
+            f_k_c = f(x_k_c[j], c_k_c, u_k_c, b_k_c)
+            eq_c.append(dt_k_c * f_k_c - x_p_c)
+
+        eq_c = ca.veccat(*eq_c)
+        xf_c = 0
+
+        for r in range(d + 1):
+            xf_c += D[r] * x_k_c[r]
+            eq_d = xf_c - x_k_next_c
+
+        return ca.Function(
+            "F",
+            x_k_c + [x_k_next_c, c_k_c, u_k_c, b_k_c, dt_k_c],
+            [eq_c, eq_d],
+            ["x_k_" + str(j) for j in range(d + 1)]
+            + ["x_k_next", "c_k", "u_k", "b_k", "dt_k"],
+            ["eq_c", "eq_d"],
         )
 
 
 if __name__ == "__main__":
-
     system = System()
-    system.generate_ode_file()

@@ -18,6 +18,9 @@ logger = logging.getLogger(__name__)
 class Stats:
     """Collect stats."""
 
+    mode: str
+    problem_name: str
+    datetime: str
     data: Dict[str, float]
 
     def __getitem__(self, key):
@@ -47,10 +50,10 @@ class Stats:
                 "lb": lb,
                 "x_sol": x_sol}
 
-    @staticmethod
-    def save(obj, method_name, problem_name):
-        with open(os.path.join(_DATA_FOLDER, f'{method_name}_{problem_name}.pkl'), 'wb') as handle:
-            pickle.dump(obj, handle)
+    def save(self, x_star):
+        with open(os.path.join(_DATA_FOLDER, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl'), 'wb') as handle:
+            pickle.dump(self.data, handle)
+
 
 class SolverClass(ABC):
     """Create solver class."""
@@ -138,12 +141,20 @@ def extract_bounds(problem: MinlpProblem, data: MinlpData,
         try:
             if idx_x is None:
                 _x = problem.x
+                g = ca.Function("g_lin", [_x, problem.p], [problem.g[idx_g]])(new_x, data.p)
             else:
-                _x = problem.x[idx_x]
+                vec = []
+                j=0
+                for i in range(problem.x.shape[0]):
+                    if i in idx_x:
+                        vec.append(new_x[j])
+                        j += 1
+                    else:
+                        vec.append(0)
+                vec = ca.vertcat(*vec)
+                vec_fn = ca.Function("v", [new_x], [vec])
+                g = ca.Function("g_lin", [problem.x, problem.p], [problem.g[idx_g]])(vec_fn(new_x), data.p)
 
-            g = ca.Function("g_lin", [_x, problem.p], [problem.g[idx_g]])(
-                new_x, data.p
-            )
             lbg = data.lbg[idx_g].flatten().tolist()
             ubg = data.ubg[idx_g].flatten().tolist()
         except Exception as e:

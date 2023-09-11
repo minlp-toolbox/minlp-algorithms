@@ -10,6 +10,7 @@ from benders_exp.solvers import Stats
 from benders_exp.solvers.nlp import NlpSolver
 from benders_exp.problems.utils import integrate_rk4  # integrate_ee
 from benders_exp.problems.double_tank import create_double_tank_problem2
+from benders_exp.problems.solarsys import create_stcs_problem
 from benders_exp.problems.gearbox import create_simple_gearbox, create_gearbox, \
     create_gearbox_int
 
@@ -300,6 +301,7 @@ PROBLEMS = {
     "doublepipe": create_double_pipe_problem,
     "doubletank": create_double_tank_problem,
     "doubletank2": create_double_tank_problem2,
+    "stcs": create_stcs_problem,
     "gearbox": create_simple_gearbox,
     "gearbox_int": create_gearbox_int,
     "gearbox_complx": create_gearbox,

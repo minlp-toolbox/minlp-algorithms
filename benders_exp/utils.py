@@ -19,6 +19,19 @@ for i, label in enumerate(ca.nlpsol_out()):
     CALLBACK_INPUTS[label] = i
 
 
+def convert_to_flat_list(nr, indices, data):
+    """Convert data to a flat list."""
+    out = np.zeros((nr,))
+    for key, indices in indices.items():
+        values = data[key]
+        if isinstance(indices, list):
+            for idx, val in zip(indices, values):
+                out[idx] = val
+        else:
+            out[indices] = values
+    return out
+
+
 def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
     """Make bounded."""
     lbx, ubx = data.lbx, data.ubx
@@ -134,6 +147,9 @@ def plot_trajectory(
         alpha = 0.7
     if isinstance(s_collection, np.ndarray):
         s_collection = [s_collection]
+    if isinstance(meta.scaling_coeff_control, type(None)):
+        meta.scaling_coeff_control = [1 for _ in range(a_collection[0].shape[0])]
+
     N = a_collection[0].shape[0]
     dt = meta.dt
     time_array = np.linspace(0, N * dt, N + 1)
