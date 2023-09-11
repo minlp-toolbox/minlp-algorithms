@@ -107,6 +107,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
                 for x in x_best:
                     if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS):
                         return True
+                return False
             else:
                 return np.allclose(x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS)
 

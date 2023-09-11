@@ -52,7 +52,7 @@ class Stats:
 
     def save(self, x_star):
         with open(os.path.join(_DATA_FOLDER, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl'), 'wb') as handle:
-            pickle.dump({"x_star": x_star} + self.data, handle)
+            pickle.dump(self.data, handle)
 
 
 class SolverClass(ABC):
