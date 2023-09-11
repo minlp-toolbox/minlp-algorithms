@@ -1,6 +1,6 @@
 """General problem structure."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable
 from benders_exp.defines import CASADI_VAR, ca
 from copy import deepcopy
@@ -63,17 +63,42 @@ class MinlpData:
     _ubx: ca.DM
     _lbg: ca.DM
     _ubg: ca.DM
-    solved: bool
-    prev_solution: Optional[Dict[str, Any]] = None
+    prev_solutions: Optional[List[Dict[str, Any]]] = None
+    solved_all: List[bool] = field(default_factory=lambda: [True])
     best_solutions: Optional[list] = None
+
+    @property
+    def nr_sols(self):
+        if self.prev_solutions:
+            return len(self.prev_solutions)
+
+    @property
+    def solved(self):
+        return self.solved_all[0]
+
+    @solved.setter
+    def solved(self, value):
+        self.solved_all = [value]
 
     @property
     def _sol(self):
         """Get safely previous solution."""
-        if self.prev_solution is not None:
-            return self.prev_solution
+        if self.prev_solutions is not None:
+            return self.prev_solutions[0]
         else:
             return {"f": -ca.inf, "x": ca.DM(self.x0)}
+
+    @property
+    def solutions_all(self):
+        if self.prev_solutions is not None:
+            return self.prev_solutions
+        else:
+            return [{"f": -ca.inf, "x": ca.DM(self.x0)}]
+
+    @property
+    def prev_solution(self):
+        """Previous solution."""
+        raise Exception("May not be used!")
 
     @property
     def obj_val(self):
@@ -94,6 +119,10 @@ class MinlpData:
     def lam_x_sol(self):
         """Get lambda g solution."""
         return self._sol['lam_x']
+
+    @prev_solution.setter
+    def prev_solution(self, value):
+        self.prev_solutions = [value]
 
     @property
     def lbx(self):

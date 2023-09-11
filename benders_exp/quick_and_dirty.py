@@ -46,18 +46,20 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
-        x_bar = data.x_sol
-        logger.info(f"\n{x_bar=}")
 
-        if not prev_feasible:
+        # Is there a feasible success?
+        if np.any(data.solved_all):
+            for i, success in enumerate(data.solved_all):
+                if success and float(data.prev_solutions[i]['f']) < ub:
+                    ub = float(data.prev_solutions[i]['f'])
+                    x_star = data.prev_solutions[i]['x']
+                    logger.info(f"\n{x_star=}")
+
+        # Is there any infeasible?
+        if not np.all(data.solved_all):
             # Solve NLPF(y^k)
             data = fnlp.solve(data)
-            x_bar = data.x_sol
             logger.debug("Infeasible")
-        elif data.obj_val < ub:
-            ub = data.obj_val
-            x_star = x_bar
-            logger.debug("Feasible")
 
         # Solve master^k and set lower bound:
         data = master_problem.solve(data, prev_feasible=prev_feasible)
@@ -285,31 +287,38 @@ def benders_tr_master(
             # Solve NLP(y^k)
             data = nlp.solve(data, set_x_bin=True)
             logger.info("SOLVED NLP")
-            prev_feasible = data.solved
-            x_bar = data.x_sol
-            if not prev_feasible:
+
+            if np.any(data.solved_all):
+                for i, success in enumerate(data.solved_all):
+                    obj_val = float(data.prev_solutions[i]['f'])
+                    if success:
+                        if obj_val + EPS < ub:
+                            ub = obj_val
+                            x_star = data.prev_solutions[i]['x']
+                            logger.info(f"\n{x_star=}")
+                            logger.debug(f"Decreased UB to {ub}")
+                            data.best_solutions.append(x_star)
+                        elif obj_val - EPS < ub:
+                            data.best_solutions.append(
+                                data.prev_solutions[i]['x']
+                            )
+
+            if not np.all(data.solved_all):
                 # Solve NLPF(y^k)
                 data = fnlp.solve(data)
-                x_bar = data.x_sol
                 logger.debug("SOLVED FEASIBILITY NLP")
-            elif data.obj_val + EPS < ub:
-                ub = data.obj_val
-                data.best_solutions = []
-                data.best_solutions.append(x_bar)
-                x_star = data.best_solutions[-1]
-                best_iter = stats['iter_nr']
-            elif np.allclose(data.obj_val, ub, atol=EPS):
-                data.best_solutions.append(x_bar)
-            nlp_obj = data.obj_val
+
+            logger.debug(f"Adding {data.nr_sols} solutions")
             # Solve master^k and set lower bound:
-            data, last_benders = master_problem.solve(data, prev_feasible=prev_feasible)
+            data, last_benders = master_problem.solve(data)
             if last_benders:
                 lb = data.obj_val
+
             x_hat = data.x_sol
             logger.debug(f"{data.obj_val=}, {ub=}, {lb=}")
             stats['iterate_data'].append((stats.create_iter_dict(
-                stats['iter_nr'], best_iter, prev_feasible,
-                ub, nlp_obj, last_benders, lb, to_0d(x_bar))
+                stats['iter_nr'], best_iter, data.solved,
+                ub, data.obj_val, last_benders, lb, to_0d(data.x_sol))
             ))
             stats['iter_nr'] += 1
 

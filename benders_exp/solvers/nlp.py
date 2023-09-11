@@ -2,7 +2,6 @@
 
 import casadi as ca
 import numpy as np
-from copy import deepcopy
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
         regularize_options
 from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR
@@ -43,24 +42,31 @@ class NlpSolver(SolverClass):
 
     def solve(self, nlpdata: MinlpData, set_x_bin=False) -> MinlpData:
         """Solve NLP."""
-        lbx = nlpdata.lbx
-        ubx = nlpdata.ubx
-        if set_x_bin:
-            x_bin_var = to_0d(nlpdata.x_sol[self.idx_x_bin])
-            lbx[self.idx_x_bin] = x_bin_var
-            ubx[self.idx_x_bin] = x_bin_var
+        success_out = []
+        sols_out = []
+        for sol in nlpdata.solutions_all:
+            lbx = nlpdata.lbx
+            ubx = nlpdata.ubx
+            if set_x_bin:
+                x_bin_var = to_0d(sol['x'][self.idx_x_bin])
+                lbx[self.idx_x_bin] = x_bin_var
+                ubx[self.idx_x_bin] = x_bin_var
 
-        new_sol = self.solver(
-            p=nlpdata.p, x0=nlpdata.x0,
-            lbx=lbx, ubx=ubx,
-            lbg=nlpdata.lbg, ubg=nlpdata.ubg
-        )
+            new_sol = self.solver(
+                p=nlpdata.p, x0=nlpdata.x0,
+                lbx=lbx, ubx=ubx,
+                lbg=nlpdata.lbg, ubg=nlpdata.ubg
+            )
 
-        nlpdata.solved, _ = self.collect_stats("NLP")
-        if not nlpdata.solved:
-            print("NLP not solved")
-        else:
-            nlpdata.prev_solution = new_sol
+            success, _ = self.collect_stats("NLP")
+            if not success:
+                print("NLP not solved")
+            success_out.append(success)
+            sols_out.append(new_sol)
+
+        nlpdata.prev_solutions = sols_out
+        nlpdata.solved_all = success_out
+
         return nlpdata
 
 
@@ -77,8 +83,12 @@ class FeasibilityNlpSolver(SolverClass):
         beta = CASADI_VAR.sym("beta")
         for i in range(problem.g.shape[0]):
             if data.lbg[i] == data.ubg[i]:
-                if abs(data.lbg[i]) == np.inf:  # when lbg == ubg we have an equality constraints, so we need to append it only once
-                    raise ValueError(f"lbg and ubg cannot be +-inf at the same time, at instant {i}, you have {data.lbg[i]=} and {data.ubg[i]=}")
+                # when lbg == ubg we have an equality constraints, so we need to append it only once
+                if abs(data.lbg[i]) == np.inf:
+                    raise ValueError(
+                        "lbg and ubg cannot be +-inf at the same time, "
+                        "at instant {i}, you have {data.lbg[i]=} and {data.ubg[i]=}"
+                    )
                 g.append(-problem.g[i] + data.lbg[i] - beta)
                 self.g_idx.append((i, 1))
             else:
@@ -107,34 +117,49 @@ class FeasibilityNlpSolver(SolverClass):
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """solve."""
         print("FEASIBILITY")
-        lbx = deepcopy(nlpdata.lbx)
-        ubx = deepcopy(nlpdata.ubx)
-        lbx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
-        ubx[self.idx_x_bin] = to_0d(nlpdata.x_sol[self.idx_x_bin])
-        lbx = ca.vcat([lbx, np.zeros(1)])  # add lower bound for the slacks
-        ubx = ca.vcat([ubx, np.inf * np.ones(1)])  # add upper bound for the slacks
+        success_out = []
+        sols_out = []
+        lbx = nlpdata.lbx
+        ubx = nlpdata.ubx
 
-        nlpdata.prev_solution = self.solver(
-            x0=ca.vcat(
-                [nlpdata.x_sol[:nlpdata.x0.shape[0]],
-                 np.zeros(1)]  # slacks initialization
-            ),
-            lbx=lbx,
-            ubx=ubx,
-            lbg=self.lbg,
-            ubg=self.ubg,
-            p=nlpdata.p
-        )
+        for success_prev, sol in zip(nlpdata.solved_all, nlpdata.solutions_all):
+            if success_prev:
+                success_out.append(success_prev)
+                sols_out.append(sol)
+            else:
+                lbx[self.idx_x_bin] = to_0d(sol['x'][self.idx_x_bin])
+                ubx[self.idx_x_bin] = to_0d(sol['x'][self.idx_x_bin])
+                lbx = ca.vcat([lbx, np.zeros(1)])  # add lower bound for the slacks
+                ubx = ca.vcat([ubx, np.inf * np.ones(1)])  # add upper bound for the slacks
 
-        # Reconstruct lambda_g:
-        lambda_g = to_0d(nlpdata.lam_g_sol)
-        lambda_g_req = np.zeros(nlpdata.lbg.shape[0])
-        for lg, (idx, sgn) in zip(lambda_g, self.g_idx):
-            lambda_g_req[idx] = sgn * lg
-        nlpdata.prev_solution['lam_g'] = ca.DM(lambda_g_req)
+                sol_new = self.solver(
+                    x0=ca.vcat(
+                        [nlpdata.x_sol[:nlpdata.x0.shape[0]],
+                         np.zeros(1)]  # slacks initialization
+                    ),
+                    lbx=lbx,
+                    ubx=ubx,
+                    lbg=self.lbg,
+                    ubg=self.ubg,
+                    p=nlpdata.p
+                )
 
-        nlpdata.solved, _ = self.collect_stats("F-NLP")
-        if not nlpdata.solved:
-            print("FNLP not solved")
-            raise Exception()
+                # Reconstruct lambda_g:
+                lambda_g = to_0d(nlpdata.lam_g_sol)
+                lambda_g_req = np.zeros(nlpdata.lbg.shape[0])
+                for lg, (idx, sgn) in zip(lambda_g, self.g_idx):
+                    lambda_g_req[idx] = sgn * lg
+                sol_new['lam_g'] = ca.DM(lambda_g_req)
+
+                success, _ = self.collect_stats("F-NLP")
+                if not success:
+                    print("FNLP not solved")
+                    raise Exception()
+
+                # Maintain that it is caused due to infeasibility!!!
+                success_out.append(False)
+                sols_out.append(sol_new)
+
+        nlpdata.prev_solutions = sols_out
+        nlpdata.solved_all = success_out
         return nlpdata

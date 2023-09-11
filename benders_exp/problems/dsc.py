@@ -230,7 +230,7 @@ class Description:
     def get_data(self) -> MinlpData:
         """Get data structure."""
         return MinlpData(p=self.p0, x0=DM(self.w0), _lbx=DM(self.lbw), _ubx=DM(self.ubw),
-                         _lbg=DM(self.lbg), _ubg=DM(self.ubg), solved=True)
+                         _lbg=DM(self.lbg), _ubg=DM(self.ubg))
 
     def get_indices(self, name: str):
         """
