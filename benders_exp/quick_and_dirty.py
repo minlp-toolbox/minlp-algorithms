@@ -1,5 +1,6 @@
 """Quick and dirty implementation."""
 
+from datetime import datetime
 import matplotlib.pyplot as plt
 from sys import argv
 from os import path
@@ -322,6 +323,8 @@ def benders_tr_master(
                 ub, data.obj_val, last_benders, lb, to_0d(data.x_sol))
             ))
             stats['iter_nr'] += 1
+            if WITH_LOG_DATA:
+                stats.save(x_star)
 
             feasible = data.solved
             termination_met = termination_condition(lb, ub, tolerance, data.best_solutions, x_hat)
@@ -394,19 +397,17 @@ if __name__ == "__main__":
     else:
         problem_name = "dummy"
 
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     tic()
-    stats = Stats({})
+    stats = Stats(mode, problem_name, timestamp, {})
     toc()
 
     problem, data, x_star = run_problem(mode, problem_name, stats, argv[3:])
     stats.print()
-    stats.save(stats['iterate_data'], mode, problem_name)
+    if WITH_LOG_DATA:
+        stats.save(x_star)
 
     print(f"Objective value: {data.obj_val}")
-    if WITH_LOG_DATA:
-        import pickle
-        with open(path.join(OUT_DIR, f"x_star__{mode}_{problem_name}.pickle"), "wb") as f:
-            pickle.dump(x_star, f)
 
     print(x_star)
     check_solution(problem, data, x_star)

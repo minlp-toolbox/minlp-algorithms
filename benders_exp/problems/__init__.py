@@ -1,7 +1,7 @@
 """General problem structure."""
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Optional, Callable, Union
+from typing import List, Dict, Any, Optional, Callable
 from benders_exp.defines import CASADI_VAR, ca
 from copy import deepcopy
 import numpy as np
@@ -20,7 +20,10 @@ class MetaDataOcp(MetaData):
     n_control: Optional[int] = None
     n_discrete_control: Optional[int] = None
     idx_state: Optional[List[float]] = None
+    idx_bin_state: Optional[List[float]] = None
     idx_control: Optional[List[float]] = None
+    idx_bin_control: Optional[List[float]] = None
+    idx_other: Optional[Dict[str, List[float]]] = None
     idx_param: Optional[dict] = None
     # TODO: initial_state needs to become an index list of p
     initial_state: Optional[List[float]] = None

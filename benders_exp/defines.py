@@ -22,8 +22,8 @@ EPS = 1e-5
 CASADI_VAR = ca.MX
 MIP_SOLVER = environ.get("MIP_SOLVER", "gurobi")
 WITH_DEBUG = environ.get("DEBUG", False)
-WITH_LOG_DATA = environ.get("LOG_DATA", False)
-IPOPT_SETTINGS = { # TODO: make ipopt setting change according to the problem called
+WITH_LOG_DATA = bool(environ.get("LOG_DATA", False))
+IPOPT_SETTINGS = {  # TODO: make ipopt setting change according to the problem called
     "ipopt.linear_solver": "ma57",
     "ipopt.mumps_mem_percent": 10000,
     "ipopt.mumps_pivtol": 0.001,
