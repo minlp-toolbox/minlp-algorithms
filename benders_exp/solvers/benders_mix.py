@@ -3,7 +3,7 @@ import numpy as np
 import casadi as ca
 from benders_exp.solvers import Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, get_idx_inverse, extract_bounds
-from benders_exp.defines import WITH_JIT, CASADI_VAR, EPS
+from benders_exp.defines import WITH_JIT, CASADI_VAR, EPS, MIP_SOLVER
 from benders_exp.solvers.benders import BendersMasterMILP
 from enum import Enum
 import logging

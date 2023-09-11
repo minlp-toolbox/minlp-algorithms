@@ -73,9 +73,12 @@ def toc(reset=False):
 def to_0d(array):
     """To zero dimensions."""
     if isinstance(array, np.ndarray):
-        return array.squeeze()
+        ret = array.squeeze()
     else:
-        return array.full().squeeze()
+        ret = array.full().squeeze()
+    if ret.size == 1:
+        ret = [ret.tolist()]
+    return ret
 
 
 def latexify(fig_width=None, fig_height=None):
