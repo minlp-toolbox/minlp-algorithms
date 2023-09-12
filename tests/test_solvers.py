@@ -21,7 +21,7 @@ options = [
 obj_val = {
     "dummy": 8.41,
     "doublepipe": 1,
-    "dummy2": 0,
+    "dummy2": -3,
     "doubletank": 18.6826,
     "sign_check": 9,
     "nonconvex": 0.0567471,

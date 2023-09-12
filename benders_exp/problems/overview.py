@@ -130,13 +130,13 @@ def create_dummy_problem(p_val=[1000, 3]):
 def create_dummy_problem_2():
     """Create a dummy problem."""
     x = CASADI_VAR.sym("x", 2)
-    x0 = np.array([0, 4])
+    x0 = np.array([2, 4])
     idx_x_bin = [0]
     p = CASADI_VAR.sym("p", 1)
     f = x[0]**2 + x[1]
     g = ca.vertcat(
-        x[1],
-        -(x[0]**2 + x[1] - p[0]**2)
+        x[1] + 3,
+        -x[0]**2 - x[1] / 4 + p[0]**2
     )
     ubg = np.array([np.inf, np.inf])
     lbg = np.array([0, 0])
@@ -145,7 +145,7 @@ def create_dummy_problem_2():
 
     problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
-                     _ubg=ubg, _lbg=lbg, p=[3])
+                     _ubg=ubg, _lbg=lbg, p=[100])
     return problem, data
 
 
