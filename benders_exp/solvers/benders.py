@@ -69,7 +69,7 @@ class BendersMasterMILP(SolverClass):
         self.nr_g_orig = problem.g.shape[0]
         self.nr_x_orig = problem.x.shape[0]
 
-    def _generate_cut_equation(self, x, x_sol, x_sol_sub_set, lam_g, lam_x, p, prev_feasible):
+    def _generate_cut_equation(self, x, x_sol, x_sol_sub_set, lam_g, lam_x, p, lbg, ubg, prev_feasible):
         r"""
         Generate a cut.
 
@@ -95,7 +95,7 @@ class BendersMasterMILP(SolverClass):
         :return: g_k the new cutting plane (should be > 0)
         """
         if prev_feasible:
-            lambda_k = -lam_x[self.idx_x_bin] # TODO: understand why need the minus!
+            lambda_k = -lam_x[self.idx_x_bin]  # TODO: understand why need the minus!
             f_k = self.f(x_sol, p)
             g_k = (
                 f_k + lambda_k.T @ (x - x_sol_sub_set)
@@ -104,7 +104,11 @@ class BendersMasterMILP(SolverClass):
         else:  # Not feasible solution
             h_k = self.g(x_sol, p)
             jac_h_k = self.jac_g_bin(x_sol, p)
-            g_k = lam_g.T @ (h_k + jac_h_k @ (x - x_sol_sub_set))
+            g_k = lam_g.T @ (
+                h_k + jac_h_k @ (x - x_sol_sub_set)
+                - (lam_g > 0) * np.where(np.isinf(ubg), 0, ubg)
+                + (lam_g < 0) * np.where(np.isinf(lbg), 0, lbg)
+            )
 
         return g_k
 
@@ -113,7 +117,8 @@ class BendersMasterMILP(SolverClass):
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
         g_k = self._generate_cut_equation(
             self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
-            nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p, prev_feasible
+            nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
+            nlpdata.lbg, nlpdata.ubg, prev_feasible
         )
         self.cut_id += 1
 
@@ -255,7 +260,8 @@ class BendersMasterMIQP(BendersMasterMILP):
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
         g_k = self._generate_cut_equation(
             self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
-            nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p, prev_feasible
+            nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
+            nlpdata.lbg, nlpdata.ubg, prev_feasible
         )
         self.cut_id += 1
 
@@ -374,7 +380,8 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         x_sol_prev = nlpdata.x_sol[:self.nr_x_orig]
         g_k = self._generate_cut_equation(
             self._x[self.idx_x_bin], x_sol_prev, x_sol_prev[self.idx_x_bin],
-            nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p, prev_feasible
+            nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
+            nlpdata.lbg, nlpdata.ubg, prev_feasible
         )
         self.cut_id += 1
 

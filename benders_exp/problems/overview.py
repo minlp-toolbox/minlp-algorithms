@@ -135,11 +135,11 @@ def create_dummy_problem_2():
     p = CASADI_VAR.sym("p", 1)
     f = x[0]**2 + x[1]
     g = ca.vertcat(
-        x[1] + 3,
+        x[1],
         -x[0]**2 - x[1] / 4 + p[0]**2
     )
     ubg = np.array([np.inf, np.inf])
-    lbg = np.array([0, 0])
+    lbg = np.array([-3.0, 0.0])
     lbx = -np.inf * np.ones((2,))
     ubx = np.array([ca.inf, ca.inf])
 

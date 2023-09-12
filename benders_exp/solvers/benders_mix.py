@@ -221,6 +221,8 @@ class BendersTRandMaster(BendersMasterMILP):
         jac_h_k = self.jac_g_bin(x_sol, nlpdata.p)
         g_k = lam_g_sol.T @ (
             h_k + jac_h_k @ (self._x_bin - x_sol[self.idx_x_bin])
+            - (lam_g_sol > 0) * np.where(np.isinf(nlpdata.ubg), 0, nlpdata.ubg)
+            + (lam_g_sol < 0) * np.where(np.isinf(nlpdata.lbg), 0, nlpdata.lbg)
         )
         self.g_infeasible.add(-ca.inf, g_k, 0)
 
