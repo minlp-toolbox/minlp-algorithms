@@ -50,7 +50,7 @@ class Stats:
                 "lb": lb,
                 "x_sol": x_sol}
 
-    def save(self, x_star):
+    def save(self):
         with open(os.path.join(OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl'), 'wb') as handle:
             pickle.dump(self.data, handle)
 

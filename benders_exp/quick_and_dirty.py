@@ -325,7 +325,7 @@ def benders_tr_master(
             ))
             stats['iter_nr'] += 1
             if WITH_LOG_DATA:
-                stats.save(x_star)
+                stats.save()
 
             feasible = data.solved
             termination_met = termination_condition(lb, ub, tolerance, data.best_solutions, x_hat)
@@ -406,7 +406,7 @@ if __name__ == "__main__":
     problem, data, x_star = run_problem(mode, problem_name, stats, argv[3:])
     stats.print()
     if WITH_LOG_DATA:
-        stats.save(x_star)
+        stats.save()
 
     print(f"Objective value: {data.obj_val}")
 
