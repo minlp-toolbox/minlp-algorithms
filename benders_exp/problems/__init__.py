@@ -189,7 +189,6 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
         msg.append(f"{g_val=}  {ubg=}")
         msg.append("Ubg < g(x*,p) for indices:\n"
                    f"{np.nonzero(ubg < g_val)}")
-        breakpoint()
 
     if msg:
         msg = "\n".join(msg)
