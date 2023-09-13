@@ -143,7 +143,7 @@ class FeasibilityNlpSolver(SolverClass):
                 )
 
                 # Reconstruct lambda_g:
-                lambda_g = to_0d(nlpdata.lam_g_sol)
+                lambda_g = to_0d(sol_new['lam_g'])
                 lambda_g_req = np.zeros(nlpdata.lbg.shape[0])
                 for lg, (idx, sgn) in zip(lambda_g, self.g_idx):
                     lambda_g_req[idx] = sgn * lg

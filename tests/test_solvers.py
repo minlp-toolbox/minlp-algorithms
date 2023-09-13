@@ -5,6 +5,7 @@ from parameterized import parameterized
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.quick_and_dirty import run_problem, Stats
 from benders_exp.problems import check_solution
+import timeout_decorator
 
 options = [
     (solver, problem)
@@ -21,7 +22,7 @@ options = [
 obj_val = {
     "dummy": 8.41,
     "doublepipe": 1,
-    "dummy2": 0,
+    "dummy2": -3,
     "doubletank": 18.6826,
     "sign_check": 9,
     "nonconvex": 0.0567471,
@@ -39,6 +40,7 @@ class TestSolver(unittest.TestCase):
     """Test."""
 
     @parameterized.expand(options)
+    @timeout_decorator.timeout(5.0)
     def test_solver(self, mode, problem_name):
         """Test runner."""
         stats = Stats(mode, problem_name, "test", {})

@@ -171,7 +171,8 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
     f = ca.Function("f", [problem.x, problem.p], [problem.f])
     g = ca.Function("g", [problem.x, problem.p], [problem.g])
     f_val = f(x_star, data.p).full()
-    g_val = g(x_star, data.p).full()
+    g_val = g(x_star, data.p).full().squeeze()
+    lbg, ubg = data.lbg.squeeze(), data.ubg.squeeze()
     print(f"Objective value {float(f_val)} (real) vs {data.obj_val}")
     msg = []
     if abs(float(data.obj_val) - float(f_val)) > 1e-3:
@@ -180,14 +181,14 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
         msg.append(f"Lbx > x* for indices:\n{np.nonzero(data.lbx > x_star).T}")
     if np.any(data.ubx < x_star - 1e-4):
         msg.append(f"Ubx > x* for indices:\n{np.nonzero(data.ubx < x_star).T}")
-    if np.any(data.lbg > g_val + 1e-4):
-        msg.append(f"{g_val=}  {data.lbg=}")
+    if np.any(lbg > g_val + 1e-4):
+        msg.append(f"{g_val=}  {lbg=}")
         msg.append("Lbg > g(x*,p) for indices:\n"
-                   f"{np.nonzero(data.lbg > g_val + 1e-4)}")
-    if np.any(data.ubg < g_val - 1e-4):
-        msg.append(f"{g_val=}  {data.ubg=}")
+                   f"{np.nonzero(lbg > g_val)}")
+    if np.any(ubg < g_val - 1e-4):
+        msg.append(f"{g_val=}  {ubg=}")
         msg.append("Ubg < g(x*,p) for indices:\n"
-                   f"{np.nonzero(data.ubg < g_val - 1e-4)}")
+                   f"{np.nonzero(ubg < g_val)}")
 
     if msg:
         msg = "\n".join(msg)
