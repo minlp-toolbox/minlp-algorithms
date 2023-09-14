@@ -3,8 +3,10 @@ import numpy as np
 import casadi as ca
 from benders_exp.solvers import Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, get_idx_inverse, extract_bounds
-from benders_exp.defines import WITH_JIT, CASADI_VAR, EPS, MIP_SOLVER
+from benders_exp.defines import WITH_JIT, CASADI_VAR, EPS, MIP_SOLVER, \
+        WITH_DEBUG
 from benders_exp.solvers.benders import BendersMasterMILP
+from benders_exp.problems import check_integer_feasible, check_solution
 from enum import Enum
 import logging
 
@@ -170,6 +172,9 @@ class BendersTRandMaster(BendersMasterMILP):
         self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
         self.trust_region_feasibility_rho = 1.5
 
+        # TEMP:
+        self.problem = problem
+
         # Setups
         self.setup_common(problem, options)
         self.idx_g_lin = get_idx_linear_bounds(problem)
@@ -301,9 +306,15 @@ class BendersTRandMaster(BendersMasterMILP):
 
         g_cur_lin = self._get_g_linearized_nonlin(self.x_sol_best, dx, nlpdata)
         g_total = (
-            g_cur_lin + self.g_lin + self.g_lowerapprox
-            + self.g_infeasible + self.g_other
+            g_cur_lin
+            + self.g_lin
+            + self.g_lowerapprox
+            + self.g_infeasible
+            + self.g_other
         )
+        if WITH_DEBUG:
+            check_integer_feasible(self.idx_x_bin, self.x_sol_best, eps=1e-3)
+            check_solution(self.problem, nlpdata, self.x_sol_best, eps=1e-3)
 
         self.solver = ca.qpsol(
             f"benders_constraint_{self.g_lowerapprox.nr}", MIP_SOLVER, {
