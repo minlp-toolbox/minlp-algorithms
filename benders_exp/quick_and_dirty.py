@@ -312,17 +312,17 @@ def benders_tr_master(
                 logger.debug("SOLVED FEASIBILITY NLP")
 
             logger.debug(f"Adding {data.nr_sols} solutions")
+            logger.debug(f"{data.obj_val=}, {ub=}, {lb=}")
+            stats['iterate_data'].append((stats.create_iter_dict(
+                stats['iter_nr'], best_iter, data.solved,
+                ub, data.obj_val, last_benders, lb, to_0d(data.x_sol))
+            ))
             # Solve master^k and set lower bound:
             data, last_benders = master_problem.solve(data)
             if last_benders:
                 lb = data.obj_val
 
             x_hat = data.x_sol
-            logger.debug(f"{data.obj_val=}, {ub=}, {lb=}")
-            stats['iterate_data'].append((stats.create_iter_dict(
-                stats['iter_nr'], best_iter, data.solved,
-                ub, data.obj_val, last_benders, lb, to_0d(data.x_sol))
-            ))
             stats['iter_nr'] += 1
             if WITH_LOG_DATA:
                 stats.save()
