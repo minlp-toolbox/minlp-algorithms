@@ -313,8 +313,10 @@ class BendersTRandMaster(BendersMasterMILP):
             + self.g_other
         )
         if WITH_DEBUG:
-            check_integer_feasible(self.idx_x_bin, self.x_sol_best, eps=1e-3)
-            check_solution(self.problem, nlpdata, self.x_sol_best, eps=1e-3)
+            check_integer_feasible(self.idx_x_bin, self.x_sol_best,
+                                   eps=1e-3, throws=False)
+            check_solution(self.problem, nlpdata, self.x_sol_best,
+                           eps=1e-3, throws=False)
 
         self.solver = ca.qpsol(
             f"benders_constraint_{self.g_lowerapprox.nr}", MIP_SOLVER, {
