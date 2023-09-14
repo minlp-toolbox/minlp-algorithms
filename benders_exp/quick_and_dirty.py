@@ -301,6 +301,7 @@ def benders_tr_master(
                             logger.info(f"\n{x_star=}")
                             logger.debug(f"Decreased UB to {ub}")
                             data.best_solutions.append(x_star)
+                            best_iter = stats['iter_nr']
                         elif obj_val - EPS < ub:
                             data.best_solutions.append(
                                 data.prev_solutions[i]['x']
