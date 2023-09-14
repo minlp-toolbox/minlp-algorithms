@@ -7,7 +7,7 @@ from datetime import timedelta
 import logging
 from benders_exp.problems.solarsys.system import System, ca
 from benders_exp.problems.solarsys.ambient import Ambient
-from benders_exp.cache_utils import CachedFunction
+from benders_exp.utils.cache import CachedFunction
 from benders_exp.utils import convert_to_flat_list
 
 

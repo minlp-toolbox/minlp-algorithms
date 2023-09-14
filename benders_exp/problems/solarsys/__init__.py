@@ -11,7 +11,7 @@ from benders_exp.problems.solarsys.system import System, ca
 from benders_exp.problems.solarsys.ambient import Ambient
 from benders_exp.problems.solarsys.simulator import Simulator
 from benders_exp.problems.dsc import Description, MinlpProblem
-from benders_exp.cache_utils import CachedFunction, cache_data
+from benders_exp.utils.cache import CachedFunction, cache_data
 from benders_exp.solvers import get_idx_linear_bounds_binary_x
 from datetime import timedelta
 import logging

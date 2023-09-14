@@ -9,7 +9,7 @@ from benders_exp.defines import OUT_DIR, WITH_DEBUG
 import casadi as ca
 import numpy as np
 import logging
-from benders_exp import save_pickle
+from benders_exp.utils.data import save_pickle
 
 logger = logging.getLogger(__name__)
 

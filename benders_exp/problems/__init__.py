@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable
-from benders_exp.defines import CASADI_VAR, ca, EPS
+from benders_exp.defines import CASADI_VAR, ca, OBJECTIVE_TOL, CONSTRAINT_TOL
 from copy import deepcopy
 import numpy as np
 
@@ -166,7 +166,8 @@ class MinlpData:
         self._ubx = value
 
 
-def check_solution(problem: MinlpProblem, data: MinlpData, x_star, eps=1e-4, throws=True):
+def check_solution(problem: MinlpProblem, data: MinlpData, x_star, eps_obj=OBJECTIVE_TOL,
+                   eps=CONSTRAINT_TOL, throws=True):
     """Check a solution."""
     f = ca.Function("f", [problem.x, problem.p], [problem.f])
     g = ca.Function("g", [problem.x, problem.p], [problem.g])
@@ -175,7 +176,7 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, eps=1e-4, thr
     lbg, ubg = data.lbg.squeeze(), data.ubg.squeeze()
     print(f"Objective value {float(f_val)} (real) vs {data.obj_val}")
     msg = []
-    if abs(float(data.obj_val) - float(f_val)) > eps:
+    if abs(float(data.obj_val) - float(f_val)) > eps_obj:
         msg.append("Objective value wrong!")
     if np.any(data.lbx > x_star + eps):
         msg.append(f"Lbx > x* for indices:\n{np.nonzero(data.lbx > x_star).T}")
@@ -198,7 +199,7 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, eps=1e-4, thr
             print(msg)
 
 
-def check_integer_feasible(idx_x_bin, x_star, eps=EPS, throws=True):
+def check_integer_feasible(idx_x_bin, x_star, eps=CONSTRAINT_TOL, throws=True):
     """Check if the solution is integer feasible."""
     x_bin = np.array(x_star)[idx_x_bin].squeeze()
     x_bin_rounded = np.round(x_bin)

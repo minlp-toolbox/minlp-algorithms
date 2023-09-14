@@ -172,8 +172,8 @@ class BendersTRandMaster(BendersMasterMILP):
         self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
         self.trust_region_feasibility_rho = 1.5
 
-        # TEMP:
-        self.problem = problem
+        if WITH_DEBUG:
+            self.problem = problem
 
         # Setups
         self.setup_common(problem, options)
