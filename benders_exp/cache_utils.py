@@ -37,6 +37,19 @@ def compile(input_file, output_file, options=None):
     call([compiler] + _CXX_FLAGS + ["-o", output_file, input_file])
 
 
+def cache_data(name, generator_func, *args, **kwargs):
+    """Cache data."""
+    from benders_exp import load_pickle, save_pickle
+    name = name + "_" + getattr(generator_func, '__name__', 'Unknown')
+    filename = path.join(CACHE_FOLDER, name + ".pkl")
+    if path.exists(filename):
+        return load_pickle(filename)
+    else:
+        data = generator_func(*args, **kwargs)
+        save_pickle(data, filename)
+        return data
+
+
 class CachedFunction:
     """A cached function."""
 

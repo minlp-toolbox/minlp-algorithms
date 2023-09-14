@@ -6,19 +6,24 @@ Solar Thermal Climate System (STCS) at Karsruhe University of Applied Sciences.
 """
 
 import numpy as np
-from benders_exp.defines import CASADI_VAR
 from benders_exp.problems import MetaDataOcp
 from benders_exp.problems.solarsys.system import System, ca
 from benders_exp.problems.solarsys.ambient import Ambient
 from benders_exp.problems.solarsys.simulator import Simulator
-from benders_exp.problems.dsc import Description
-from benders_exp.cache_utils import CachedFunction
+from benders_exp.problems.dsc import Description, MinlpProblem
+from benders_exp.cache_utils import CachedFunction, cache_data
+from benders_exp.solvers import get_idx_linear_bounds_binary_x
 from datetime import timedelta
 import logging
 
 from benders_exp.utils import convert_to_flat_list, to_0d
 
 logger = logging.getLogger(__name__)
+
+
+def get_lin_bounds(problem: MinlpProblem):
+    get_idx_linear_bounds_binary_x(problem)
+    return problem.idx_g_lin, problem.idx_g_lin_bin
 
 
 def create_stcs_problem():
@@ -192,6 +197,11 @@ def create_stcs_problem():
     prob.meta = meta
     data = dsc.get_data()
     data.x0[prob.idx_x_bin] = to_0d(simulator.b_data).flatten().tolist()
+
+    # Improve calculation speed by getting indices:
+
+    prob.idx_g_lin, prob.idx_g_lin_bin = cache_data(
+        f"scts{n_steps}", get_lin_bounds, prob)
 
     return prob, data
 
