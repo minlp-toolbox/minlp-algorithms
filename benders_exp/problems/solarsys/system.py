@@ -9,7 +9,7 @@ import numpy as np
 import casadi as ca
 
 from benders_exp.problems import CASADI_VAR
-from benders_exp.cache_utils import CachedFunction
+from benders_exp.utils.cache import CachedFunction
 from collections import OrderedDict
 import logging
 

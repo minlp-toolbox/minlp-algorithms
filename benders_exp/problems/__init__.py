@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Callable
-from benders_exp.defines import CASADI_VAR, ca
+from benders_exp.defines import CASADI_VAR, ca, OBJECTIVE_TOL, CONSTRAINT_TOL
 from copy import deepcopy
 import numpy as np
 
@@ -166,7 +166,8 @@ class MinlpData:
         self._ubx = value
 
 
-def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
+def check_solution(problem: MinlpProblem, data: MinlpData, x_star, eps_obj=OBJECTIVE_TOL,
+                   eps=CONSTRAINT_TOL, throws=True):
     """Check a solution."""
     f = ca.Function("f", [problem.x, problem.p], [problem.f])
     g = ca.Function("g", [problem.x, problem.p], [problem.g])
@@ -175,17 +176,17 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
     lbg, ubg = data.lbg.squeeze(), data.ubg.squeeze()
     print(f"Objective value {float(f_val)} (real) vs {data.obj_val}")
     msg = []
-    if abs(float(data.obj_val) - float(f_val)) > 1e-3:
+    if abs(float(data.obj_val) - float(f_val)) > eps_obj:
         msg.append("Objective value wrong!")
-    if np.any(data.lbx > x_star + 1e-4):
+    if np.any(data.lbx > x_star + eps):
         msg.append(f"Lbx > x* for indices:\n{np.nonzero(data.lbx > x_star).T}")
-    if np.any(data.ubx < x_star - 1e-4):
+    if np.any(data.ubx < x_star - eps):
         msg.append(f"Ubx > x* for indices:\n{np.nonzero(data.ubx < x_star).T}")
-    if np.any(lbg > g_val + 1e-4):
+    if np.any(lbg > g_val + eps):
         msg.append(f"{g_val=}  {lbg=}")
         msg.append("Lbg > g(x*,p) for indices:\n"
                    f"{np.nonzero(lbg > g_val)}")
-    if np.any(ubg < g_val - 1e-4):
+    if np.any(ubg < g_val - eps):
         msg.append(f"{g_val=}  {ubg=}")
         msg.append("Ubg < g(x*,p) for indices:\n"
                    f"{np.nonzero(ubg < g_val)}")
@@ -196,3 +197,16 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, throws=True):
             raise Exception(msg)
         else:
             print(msg)
+
+
+def check_integer_feasible(idx_x_bin, x_star, eps=CONSTRAINT_TOL, throws=True):
+    """Check if the solution is integer feasible."""
+    x_bin = np.array(x_star)[idx_x_bin].squeeze()
+    x_bin_rounded = np.round(x_bin)
+    if np.any(np.abs(x_bin_rounded - x_bin) > eps):
+        idx = np.nonzero(np.abs(x_bin_rounded - x_bin) > eps)
+        msg = f"Integer infeasible: {x_bin[idx]} {idx}"
+        if throws:
+            raise Exception(msg)
+        else:
+            print(throws)

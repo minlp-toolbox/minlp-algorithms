@@ -11,7 +11,7 @@ from benders_exp.problems import MetaDataOcp
 from benders_exp.problems.solarsys.system import System, ca
 from benders_exp.problems.solarsys.ambient import Ambient
 from benders_exp.problems.dsc import Description
-from benders_exp.cache_utils import CachedFunction
+from benders_exp.utils.cache import CachedFunction
 from datetime import timedelta
 import logging
 

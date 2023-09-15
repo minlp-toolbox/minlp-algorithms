@@ -9,7 +9,7 @@ from benders_exp.defines import OUT_DIR, WITH_DEBUG
 import casadi as ca
 import numpy as np
 import logging
-import pickle
+from benders_exp.utils.data import save_pickle
 
 logger = logging.getLogger(__name__)
 
@@ -51,8 +51,11 @@ class Stats:
                 "x_sol": x_sol}
 
     def save(self):
-        with open(os.path.join(OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl'), 'wb') as handle:
-            pickle.dump(self.data, handle)
+        """Save statistics."""
+        save_pickle(
+            self.data,
+            os.path.join(OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl')
+        )
 
 
 class SolverClass(ABC):
@@ -144,7 +147,7 @@ def extract_bounds(problem: MinlpProblem, data: MinlpData,
                 g = ca.Function("g_lin", [_x, problem.p], [problem.g[idx_g]])(new_x, data.p)
             else:
                 vec = []
-                j=0
+                j = 0
                 for i in range(problem.x.shape[0]):
                     if i in idx_x:
                         vec.append(new_x[j])

@@ -19,6 +19,8 @@ if not path.exists(CACHE_FOLDER):
 WITH_JIT = False
 WITH_PLOT = False
 EPS = 1e-5
+OBJECTIVE_TOL = 1e-2
+CONSTRAINT_TOL = 1e-4
 CASADI_VAR = ca.MX
 MIP_SOLVER = environ.get("MIP_SOLVER", "gurobi")
 WITH_DEBUG = environ.get("DEBUG", False)
@@ -31,7 +33,7 @@ IPOPT_SETTINGS = {  # TODO: make ipopt setting change according to the problem c
     "ipopt.file_print_level": 5,
     "ipopt.max_cpu_time": 3600.0,
     "ipopt.max_iter": 600000,
-    "ipopt.acceptable_tol": 0.2,
+    "ipopt.acceptable_tol": 1e-1,
     "ipopt.acceptable_iter": 8,
     "ipopt.acceptable_constr_viol_tol": 10.0,
     "ipopt.acceptable_dual_inf_tol": 10.0,
@@ -44,6 +46,8 @@ BONMIN_SETTINGS = {}
 GUROBI_SETTINGS = {
     "gurobi.MIPGap": 0.05,
     "gurobi.NumericFocus": 1,
+    "gurobi.FeasibilityTol": CONSTRAINT_TOL,
+    "gurobi.IntFeasTol": OBJECTIVE_TOL,
     # "gurobi.PoolSearchMode": 2,  # Default 0
     # "gurobi.PoolSolutions": 100,  # Default 10
     # "gurobi.PoolObjBound" # Discard avoce this value

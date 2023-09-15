@@ -8,6 +8,7 @@ from subprocess import call
 
 from benders_exp.defines import CACHE_FOLDER
 from benders_exp.json_tools import read_json, write_json
+from benders_exp.utils.data import load_pickle, save_pickle
 
 logger = logging.getLogger(__name__)
 _COMPILERS = ["gcc"]
@@ -35,6 +36,18 @@ def compile(input_file, output_file, options=None):
 
     _CXX_FLAGS = ["-fPIC", "-v", "-shared", "-fno-omit-frame-pointer", "-O1"]
     call([compiler] + _CXX_FLAGS + ["-o", output_file, input_file])
+
+
+def cache_data(name, generator_func, *args, **kwargs):
+    """Cache data."""
+    name = name + "_" + getattr(generator_func, '__name__', 'Unknown')
+    filename = path.join(CACHE_FOLDER, name + ".pkl")
+    if path.exists(filename):
+        return load_pickle(filename)
+    else:
+        data = generator_func(*args, **kwargs)
+        save_pickle(data, filename)
+        return data
 
 
 class CachedFunction:

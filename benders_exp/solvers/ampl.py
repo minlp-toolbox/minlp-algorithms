@@ -12,8 +12,9 @@ class AmplSolver(SolverClass):
         :param algo_type: Algorithm type, options: B-BB, B-OA, B-QG, or B-Hyb
         """
         super(AmplSolver, self).__init___(problem, stats)
-        options = regularize_options(options, {}, {
-            "solver": "python3 -m benders_exp copy /tmp/out.nl"})
+        options = regularize_options(options, {
+            "solver": "python3 -m benders_exp copy /tmp/out.nl"
+        })
 
         self.nr_x = problem.x.shape[0]
         discrete = [0] * self.nr_x
@@ -25,7 +26,7 @@ class AmplSolver(SolverClass):
         minlp = {
             "f": problem.f,
             "g": problem.g,
-            "x": problem.x,
+            "x": ca.vertcat(problem.x, problem.p),
             # "p": problem.p
         }
         self.solver = ca.nlpsol(
