@@ -6,8 +6,9 @@ from typing import Tuple
 from benders_exp.solvers.nlp import NlpSolver
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
         regularize_options
-from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR
+from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR, WITH_DEBUG
 from benders_exp.utils import to_0d, toc, logging
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -35,11 +36,31 @@ def random_direction_rounding_algorithm(
     nlp = NlpSolver(problem, stats)
     toc()
     data = nlp.solve(data)
-    while integer_error(data.x_sol[problem.idx_x_bin]) > 1e-2:
+    best = data
+    best_obj = ca.inf
+    max_accept_iter = 10
+    stats['iter'] = 0
+    while (integer_error(data.x_sol[problem.idx_x_bin]) > 1e-2 and
+           not (stats['iter'] > max_accept_iter and best_obj < data.obj_val)):
         data = solver.solve(data)
+        logger.info(f"Current obj: {data.obj_val}")
+
+        # Check if feasible
+        x_var = to_0d(data.x_sol)
+        x_var[problem.idx_x_bin] = np.round(x_var[problem.idx_x_bin])
+        datar = deepcopy(data)
+        datar.prev_solutions[0]['x'] = x_var
+        datar = nlp.solve(datar)
+        if datar.solved:
+            logger.debug(f"Obj {datar.obj_val}")
+            if best_obj > datar.obj_val:
+                logger.debug(f"New best obj found in {stats['iter']=}")
+                best_obj = datar.obj_val
+                best = datar
+        stats['iter'] += 1
 
     toc()
-    return problem, data, data.x_sol
+    return problem, best, best.x_sol
 
 
 class RandomDirectionNlpSolver(SolverClass):
@@ -55,16 +76,16 @@ class RandomDirectionNlpSolver(SolverClass):
         super(RandomDirectionNlpSolver, self).__init___(problem, stats)
         options = regularize_options(options, IPOPT_SETTINGS)
         self.penalty_weight = 0.01
-        self.penalty_scaling = 0.01
+        self.penalty_scaling = 0.5
 
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
         penalty = CASADI_VAR.sym("penalty", x_bin_var.shape[0])
         rounded_value = CASADI_VAR.sym("rounded_value", x_bin_var.shape[0])
 
-        penalty_term = ca.norm_2((x_bin_var - rounded_value) * penalty)
+        penalty_term = ca.sum1(ca.fabs(x_bin_var - rounded_value) * penalty)
 
-        options.update({"jit": WITH_JIT, "ipopt.max_iter": 5000})
+        options.update({"ipopt.max_iter": 5000})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": problem.f + penalty_term,
             "g": problem.g, "x": problem.x,
@@ -81,11 +102,12 @@ class RandomDirectionNlpSolver(SolverClass):
 
             x_bin_var = to_0d(sol['x'][self.idx_x_bin])
             x_rounded = np.round(x_bin_var)
-            rounding_error = ca.norm_2((x_bin_var - x_rounded))
+            rounding_error = ca.norm_1((x_bin_var - x_rounded))
             penalty = self.penalty_weight * np.random.rand(len(self.idx_x_bin))
-            print(f"{nlpdata.obj_val=}")
             self.penalty_weight += self.penalty_scaling * rounding_error * abs(nlpdata.obj_val)
-            print(f"{rounding_error=} - weight {self.penalty_weight=}")
+            logger.info(
+                f"{nlpdata.obj_val=} {rounding_error=} - weight {self.penalty_weight=}"
+            )
 
             new_sol = self.solver(
                 x0=nlpdata.x0,
@@ -96,7 +118,7 @@ class RandomDirectionNlpSolver(SolverClass):
 
             success, _ = self.collect_stats("RNLP")
             if not success:
-                raise Exception("Infeasible")
+                logger.debug("Infeasible solution.")
             success_out.append(success)
             sols_out.append(new_sol)
 
