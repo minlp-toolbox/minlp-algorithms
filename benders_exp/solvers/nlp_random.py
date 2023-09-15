@@ -6,22 +6,26 @@ from typing import Tuple
 from benders_exp.solvers.nlp import NlpSolver
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
         regularize_options
-from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR, WITH_DEBUG
+from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR
 from benders_exp.utils import to_0d, toc, logging
 from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
 
-def integer_error(x_int):
+def integer_error(x_int, norm=1):
     """Compute integer error."""
-    ret = np.sum(np.abs(np.round(x_int) - x_int))
+    if norm == 1:
+        ret = np.sum(np.abs(np.round(x_int) - x_int))
+    else:
+        ret = np.linalg.norm(np.round(x_int) - x_int)
     logger.info(f"Integer error {ret}")
     return ret
 
 
 def random_direction_rounding_algorithm(
-    problem: MinlpProblem, data: MinlpData, stats: Stats
+    problem: MinlpProblem, data: MinlpData, stats: Stats,
+    norm=1
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
     Random direction algorithm.
@@ -32,7 +36,7 @@ def random_direction_rounding_algorithm(
             - equality: the binaries of the last solution coincides with the ones of the best solution
             - std: based on lower and upper bound
     """
-    solver = RandomDirectionNlpSolver(problem, stats)
+    solver = RandomDirectionNlpSolver(problem, stats, norm=norm)
     nlp = NlpSolver(problem, stats)
     toc()
     data = nlp.solve(data)
@@ -71,21 +75,25 @@ class RandomDirectionNlpSolver(SolverClass):
     the binaries are fixed.
     """
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, stats: Stats, options=None, norm=1, penalty_scaling=0.5):
         """Create NLP problem."""
         super(RandomDirectionNlpSolver, self).__init___(problem, stats)
         options = regularize_options(options, IPOPT_SETTINGS)
         self.penalty_weight = 0.01
-        self.penalty_scaling = 0.5
+        self.penalty_scaling = penalty_scaling
 
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
         penalty = CASADI_VAR.sym("penalty", x_bin_var.shape[0])
         rounded_value = CASADI_VAR.sym("rounded_value", x_bin_var.shape[0])
 
-        penalty_term = ca.sum1(ca.fabs(x_bin_var - rounded_value) * penalty)
+        self.norm = norm
+        if norm == 1:
+            penalty_term = ca.sum1(ca.fabs(x_bin_var - rounded_value) * penalty)
+        else:
+            penalty_term = ca.norm_2((x_bin_var - rounded_value) * penalty)
 
-        options.update({"ipopt.max_iter": 5000})
+        options.update({"jit": WITH_JIT, "ipopt.max_iter": 5000})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": problem.f + penalty_term,
             "g": problem.g, "x": problem.x,
@@ -102,7 +110,11 @@ class RandomDirectionNlpSolver(SolverClass):
 
             x_bin_var = to_0d(sol['x'][self.idx_x_bin])
             x_rounded = np.round(x_bin_var)
-            rounding_error = ca.norm_1((x_bin_var - x_rounded))
+            if self.norm == 1:
+                rounding_error = ca.norm_1((x_bin_var - x_rounded))
+            else:
+                rounding_error = ca.norm_2((x_bin_var - x_rounded))
+
             penalty = self.penalty_weight * np.random.rand(len(self.idx_x_bin))
             self.penalty_weight += self.penalty_scaling * rounding_error * abs(nlpdata.obj_val)
             logger.info(
