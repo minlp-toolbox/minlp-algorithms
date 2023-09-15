@@ -31,10 +31,7 @@ def random_direction_rounding_algorithm(
     Random direction algorithm.
 
     parameters:
-        - termination_type:
-            - gradient: based on local linearization
-            - equality: the binaries of the last solution coincides with the ones of the best solution
-            - std: based on lower and upper bound
+        - norm: 1 for L1-norm based, 2 for squared L2-norm based penalization
     """
     solver = RandomDirectionNlpSolver(problem, stats, norm=norm)
     nlp = NlpSolver(problem, stats)
@@ -51,7 +48,7 @@ def random_direction_rounding_algorithm(
 
         # Check if feasible
         x_var = to_0d(data.x_sol)
-        x_var[problem.idx_x_bin] = np.round(x_var[problem.idx_x_bin])
+        x_var[problem.idx_x_bin] = np.round(x_var[problem.idx_x_bin])  # Round the continuous solution
         datar = deepcopy(data)
         datar.prev_solutions[0]['x'] = x_var
         datar = nlp.solve(datar)
@@ -91,7 +88,7 @@ class RandomDirectionNlpSolver(SolverClass):
         if norm == 1:
             penalty_term = ca.sum1(ca.fabs(x_bin_var - rounded_value) * penalty)
         else:
-            penalty_term = ca.norm_2((x_bin_var - rounded_value) * penalty)
+            penalty_term = ca.norm_2((x_bin_var - rounded_value) * penalty) ** 2
 
         options.update({"jit": WITH_JIT, "ipopt.max_iter": 5000})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
@@ -113,7 +110,7 @@ class RandomDirectionNlpSolver(SolverClass):
             if self.norm == 1:
                 rounding_error = ca.norm_1((x_bin_var - x_rounded))
             else:
-                rounding_error = ca.norm_2((x_bin_var - x_rounded))
+                rounding_error = ca.norm_2((x_bin_var - x_rounded)) ** 2
 
             penalty = self.penalty_weight * np.random.rand(len(self.idx_x_bin))
             self.penalty_weight += self.penalty_scaling * rounding_error * abs(nlpdata.obj_val)

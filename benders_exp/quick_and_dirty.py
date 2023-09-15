@@ -364,7 +364,7 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "randomnlp": random_direction_rounding_algorithm,
     }
 
-    if mode not in MODES:
+    if mode_name not in MODES:
         raise Exception(f"No mode {mode_name=}, available {MODES.keys()}")
     if problem_name not in PROBLEMS:
         raise Exception(f"No {problem_name=}, available: {PROBLEMS.keys()}")
