@@ -52,10 +52,9 @@ class Stats:
 
     def save(self):
         """Save statistics."""
-        save_pickle(
-            self.data,
-            os.path.join(OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl')
-        )
+        dest = os.path.join(OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl')
+        print(f"Saving to {dest}")
+        save_pickle(self.data, dest)
 
 
 class SolverClass(ABC):

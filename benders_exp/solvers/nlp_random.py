@@ -55,7 +55,7 @@ class RandomDirectionNlpSolver(SolverClass):
         super(RandomDirectionNlpSolver, self).__init___(problem, stats)
         options = regularize_options(options, IPOPT_SETTINGS)
         self.penalty_weight = 0.01
-        self.penalty_scaling = 0.5
+        self.penalty_scaling = 0.01
 
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
@@ -64,7 +64,7 @@ class RandomDirectionNlpSolver(SolverClass):
 
         penalty_term = ca.norm_2((x_bin_var - rounded_value) * penalty)
 
-        options.update({"jit": WITH_JIT, "ipopt.max_iter": 500})
+        options.update({"jit": WITH_JIT, "ipopt.max_iter": 5000})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": problem.f + penalty_term,
             "g": problem.g, "x": problem.x,
@@ -84,7 +84,7 @@ class RandomDirectionNlpSolver(SolverClass):
             rounding_error = ca.norm_2((x_bin_var - x_rounded))
             penalty = self.penalty_weight * np.random.rand(len(self.idx_x_bin))
             print(f"{nlpdata.obj_val=}")
-            self.penalty_weight += self.penalty_scaling * rounding_error * nlpdata.obj_val
+            self.penalty_weight += self.penalty_scaling * rounding_error * abs(nlpdata.obj_val)
             print(f"{rounding_error=} - weight {self.penalty_weight=}")
 
             new_sol = self.solver(
