@@ -3,14 +3,12 @@
 from datetime import datetime
 import matplotlib.pyplot as plt
 from sys import argv
-from os import path
 from typing import Callable, Tuple, Union
 import casadi as ca
 import numpy as np
 from benders_exp.utils import plot_trajectory, tic, to_0d, toc, \
         make_bounded, setup_logger, logging
-from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, OUT_DIR, \
-        WITH_LOG_DATA
+from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, WITH_LOG_DATA
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
 from benders_exp.solvers import Stats
@@ -20,6 +18,7 @@ from benders_exp.solvers.benders_mix import BendersTRandMaster
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
+from benders_exp.solvers.nlp_random import random_direction_rounding_algorithm
 
 logger = logging.getLogger(__name__)
 
@@ -372,7 +371,8 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "bonmin-ifp": lambda p, d, s: bonmin(p, d, s, "B-iFP"),
         "voronoi_tr": lambda p, d, s: voronoi_tr_algorithm(p, d, s, termination_type='equality'),
         "relaxed": relaxed,
-        "ampl": export_ampl
+        "ampl": export_ampl,
+        "randomnlp": random_direction_rounding_algorithm,
     }
 
     if mode_name in MODES:

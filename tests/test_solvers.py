@@ -9,14 +9,20 @@ import timeout_decorator
 
 options = [
     (solver, problem)
-    for solver in ["benders", "bendersqp", "bonmin", "benders_tr", "benders_trm"]
+    for solver in [
+        "benders", "bendersqp", "bonmin", "benders_tr", "benders_trm",
+        "randomnlp",
+    ]
     for problem in PROBLEMS.keys()
     if (
         problem not in ["orig", "doubletank2", "doubletank", "stcs",
                         "gearbox_int", "gearbox_complx",
                         "nonconvex", "unstable_ocp", "nl_file"]
     )
-    if (solver, problem) not in [("benders_trm", "dummy2")]
+    if (solver, problem) not in [
+        ("benders_trm", "dummy2"),
+        ("randomnlp", "dummy")
+    ]
 ]
 
 obj_val = {
@@ -34,6 +40,9 @@ obj_tolerance_default = 3
 obj_tolerance = {
     "doubletank": 1
 }
+obj_tolerance_heuristic = {
+    "randomnlp": -3
+}
 
 
 class TestSolver(unittest.TestCase):
@@ -47,6 +56,7 @@ class TestSolver(unittest.TestCase):
         problem, data, x_star = run_problem(mode, problem_name, stats, [])
         desired_obj = obj_val.get(problem_name, -1)
         desired_tol = obj_tolerance.get(problem_name, obj_tolerance_default)
+        desired_tol += obj_tolerance_heuristic.get(mode, 0)
         self.assertAlmostEqual(data.obj_val, desired_obj, desired_tol,
                                msg=f"Failed for {mode} & {problem_name}")
         check_solution(problem, data, x_star)
