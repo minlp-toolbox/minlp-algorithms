@@ -25,6 +25,7 @@ class MetaDataOcp(MetaData):
     idx_bin_control: Optional[List[float]] = None
     idx_other: Optional[Dict[str, List[float]]] = None
     idx_param: Optional[dict] = None
+    f_dynamics: Optional[Callable] = None
     # TODO: initial_state needs to become an index list of p
     initial_state: Optional[List[float]] = None
     dt: Optional[float] = None

@@ -13,6 +13,26 @@ from pycombina import BinApprox, CombinaBnB
 
 logger = logging.getLogger(__name__)
 
+def simulate(x0, u, f_dyn):
+    N = u.shape[0]
+    x = []
+    for t in range(N):
+        if t == 0:
+            x.append(to_0d(f_dyn(x0, u[t, :])))
+        else:
+            x.append(to_0d(f_dyn(x[-1], u[t, :])))
+    return np.array(x).flatten().tolist()
+
+def get_control_vector(problem: MinlpProblem, data: MinlpData):
+    if problem.meta.n_control > 0 and problem.meta.n_discrete_control > 0:
+        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_control)
+        control = np.hstack([control, to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)])
+    elif problem.meta.n_control == 0:
+        control = to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)
+    elif problem.meta.n_discrete_control == 0:
+        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_control)
+    return control
+
 
 
 def cia_decomposition_algorithm(problem: MinlpProblem, data: MinlpData,
@@ -37,8 +57,9 @@ def cia_decomposition_algorithm(problem: MinlpProblem, data: MinlpData,
     else:
         f_fn = ca.Function('f', [problem.x, problem.p], [problem.f])
         data._sol['f'] = f_fn(data.x_sol, data.p)
-        breakpoint()
-        logger.warning("NEED A SIMULATOR FOR ROLLOUT!")
+        f_dyn = problem.meta.f_dynamics
+        control = get_control_vector(problem, data)
+        data._sol['x'][problem.meta.idx_state] = simulate(problem.meta.initial_state, control, f_dyn)
 
     stats['total_time_calc'] = toc(reset=True)
     return problem, data, data.x_sol
