@@ -418,7 +418,13 @@ if __name__ == "__main__":
         meta = problem.meta
         state = to_0d(x_star)[meta.idx_state].reshape(-1, meta.n_state)
         state = np.vstack([meta.initial_state, state])
-        control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_control)
+        if meta.n_control > 0 and meta.n_discrete_control > 0:
+            control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_control)
+            control = np.hstack([control, to_0d(x_star)[meta.idx_bin_control].reshape(-1, meta.n_discrete_control)])
+        elif meta.n_control == 0:
+            control = to_0d(x_star)[meta.idx_bin_control].reshape(-1, meta.n_discrete_control)
+        elif meta.n_discrete_control == 0:
+            control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_control)
         fig, axs = plot_trajectory(state, control, meta, title=problem_name)
 
         # TODO the next is only a patch for plotting the demand for the double tank problem

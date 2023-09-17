@@ -72,14 +72,15 @@ def create_ocp_unstable_system(p_val=[0.8, 0.7]):
         Uprev = Uk
     dsc.f += 0.5 * (Xk - Xref) ** 2
 
+    problem = dsc.get_problem()
     meta = MetaDataOcp(
-        dt=dt, n_state=1, n_control=1,
+        dt=dt, n_state=1, n_discrete_control=1, n_control=0,
         initial_state=p_val[0], idx_control=np.hstack(dsc.get_indices("Uk")),
         idx_state=np.hstack(dsc.get_indices("Xk")),
+        idx_bin_control=problem.idx_x_bin,
         scaling_coeff_control=[1],
         min_uptime=min_uptime
     )
-    problem = dsc.get_problem()
     problem.meta = meta
     data = dsc.get_data()
 

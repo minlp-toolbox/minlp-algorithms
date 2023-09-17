@@ -9,7 +9,7 @@ import numpy as np
 import casadi as ca
 
 
-def create_double_tank_problem2(p_val=[2, 2.5], single_shooting=True) -> Union[MinlpProblem, MinlpData]:
+def create_double_tank_problem2(p_val=[2, 2.5], single_shooting=False) -> Union[MinlpProblem, MinlpData]:
     """
     Implement the double tank problem.
 
@@ -71,13 +71,14 @@ def create_double_tank_problem2(p_val=[2, 2.5], single_shooting=True) -> Union[M
 
         Uprev = Uk
 
+    problem = dsc.get_problem()
     meta = MetaDataOcp(
-        dt=dt, n_state=nx, n_control=nu,
-        initial_state=p_val, idx_control=np.hstack(dsc.get_indices("Uk")),
-        idx_state=0,  # np.hstack(dsc.get_indices("Xk0")),
+        dt=dt, n_state=nx, n_control=nu-1, n_discrete_control=1,
+        initial_state=p_val, idx_control=np.vstack(dsc.get_indices("Uk"))[:,1],
+        idx_state=np.hstack(dsc.get_indices("Xk")),
+        idx_bin_control=np.vstack(dsc.get_indices("Uk"))[:,0],
         scaling_coeff_control=[gamma, 1], min_uptime=min_uptime
     )
-    problem = dsc.get_problem()
     problem.meta = meta
     data = dsc.get_data()
 

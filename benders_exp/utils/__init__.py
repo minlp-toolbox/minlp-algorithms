@@ -153,9 +153,10 @@ def plot_trajectory(
     N = a_collection[0].shape[0]
     dt = meta.dt
     time_array = np.linspace(0, N * dt, N + 1)
+    n_controls = meta.n_control + meta.n_discrete_control
 
     latexify()
-    fig, axs = plt.subplots(meta.n_state + meta.n_control,
+    fig, axs = plt.subplots(meta.n_state + n_controls,
                             1, figsize=(4.5, 8), sharex=True)
     for s in range(meta.n_state):
         axs[s].grid()
@@ -169,7 +170,7 @@ def plot_trajectory(
         axs[s].set_ylim(0, )
         axs[s].set_ylabel(f"$x_{s}$")
 
-    for a in range(meta.n_control):
+    for a in range(n_controls):
         axs[meta.n_state + a].set_ylim(0, 10.5)
         for a_traj in a_collection:
             if len(a_traj.shape) == 1:
