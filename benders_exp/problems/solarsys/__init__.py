@@ -191,8 +191,10 @@ def create_stcs_problem():
         idx_param=dsc.indices_p,
         idx_state=np.hstack(dsc.indices['x']).tolist(),
         idx_control=np.hstack(dsc.indices['u']).tolist(),
+        idx_bin_control=np.hstack(dsc.indices['b']).tolist(),
         initial_state=to_0d(x_hat).tolist(),
-        dt=dt.total_seconds()
+        dt=dt.total_seconds(),
+        min_uptime=1,
         )
     prob.meta = meta
     data = dsc.get_data()
