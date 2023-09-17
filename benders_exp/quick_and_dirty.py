@@ -19,6 +19,7 @@ from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImp
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
 from benders_exp.solvers.nlp_random import random_direction_rounding_algorithm
+from benders_exp.solvers.cia import cia_decomposition_algorithm
 
 logger = logging.getLogger(__name__)
 
@@ -362,6 +363,7 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "relaxed": relaxed,
         "ampl": export_ampl,
         "randomnlp": random_direction_rounding_algorithm,
+        "cia" : cia_decomposition_algorithm,
     }
 
     if mode_name not in MODES:
