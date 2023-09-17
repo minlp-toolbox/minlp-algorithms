@@ -15,6 +15,7 @@ setup(
         "pytz",
         "matplotlib",
         "parameterized",
+        "timeout-decorator",
         "tox"
     ]
 )

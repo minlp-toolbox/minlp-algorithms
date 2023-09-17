@@ -10,7 +10,11 @@ import timeout_decorator
 options = [
     (solver, problem)
     for solver in [
-        "benders", "bendersqp", "bonmin", "benders_tr", "benders_trm",
+        "benders",
+        "bendersqp",
+        "bonmin",
+        "benders_tr",
+        "benders_trm",
         "randomnlp",
     ]
     for problem in PROBLEMS.keys()
