@@ -3,14 +3,12 @@
 from datetime import datetime
 import matplotlib.pyplot as plt
 from sys import argv
-from os import path
 from typing import Callable, Tuple, Union
 import casadi as ca
 import numpy as np
 from benders_exp.utils import plot_trajectory, tic, to_0d, toc, \
         make_bounded, setup_logger, logging
-from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, OUT_DIR, \
-        WITH_LOG_DATA
+from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, WITH_LOG_DATA
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
 from benders_exp.solvers import Stats
@@ -20,6 +18,7 @@ from benders_exp.solvers.benders_mix import BendersTRandMaster
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
+from benders_exp.solvers.nlp_random import random_direction_rounding_algorithm
 
 logger = logging.getLogger(__name__)
 
@@ -341,17 +340,6 @@ def benders_tr_master(
 
 def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, MinlpData, ca.DM]:
     """Run a problem and return the results."""
-    if problem_name in PROBLEMS:
-        problem, data = PROBLEMS[problem_name](*args)
-        if problem == "orig":
-            new_inf = 1e5
-        else:
-            new_inf = 1e3
-        make_bounded(problem, data, new_inf=new_inf)
-        logger.info(f"Problem {problem_name} loaded")
-    else:
-        raise Exception(f"No {problem_name=}, available: {PROBLEMS.keys()}")
-
     MODES = {
         "benders": benders_algorithm,
         "bendersqp": lambda p, d, s: benders_algorithm(p, d, s, with_qp=True),
@@ -372,14 +360,25 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "bonmin-ifp": lambda p, d, s: bonmin(p, d, s, "B-iFP"),
         "voronoi_tr": lambda p, d, s: voronoi_tr_algorithm(p, d, s, termination_type='equality'),
         "relaxed": relaxed,
-        "ampl": export_ampl
+        "ampl": export_ampl,
+        "randomnlp": random_direction_rounding_algorithm,
     }
 
-    if mode_name in MODES:
-        logger.info(f"Start mode {mode_name}")
-        return MODES[mode_name](problem, data, stats)
-    else:
+    if mode_name not in MODES:
         raise Exception(f"No mode {mode_name=}, available {MODES.keys()}")
+    if problem_name not in PROBLEMS:
+        raise Exception(f"No {problem_name=}, available: {PROBLEMS.keys()}")
+
+    logger.info(f"Load problem {problem_name}")
+    problem, data = PROBLEMS[problem_name](*args)
+    if problem == "orig":
+        new_inf = 1e5
+    else:
+        new_inf = 1e3
+    make_bounded(problem, data, new_inf=new_inf)
+
+    logger.info(f"Start mode {mode_name}")
+    return MODES[mode_name](problem, data, stats)
 
 
 if __name__ == "__main__":

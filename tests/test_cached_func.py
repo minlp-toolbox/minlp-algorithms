@@ -3,7 +3,7 @@
 import unittest
 from os import remove, path, makedirs, listdir
 from shutil import rmtree
-from benders_exp.cache_utils import CachedFunction, ca
+from benders_exp.utils.cache import CachedFunction, ca
 
 
 FILE_DIR = ".test"
