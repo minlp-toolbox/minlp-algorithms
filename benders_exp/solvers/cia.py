@@ -2,11 +2,10 @@
 
 import casadi as ca
 import numpy as np
-from typing import Callable, Tuple
+from typing import Tuple
 from benders_exp.solvers.nlp import NlpSolver
-from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-        regularize_options
-from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR
+from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData
+from benders_exp.defines import WITH_LOG_DATA
 from benders_exp.utils import to_0d, toc, logging
 from copy import deepcopy
 from pycombina import BinApprox, CombinaBnB
@@ -42,11 +41,20 @@ def cia_decomposition_algorithm(problem: MinlpProblem, data: MinlpData,
     nlp = NlpSolver(problem, stats)
     combina_solver = PycombinaSolver(problem, stats)
     logger.info("Solver initialized.")
+    stats['iterate_data'] = []
 
     toc()
     # Solve relaxed NLP(y^k)
     data = nlp.solve(data, set_x_bin=False)
     # TODO add check if ipopt succeeded
+    stats['iterate_data'].append(
+        stats.create_iter_dict(
+            iter_nr=0, best_iter=None, prev_feasible=False, ub=None,
+            nlp_obj=data.obj_val, last_benders=None, lb=data.obj_val, x_sol=to_0d(data.x_sol)
+        ))
+
+    if WITH_LOG_DATA:
+        stats.save()
 
     # Solve CIA problem
     data = combina_solver.solve(data)
@@ -61,6 +69,11 @@ def cia_decomposition_algorithm(problem: MinlpProblem, data: MinlpData,
         control = get_control_vector(problem, data)
         data._sol['x'][problem.meta.idx_state] = simulate(problem.meta.initial_state, control, f_dyn)
 
+    stats['iterate_data'].append(
+        stats.create_iter_dict(
+            iter_nr=1, best_iter=1, prev_feasible=False, ub=None,
+            nlp_obj=data.obj_val, last_benders=None, lb=data.obj_val, x_sol=to_0d(data.x_sol)
+        ))
     stats['total_time_calc'] = toc(reset=True)
     return problem, data, data.x_sol
 
