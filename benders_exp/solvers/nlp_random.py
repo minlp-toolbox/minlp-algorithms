@@ -40,8 +40,9 @@ def random_direction_rounding_algorithm(
     best = data
     best_obj = ca.inf
     max_accept_iter = 10
+    tolerance = 1e-2
     stats['iter'] = 0
-    while (integer_error(data.x_sol[problem.idx_x_bin]) > 1e-2 and
+    while (integer_error(data.x_sol[problem.idx_x_bin]) > tolerance and
            not (stats['iter'] > max_accept_iter and best_obj < data.obj_val)):
         data = solver.solve(data)
         logger.info(f"Current obj: {data.obj_val}")
@@ -51,13 +52,13 @@ def random_direction_rounding_algorithm(
         x_var[problem.idx_x_bin] = np.round(x_var[problem.idx_x_bin])  # Round the continuous solution
         datar = deepcopy(data)
         datar.prev_solutions[0]['x'] = x_var
-        datar = nlp.solve(datar)
+        datar = nlp.solve(datar, set_x_bin=True)
         if datar.solved:
             logger.debug(f"Obj {datar.obj_val}")
             if best_obj > datar.obj_val:
                 logger.debug(f"New best obj found in {stats['iter']=}")
                 best_obj = datar.obj_val
-                best = datar
+                best = deepcopy(datar)
         stats['iter'] += 1
 
     toc()
