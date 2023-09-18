@@ -36,7 +36,7 @@ def random_direction_rounding_algorithm(
     solver = RandomDirectionNlpSolver(problem, stats, norm=norm)
     nlp = NlpSolver(problem, stats)
     stats['total_time_loading'] = toc(reset=True)
-    data = nlp.solve(data) # NOTE is a waste of compute only needed for init and then recomputed in line 49!
+    data = nlp.solve(data)
     best = data
     best_obj = ca.inf
     max_accept_iter = 10
