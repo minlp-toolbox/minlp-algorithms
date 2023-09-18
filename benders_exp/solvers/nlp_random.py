@@ -6,7 +6,7 @@ from typing import Tuple
 from benders_exp.solvers.nlp import NlpSolver
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
         regularize_options
-from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR
+from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR, WITH_LOG_DATA
 from benders_exp.utils import to_0d, toc, logging
 from copy import deepcopy
 
@@ -36,12 +36,15 @@ def random_direction_rounding_algorithm(
     solver = RandomDirectionNlpSolver(problem, stats, norm=norm)
     nlp = NlpSolver(problem, stats)
     stats['total_time_loading'] = toc(reset=True)
-    data = nlp.solve(data)
+    data = nlp.solve(data) # NOTE is a waste of compute only needed for init and then recomputed in line 49!
     best = data
     best_obj = ca.inf
     max_accept_iter = 10
     tolerance = 1e-2
     stats['iter'] = 0
+    stats['iterate_data'] = []
+    best_iter = 0
+
     while (integer_error(data.x_sol[problem.idx_x_bin]) > tolerance and
            not (stats['iter'] > max_accept_iter and best_obj < data.obj_val)):
         data = solver.solve(data)
@@ -57,8 +60,18 @@ def random_direction_rounding_algorithm(
             logger.debug(f"Obj {datar.obj_val}")
             if best_obj > datar.obj_val:
                 logger.debug(f"New best obj found in {stats['iter']=}")
-                best_obj = datar.obj_val
+                best_obj = deepcopy(datar.obj_val)
                 best = deepcopy(datar)
+                best_iter = deepcopy(stats['iter'])
+
+        stats['iterate_data'].append((stats.create_iter_dict(
+            stats['iter'], best_iter, datar.solved,
+            ub=best_obj, nlp_obj=datar.obj_val, last_benders=None,
+            lb=integer_error(data.x_sol[problem.idx_x_bin]), x_sol=to_0d(datar.x_sol))
+            ))
+        if WITH_LOG_DATA:
+            stats.save()
+
         stats['iter'] += 1
 
     stats['total_time_calc'] = toc(reset=True)
