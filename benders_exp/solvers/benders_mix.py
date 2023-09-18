@@ -192,8 +192,12 @@ class BendersTRandMaster(BendersMasterMILP):
             [ca.jacobian(problem.g, problem.x)],
             {"jit": WITH_JIT}
         )
-        self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
-                                  ca.hessian(problem.f, problem.x)[0]])
+        if problem.gn_hessian is None:
+            self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
+                                      ca.hessian(problem.f, problem.x)[0]])
+        else:
+            self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
+                                      problem.gn_hessian])
 
         self._x = CASADI_VAR.sym("x_benders", problem.x.numel())
         self._x_bin = self._x[problem.idx_x_bin]
