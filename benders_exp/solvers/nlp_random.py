@@ -60,9 +60,9 @@ def random_direction_rounding_algorithm(
             logger.debug(f"Obj {datar.obj_val}")
             if best_obj > datar.obj_val:
                 logger.debug(f"New best obj found in {stats['iter']=}")
-                best_obj = deepcopy(datar.obj_val)
+                best_obj = datar.obj_val
                 best = deepcopy(datar)
-                best_iter = deepcopy(stats['iter'])
+                best_iter = stats['iter']
 
         stats['iterate_data'].append((stats.create_iter_dict(
             stats['iter'], best_iter, datar.solved,
