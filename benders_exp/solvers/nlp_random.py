@@ -35,7 +35,7 @@ def random_direction_rounding_algorithm(
     """
     solver = RandomDirectionNlpSolver(problem, stats, norm=norm)
     nlp = NlpSolver(problem, stats)
-    toc()
+    stats['total_time_loading'] = toc(reset=True)
     data = nlp.solve(data)
     best = data
     best_obj = ca.inf
@@ -61,7 +61,7 @@ def random_direction_rounding_algorithm(
                 best = deepcopy(datar)
         stats['iter'] += 1
 
-    toc()
+    stats['total_time_calc'] = toc(reset=True)
     return problem, best, best.x_sol
 
 
