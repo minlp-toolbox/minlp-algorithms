@@ -31,7 +31,7 @@ class VoronoiTrustRegionMILP(SolverClass):
         super(VoronoiTrustRegionMILP, self).__init___(problem, stats)
         if WITH_PLOT:
             self.setup_plot()
-        self.options = regularize_options(options, MIP_SOLVER)
+        self.options = regularize_options(options, MIP_SETTINGS)
 
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
@@ -163,7 +163,7 @@ class VoronoiTrustRegionMILP(SolverClass):
         self.nr_g = ubg.numel()
 
         self.solver = ca.qpsol(
-            f"voronoi_tr_milp_with_{self.nr_g}_constraints", "highs", {
+            f"voronoi_tr_milp_with_{self.nr_g}_constraints", MIP_SOLVER, {
             "f": f, "g": g, "x": self._x,
         }, self.options)
 
