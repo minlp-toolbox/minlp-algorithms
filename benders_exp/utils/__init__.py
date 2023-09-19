@@ -153,7 +153,7 @@ def plot_trajectory(
     N = a_collection[0].shape[0]
     dt = meta.dt
     time_array = np.linspace(0, N * dt, N + 1)
-    n_controls = meta.n_control + meta.n_discrete_control
+    n_controls = meta.n_continuous_control + meta.n_discrete_control
 
     latexify()
     fig, axs = plt.subplots(meta.n_state + n_controls,

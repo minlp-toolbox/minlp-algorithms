@@ -17,7 +17,7 @@ class MetaDataOcp(MetaData):
     """Meta data in case the problem is an OCP."""
 
     n_state: Optional[int] = None
-    n_control: Optional[int] = None
+    n_continuous_control: Optional[int] = None
     n_discrete_control: Optional[int] = None
     idx_state: Optional[List[float]] = None
     idx_bin_state: Optional[List[float]] = None

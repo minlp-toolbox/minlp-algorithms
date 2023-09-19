@@ -73,7 +73,7 @@ def create_double_tank_problem2(p_val=[2, 2.5], single_shooting=False) -> Union[
 
     problem = dsc.get_problem()
     meta = MetaDataOcp(
-        dt=dt, n_state=nx, n_control=nu-1, n_discrete_control=1,
+        dt=dt, n_state=nx, n_continuous_control=nu-1, n_discrete_control=1,
         initial_state=p_val, idx_control=np.vstack(dsc.get_indices("Uk"))[:,1],
         idx_state=np.hstack(dsc.get_indices("Xk")),
         idx_bin_control=np.vstack(dsc.get_indices("Uk"))[:,0],
