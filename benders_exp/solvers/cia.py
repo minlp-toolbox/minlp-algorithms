@@ -6,7 +6,7 @@ from typing import Tuple
 from benders_exp.solvers.nlp import NlpSolver
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData
 from benders_exp.defines import WITH_LOG_DATA
-from benders_exp.utils import to_0d, toc, logging
+from benders_exp.utils import to_0d, toc, logging, get_control_vector
 from copy import deepcopy
 from pycombina import BinApprox, CombinaBnB
 
@@ -21,18 +21,6 @@ def simulate(x0, u, f_dyn):
         else:
             x.append(to_0d(f_dyn(x[-1], u[t, :])))
     return np.array(x).flatten().tolist()
-
-def get_control_vector(problem: MinlpProblem, data: MinlpData):
-    if problem.meta.n_control > 0 and problem.meta.n_discrete_control > 0:
-        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_control)
-        control = np.hstack([control, to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)])
-    elif problem.meta.n_control == 0:
-        control = to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)
-    elif problem.meta.n_discrete_control == 0:
-        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_control)
-    return control
-
-
 
 def cia_decomposition_algorithm(problem: MinlpProblem, data: MinlpData,
                                 stats: Stats) -> Tuple[MinlpProblem, MinlpData, ca.DM]:

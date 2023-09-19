@@ -19,6 +19,17 @@ for i, label in enumerate(ca.nlpsol_out()):
     CALLBACK_INPUTS[label] = i
 
 
+def get_control_vector(problem: MinlpProblem, data: MinlpData):
+    if problem.meta.n_continuous_control > 0 and problem.meta.n_discrete_control > 0:
+        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_continuous_control)
+        control = np.hstack([control, to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)])
+    elif problem.meta.n_continuous_control == 0:
+        control = to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)
+    elif problem.meta.n_discrete_control == 0:
+        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_continuous_control)
+    return control
+
+
 def convert_to_flat_list(nr, indices, data):
     """Convert data to a flat list."""
     out = np.zeros((nr,))
