@@ -187,12 +187,14 @@ def create_stcs_problem():
     logger.debug("NLP created")
     prob = dsc.get_problem()
     meta = MetaDataOcp(
-        n_state=system.nx, n_control=system.nu, n_discrete_control=system.nb,
+        n_state=system.nx, n_continuous_control=system.nu, n_discrete_control=system.nb,
         idx_param=dsc.indices_p,
         idx_state=np.hstack(dsc.indices['x']).tolist(),
         idx_control=np.hstack(dsc.indices['u']).tolist(),
+        idx_bin_control=np.hstack(dsc.indices['b']).tolist(),
         initial_state=to_0d(x_hat).tolist(),
-        dt=dt.total_seconds()
+        dt=dt.total_seconds(),
+        min_uptime=1,
         )
     prob.meta = meta
     data = dsc.get_data()

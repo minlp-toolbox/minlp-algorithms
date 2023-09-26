@@ -19,6 +19,17 @@ for i, label in enumerate(ca.nlpsol_out()):
     CALLBACK_INPUTS[label] = i
 
 
+def get_control_vector(problem: MinlpProblem, data: MinlpData):
+    if problem.meta.n_continuous_control > 0 and problem.meta.n_discrete_control > 0:
+        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_continuous_control)
+        control = np.hstack([control, to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)])
+    elif problem.meta.n_continuous_control == 0:
+        control = to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)
+    elif problem.meta.n_discrete_control == 0:
+        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_continuous_control)
+    return control
+
+
 def convert_to_flat_list(nr, indices, data):
     """Convert data to a flat list."""
     out = np.zeros((nr,))
@@ -153,9 +164,10 @@ def plot_trajectory(
     N = a_collection[0].shape[0]
     dt = meta.dt
     time_array = np.linspace(0, N * dt, N + 1)
+    n_controls = meta.n_continuous_control + meta.n_discrete_control
 
     latexify()
-    fig, axs = plt.subplots(meta.n_state + meta.n_control,
+    fig, axs = plt.subplots(meta.n_state + n_controls,
                             1, figsize=(4.5, 8), sharex=True)
     for s in range(meta.n_state):
         axs[s].grid()
@@ -169,7 +181,7 @@ def plot_trajectory(
         axs[s].set_ylim(0, )
         axs[s].set_ylabel(f"$x_{s}$")
 
-    for a in range(meta.n_control):
+    for a in range(n_controls):
         axs[meta.n_state + a].set_ylim(0, 10.5)
         for a_traj in a_collection:
             if len(a_traj.shape) == 1:

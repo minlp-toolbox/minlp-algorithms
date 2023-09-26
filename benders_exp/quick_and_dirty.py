@@ -6,7 +6,7 @@ from sys import argv
 from typing import Callable, Tuple, Union
 import casadi as ca
 import numpy as np
-from benders_exp.utils import plot_trajectory, tic, to_0d, toc, \
+from benders_exp.utils import get_control_vector, plot_trajectory, tic, to_0d, toc, \
         make_bounded, setup_logger, logging
 from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, WITH_LOG_DATA
 from benders_exp.problems.overview import PROBLEMS
@@ -19,6 +19,7 @@ from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImp
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
 from benders_exp.solvers.nlp_random import random_direction_rounding_algorithm
+from benders_exp.solvers.cia import cia_decomposition_algorithm
 
 logger = logging.getLogger(__name__)
 
@@ -362,6 +363,7 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "relaxed": relaxed,
         "ampl": export_ampl,
         "randomnlp": random_direction_rounding_algorithm,
+        "cia" : cia_decomposition_algorithm,
     }
 
     if mode_name not in MODES:
@@ -416,7 +418,7 @@ if __name__ == "__main__":
         meta = problem.meta
         state = to_0d(x_star)[meta.idx_state].reshape(-1, meta.n_state)
         state = np.vstack([meta.initial_state, state])
-        control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_control)
+        control = get_control_vector(problem, data)
         fig, axs = plot_trajectory(state, control, meta, title=problem_name)
 
         # TODO the next is only a patch for plotting the demand for the double tank problem

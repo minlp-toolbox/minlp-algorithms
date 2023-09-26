@@ -72,14 +72,16 @@ def create_ocp_unstable_system(p_val=[0.8, 0.7]):
         Uprev = Uk
     dsc.f += 0.5 * (Xk - Xref) ** 2
 
+    problem = dsc.get_problem()
     meta = MetaDataOcp(
-        dt=dt, n_state=1, n_control=1,
+        dt=dt, n_state=1, n_discrete_control=1, n_continuous_control=0,
         initial_state=p_val[0], idx_control=np.hstack(dsc.get_indices("Uk")),
         idx_state=np.hstack(dsc.get_indices("Xk")),
+        idx_bin_control=problem.idx_x_bin,
         scaling_coeff_control=[1],
-        min_uptime=min_uptime
+        min_uptime=min_uptime,
+        f_dynamics=F,
     )
-    problem = dsc.get_problem()
     problem.meta = meta
     data = dsc.get_data()
 
@@ -254,7 +256,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         ubg += [0, 0]
 
     meta = MetaDataOcp(
-        dt=dt, n_state=nx, n_control=nu,
+        dt=dt, n_state=nx, n_continuous_control=1, n_discrete_control=1,
         initial_state=p_val, idx_control=np.hstack(idx_control),
         idx_state=np.hstack(idx_state),
         scaling_coeff_control=scaling_coeff
@@ -335,7 +337,7 @@ if __name__ == '__main__':
         meta = prob.meta
         state = to_0d(x_star)[meta.idx_state].reshape(-1, meta.n_state)
         state = np.vstack([meta.initial_state, state])
-        control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_control)
+        control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_continuous_control)
         fig, axs = plot_trajectory(state, control, meta, title='problem name')
         plt.show()
 

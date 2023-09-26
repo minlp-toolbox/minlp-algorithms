@@ -17,7 +17,7 @@ class MetaDataOcp(MetaData):
     """Meta data in case the problem is an OCP."""
 
     n_state: Optional[int] = None
-    n_control: Optional[int] = None
+    n_continuous_control: Optional[int] = None
     n_discrete_control: Optional[int] = None
     idx_state: Optional[List[float]] = None
     idx_bin_state: Optional[List[float]] = None
@@ -25,6 +25,7 @@ class MetaDataOcp(MetaData):
     idx_bin_control: Optional[List[float]] = None
     idx_other: Optional[Dict[str, List[float]]] = None
     idx_param: Optional[dict] = None
+    f_dynamics: Optional[Callable] = None
     # TODO: initial_state needs to become an index list of p
     initial_state: Optional[List[float]] = None
     dt: Optional[float] = None
