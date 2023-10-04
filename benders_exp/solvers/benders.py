@@ -327,7 +327,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         meaning: nu == J(y_N)
     """
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None, switching_qp=True):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Create the benders constraint MILP."""
         super(BendersTrustRegionMIP, self).__init__(
             problem, data, stats, options)
@@ -364,16 +364,10 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         # We take a point
         self.best_data = None
         self.x_sol_best = data.x0
-        self.switching_qp = switching_qp
         self.iter = 0
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False, relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, relaxed=False) -> MinlpData:
         """Solve."""
-        if self.switching_qp:
-            self.iter += 1
-            is_qp = ((self.iter % 2) == 0)
-        is_qp = True
-
         # Update with the lowest upperbound and the corresponding best solution:
         if relaxed:
             self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
@@ -428,11 +422,8 @@ class BendersTrustRegionMIP(BendersMasterMILP):
 
         f_k = self.f(self.x_sol_best, nlpdata.p)
         f_lin = self.grad_f_x_sub(self.x_sol_best, nlpdata.p)
-        if is_qp:
-            f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
-            f = f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx
-        else:
-            f = f_k + f_lin.T @ dx
+        f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
+        f = f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx
 
         self.solver = ca.qpsol(f"benders_constraint_{self.nr_g}", MIP_SOLVER, {
             "f": f, "g": g, "x": self._x, "p": self._nu
