@@ -367,7 +367,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         self.switching_qp = switching_qp
         self.iter = 0
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False, relaxed=False) -> MinlpData:
         """Solve."""
         if self.switching_qp:
             self.iter += 1
@@ -375,12 +375,13 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         is_qp = True
 
         # Update with the lowest upperbound and the corresponding best solution:
-        if nlpdata.obj_val < self.y_N_val:
-            if prev_feasible:
-                self.y_N_val = nlpdata.obj_val
-                self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
-                self.best_data = nlpdata._sol
-                print(f"NEW BOUND {self.y_N_val}")
+        if relaxed:
+            self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
+        elif nlpdata.obj_val < self.y_N_val and prev_feasible:
+            self.y_N_val = nlpdata.obj_val
+            self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
+            self.best_data = nlpdata._sol
+            print(f"NEW BOUND {self.y_N_val}")
 
         # Create a new cut
         x_sol_prev = nlpdata.x_sol[:self.nr_x_orig]
@@ -394,7 +395,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         self._g = ca.vertcat(self._g, g_k)
         self._lbg = ca.vertcat(self._lbg, -ca.inf)
         # Should be at least 1e-4 better and 1e-4 from the constraint bound!
-        self._ubg = ca.vertcat(self._ubg, -1e-4)
+        self._ubg = ca.vertcat(self._ubg, 0)  # -1e-4)
         self.nr_g += 1
 
         if WITH_PLOT:
@@ -441,7 +442,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
             x0=self.x_sol_best,
             lbx=nlpdata.lbx, ubx=nlpdata.ubx,
             lbg=lbg, ubg=ubg,
-            p=[self.y_N_val]
+            p=[self.y_N_val - 1e-4]
         )
 
         nlpdata.solved, stats = self.collect_stats("BTR-MIP")
@@ -449,6 +450,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
             nlpdata.prev_solution = sol
         else:
             nlpdata.prev_solution = self.best_data
+            print("FINAL ITERATION")
             # Final iteration
             nlpdata.solved = True
 

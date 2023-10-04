@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 
 
 def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
-                  master_problem: SolverClass, termination_condition: Callable[..., bool]
-                  ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+                  master_problem: SolverClass, termination_condition: Callable[..., bool],
+                  first_relaxed=False) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
     logger.info("Setup NLP solver...")
     nlp = NlpSolver(problem, stats)
@@ -42,6 +42,10 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
     feasible = True
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
+
+    if first_relaxed:
+        data = nlp.solve(data)
+        data = master_problem.solve(data, relaxed=True)
 
     while (not termination_condition(lb, ub, tolerance, x_star, x_hat)) and feasible:
         toc()
@@ -193,7 +197,8 @@ def outer_approx_algorithm_improved(
 
 
 def benders_constrained_milp(
-    problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'std'
+    problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'std',
+    first_relaxed=True
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
     Create and run benders constrained milp algorithm.
@@ -209,7 +214,7 @@ def benders_constrained_milp(
     termination_condition = get_termination_condition(
         termination_type, problem, data)
     toc()
-    return base_strategy(problem, data, stats, benders_tr_master, termination_condition)
+    return base_strategy(problem, data, stats, benders_tr_master, termination_condition, first_relaxed=True)
 
 
 def relaxed(
@@ -345,6 +350,7 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "benders": benders_algorithm,
         "bendersqp": lambda p, d, s: benders_algorithm(p, d, s, with_qp=True),
         "benders_tr": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std'),
+        "benders_tr_rel": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std', first_relaxed=True),
         "benders_trm": benders_tr_master,
         "oa": outer_approx_algorithm,
         "oai": outer_approx_algorithm_improved,
@@ -363,7 +369,7 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "relaxed": relaxed,
         "ampl": export_ampl,
         "randomnlp": random_direction_rounding_algorithm,
-        "cia" : cia_decomposition_algorithm,
+        "cia": cia_decomposition_algorithm,
     }
 
     if mode_name not in MODES:
