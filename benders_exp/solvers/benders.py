@@ -95,7 +95,8 @@ class BendersMasterMILP(SolverClass):
         :return: g_k the new cutting plane (should be > 0)
         """
         if prev_feasible:
-            lambda_k = -lam_x[self.idx_x_bin]  # TODO: understand why need the minus!
+            # TODO: understand why need the minus!
+            lambda_k = -lam_x[self.idx_x_bin]
             f_k = self.f(x_sol, p)
             g_k = (
                 f_k + lambda_k.T @ (x - x_sol_sub_set)
@@ -355,10 +356,13 @@ class BendersTrustRegionMIP(BendersMasterMILP):
             problem, data, self.idx_g_lin, self._x, allow_fail=False
         )
 
-        self.options.update({"discrete": [
-                            1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]})
+        self.options.update({
+            "discrete": [1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])],
+            "error_on_fail": False
+        })
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
         # We take a point
+        self.best_data = None
         self.x_sol_best = data.x0
         self.switching_qp = switching_qp
         self.iter = 0
@@ -368,12 +372,14 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         if self.switching_qp:
             self.iter += 1
             is_qp = ((self.iter % 2) == 0)
+        is_qp = True
 
         # Update with the lowest upperbound and the corresponding best solution:
         if nlpdata.obj_val < self.y_N_val:
             if prev_feasible:
                 self.y_N_val = nlpdata.obj_val
                 self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
+                self.best_data = nlpdata._sol
                 print(f"NEW BOUND {self.y_N_val}")
 
         # Create a new cut
@@ -387,7 +393,8 @@ class BendersTrustRegionMIP(BendersMasterMILP):
 
         self._g = ca.vertcat(self._g, g_k)
         self._lbg = ca.vertcat(self._lbg, -ca.inf)
-        self._ubg = ca.vertcat(self._ubg, 0)
+        # Should be at least 1e-4 better and 1e-4 from the constraint bound!
+        self._ubg = ca.vertcat(self._ubg, -1e-4)
         self.nr_g += 1
 
         if WITH_PLOT:
@@ -430,7 +437,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
             "f": f, "g": g, "x": self._x, "p": self._nu
         }, self.options)
 
-        nlpdata.prev_solution = self.solver(
+        sol = self.solver(
             x0=self.x_sol_best,
             lbx=nlpdata.lbx, ubx=nlpdata.ubx,
             lbg=lbg, ubg=ubg,
@@ -438,4 +445,11 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         )
 
         nlpdata.solved, stats = self.collect_stats("BTR-MIP")
+        if nlpdata.solved:
+            nlpdata.prev_solution = sol
+        else:
+            nlpdata.prev_solution = self.best_data
+            # Final iteration
+            nlpdata.solved = True
+
         return nlpdata
