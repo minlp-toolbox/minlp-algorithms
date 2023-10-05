@@ -3,6 +3,15 @@
 from os import path, makedirs, environ
 import casadi as ca
 
+
+def to_bool(val):
+    """String or bool value to bool."""
+    if isinstance(val, bool):
+        return val
+    else:
+        return not (val.lower() in ["0", "false", "false", "no"])
+
+
 SOURCE_FOLDER = path.dirname(path.abspath(__file__))
 _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
@@ -20,17 +29,20 @@ WITH_JIT = False
 WITH_PLOT = False
 EPS = 1e-5
 OBJECTIVE_TOL = 1e-2
+CONSTRAINT_INT_TOL = 1e-2
 CONSTRAINT_TOL = 1e-4
+BENDERS_LB = -1e16
 CASADI_VAR = ca.MX
 MIP_SOLVER = environ.get("MIP_SOLVER", "gurobi")
-WITH_DEBUG = environ.get("DEBUG", False)
-WITH_LOG_DATA = bool(environ.get("LOG_DATA", False))
+WITH_DEBUG = to_bool(environ.get("DEBUG", False))
+WITH_LOG_DATA = to_bool(environ.get("LOG_DATA", False))
+# WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
+
 IPOPT_SETTINGS = {  # TODO: make ipopt setting change according to the problem called
     "ipopt.linear_solver": "ma57",
     "ipopt.mumps_mem_percent": 10000,
     "ipopt.mumps_pivtol": 0.001,
     "ipopt.print_level": 5,
-    "ipopt.file_print_level": 5,
     "ipopt.max_cpu_time": 3600.0,
     "ipopt.max_iter": 600000,
     "ipopt.acceptable_tol": 1e-1,
@@ -52,6 +64,8 @@ GUROBI_SETTINGS = {
     # "gurobi.PoolSolutions": 100,  # Default 10
     # "gurobi.PoolObjBound" # Discard avoce this value
 }
+
+BONMIN_SETTINGS = {}
 HIGHS_SETTINGS = {}
 MIP_SETTINGS_ALL = {
     "gurobi": GUROBI_SETTINGS,
@@ -70,4 +84,8 @@ if not WITH_DEBUG:
     })
     GUROBI_SETTINGS.update({
         "gurobi.output_flag": 0,
+    })
+else:
+    IPOPT_SETTINGS.update({
+        "ipopt.print_level": 5,
     })
