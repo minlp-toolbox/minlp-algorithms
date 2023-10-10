@@ -14,6 +14,7 @@ options = [
         "bendersqp",
         "bonmin",
         "benders_tr",
+        "benders_tr_rel",
         "benders_trm",
         "randomnlp",
     ]

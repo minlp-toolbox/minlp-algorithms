@@ -26,7 +26,7 @@ def get_lin_bounds(problem: MinlpProblem):
     return problem.idx_g_lin, problem.idx_g_lin_bin
 
 
-def create_stcs_problem():
+def create_stcs_problem(with_slack=True):
     """Build problem."""
     logger.debug("Start processing")
     system = System()
@@ -98,8 +98,7 @@ def create_stcs_problem():
                     lb=-np.inf, ub=np.inf, w0=to_0d(simulator.x_data[k, :]).tolist())
             for j in range(1, collocation_nodes + 1)
         ]
-        x_k_next_0 = dsc.sym(f"x", system.nx,
-                      lb=-ca.inf, ub=ca.inf,  w0=to_0d(simulator.x_data[k+1, :]).tolist())
+        x_k_next_0 = dsc.sym("x", system.nx, lb=-ca.inf, ub=ca.inf,  w0=to_0d(simulator.x_data[k+1, :]).tolist())
 
         # Add new binary controls
         b_k = dsc.sym_bool("b", system.nb)
@@ -132,19 +131,28 @@ def create_stcs_problem():
         dsc.eq(F_k["eq_d"], 0)
 
         # Add new slack variable for T_ac_min condition
-        s_ac_lb_k = dsc.sym("s_ac_lb", system.n_s_ac_lb, 0, ca.inf)
+        if with_slack:
+            s_ac_lb_k = dsc.sym("s_ac_lb", system.n_s_ac_lb, 0, ca.inf)
+        else:
+            s_ac_lb_k = np.zeros(system.n_s_ac_lb)
 
         # Setup T_ac_min conditions
         dsc.leq(0, T_ac_min_fcn(x_k_0, c_k, b_k, s_ac_lb_k))
 
         # Add new slack variable for T_ac_max condition
-        s_ac_ub_k = dsc.sym("s_ac_ub", system.n_s_ac_ub, 0, ca.inf)
+        if with_slack:
+            s_ac_ub_k = dsc.sym("s_ac_ub", system.n_s_ac_ub, 0, ca.inf)
+        else:
+            s_ac_ub_k = np.zeros(system.n_s_ac_ub)
 
         # Setup T_ac_max conditions
         dsc.leq(T_ac_max_fcn(x_k_0, c_k, b_k, s_ac_ub_k), 0)
 
         # Add new slack variable for state limits soft constraints
-        s_x_k = dsc.sym("s_x", system.nx, -ca.inf, ca.inf, w0=0)
+        if with_slack:
+            s_x_k = dsc.sym("s_x", system.nx, -ca.inf, ca.inf, w0=0)
+        else:
+            s_x_k = np.zeros(system.nx)
 
         # Setup state limits as soft constraints to prevent infeasibility
         dsc.add_g(x_min[k + 1, :], slacked_state_fcn(x_k_next_0, s_x_k), x_max[k + 1, :])
@@ -230,7 +238,7 @@ if __name__ == "__main__":
     # data.lbg = nlpargs_adrian['lbg']
     # data.ubg = nlpargs_adrian['ubg']
 
-    data = nlp.solve(data, set_x_bin=False) # solve relaxed problem
+    data = nlp.solve(data, set_x_bin=False)  # solve relaxed problem
     with open("results/x_star_rel_test.pickle", "wb") as f:
         pickle.dump(data.x_sol, f)
     breakpoint()

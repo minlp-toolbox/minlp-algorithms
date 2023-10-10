@@ -95,7 +95,8 @@ class BendersMasterMILP(SolverClass):
         :return: g_k the new cutting plane (should be > 0)
         """
         if prev_feasible:
-            lambda_k = -lam_x[self.idx_x_bin]  # TODO: understand why need the minus!
+            # TODO: understand why need the minus!
+            lambda_k = -lam_x[self.idx_x_bin]
             f_k = self.f(x_sol, p)
             g_k = (
                 f_k + lambda_k.T @ (x - x_sol_sub_set)
@@ -326,7 +327,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         meaning: nu == J(y_N)
     """
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None, switching_qp=True):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Create the benders constraint MILP."""
         super(BendersTrustRegionMIP, self).__init__(
             problem, data, stats, options)
@@ -355,26 +356,26 @@ class BendersTrustRegionMIP(BendersMasterMILP):
             problem, data, self.idx_g_lin, self._x, allow_fail=False
         )
 
-        self.options.update({"discrete": [
-                            1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]})
+        self.options.update({
+            "discrete": [1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])],
+            "error_on_fail": False
+        })
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
         # We take a point
+        self.best_data = None
         self.x_sol_best = data.x0
-        self.switching_qp = switching_qp
         self.iter = 0
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, relaxed=False) -> MinlpData:
         """Solve."""
-        if self.switching_qp:
-            self.iter += 1
-            is_qp = ((self.iter % 2) == 0)
-
         # Update with the lowest upperbound and the corresponding best solution:
-        if nlpdata.obj_val < self.y_N_val:
-            if prev_feasible:
-                self.y_N_val = nlpdata.obj_val
-                self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
-                print(f"NEW BOUND {self.y_N_val}")
+        if relaxed:
+            self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
+        elif nlpdata.obj_val < self.y_N_val and prev_feasible:
+            self.y_N_val = nlpdata.obj_val
+            self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
+            self.best_data = nlpdata._sol
+            print(f"NEW BOUND {self.y_N_val}")
 
         # Create a new cut
         x_sol_prev = nlpdata.x_sol[:self.nr_x_orig]
@@ -387,7 +388,8 @@ class BendersTrustRegionMIP(BendersMasterMILP):
 
         self._g = ca.vertcat(self._g, g_k)
         self._lbg = ca.vertcat(self._lbg, -ca.inf)
-        self._ubg = ca.vertcat(self._ubg, 0)
+        # Should be at least 1e-4 better and 1e-4 from the constraint bound!
+        self._ubg = ca.vertcat(self._ubg, 0)  # -1e-4)
         self.nr_g += 1
 
         if WITH_PLOT:
@@ -420,22 +422,27 @@ class BendersTrustRegionMIP(BendersMasterMILP):
 
         f_k = self.f(self.x_sol_best, nlpdata.p)
         f_lin = self.grad_f_x_sub(self.x_sol_best, nlpdata.p)
-        if is_qp:
-            f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
-            f = f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx
-        else:
-            f = f_k + f_lin.T @ dx
+        f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
+        f = f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx
 
         self.solver = ca.qpsol(f"benders_constraint_{self.nr_g}", MIP_SOLVER, {
             "f": f, "g": g, "x": self._x, "p": self._nu
         }, self.options)
 
-        nlpdata.prev_solution = self.solver(
+        sol = self.solver(
             x0=self.x_sol_best,
             lbx=nlpdata.lbx, ubx=nlpdata.ubx,
             lbg=lbg, ubg=ubg,
-            p=[self.y_N_val]
+            p=[self.y_N_val - 1e-4]
         )
 
         nlpdata.solved, stats = self.collect_stats("BTR-MIP")
+        if nlpdata.solved:
+            nlpdata.prev_solution = sol
+        else:
+            nlpdata.prev_solution = self.best_data
+            print("FINAL ITERATION")
+            # Final iteration
+            nlpdata.solved = True
+
         return nlpdata

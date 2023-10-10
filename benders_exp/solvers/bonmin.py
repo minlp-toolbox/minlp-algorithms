@@ -24,6 +24,14 @@ class BonminSolver(SolverClass):
         options.update({
             "discrete": discrete,
             "bonmin.algorithm": algo_type,
+            # IPopt settings:
+            "bonmin.linear_solver": "ma57",
+            "bonmin.acceptable_tol": 1e-1,
+            "bonmin.acceptable_iter": 5,
+            "bonmin.mu_strategy": "adaptive",
+            "bonmin.mu_target": 1e-5,
+            "bonmin.warm_start": "optimum",
+            "bonmin.bb_log_level": 2,
         })
         minlp = {
             "f": problem.f,
