@@ -8,7 +8,13 @@ from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData
 from benders_exp.defines import WITH_LOG_DATA
 from benders_exp.utils import to_0d, toc, logging, get_control_vector
 from copy import deepcopy
-from pycombina import BinApprox, CombinaBnB
+try:
+    from pycombina import BinApprox, CombinaBnB
+except:
+    class BinApprox:
+        pass
+    class CombinaBnB:
+        pass
 
 logger = logging.getLogger(__name__)
 
