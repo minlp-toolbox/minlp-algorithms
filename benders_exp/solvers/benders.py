@@ -403,9 +403,10 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         if g_lin.numel() > 0:
             jac_g = self.jac_g_sub(self.x_sol_best, nlpdata.p)[
                 self.idx_g_nonlin, :]
+            # Warning: Reversing these expressions give weird results!
             g = ca.vertcat(
                 g_lin + jac_g @ dx,
-                self._g
+                self._g,
             )
             lbg = ca.vertcat(
                 nlpdata.lbg[self.idx_g_nonlin],

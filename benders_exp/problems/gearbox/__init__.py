@@ -18,6 +18,7 @@ from benders_exp.problems import MinlpProblem, MinlpData, MetaDataMpc
 from benders_exp.problems.gearbox.models import insight_50kw_power_jc, \
     advisor_em_pwr_sc, battery_hu
 from benders_exp.problems.dsc import Description
+from benders_exp.utils.cache import CachedFunction
 
 
 def get_cycle_data(dt=1, N=30):
@@ -387,6 +388,11 @@ def create_gearbox(N=10, gearbox_type="gasoline", dt=1.0, switch_cost=False) -> 
 
         fig.subplots_adjust(hspace=0.5)
         plt.show()
+
+    dsc.w = [ca.vcat(dsc.w)]
+    dsc.p = [ca.vcat(dsc.p)]
+    dsc.f = CachedFunction(f"gearbox{N}", dsc.create_f)(dsc.w[0], dsc.p[0])
+    dsc.g = [CachedFunction(f"gearbox{N}", dsc.create_g)(dsc.w[0], dsc.p[0])]
 
     problem = dsc.get_problem()
     problem.meta = MetaDataMpc()

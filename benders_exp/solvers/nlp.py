@@ -117,8 +117,8 @@ class FeasibilityNlpSolver(SolverClass):
         print("FEASIBILITY")
         success_out = []
         sols_out = []
-        lbx = nlpdata.lbx
-        ubx = nlpdata.ubx
+        lbx = ca.vcat([nlpdata.lbx, np.zeros(1)])  # add lower bound for the slacks
+        ubx = ca.vcat([nlpdata.ubx, np.inf * np.ones(1)])  # add upper bound for the slacks
 
         for success_prev, sol in zip(nlpdata.solved_all, nlpdata.solutions_all):
             if success_prev:
@@ -127,8 +127,6 @@ class FeasibilityNlpSolver(SolverClass):
             else:
                 lbx[self.idx_x_bin] = to_0d(sol['x'][self.idx_x_bin])
                 ubx[self.idx_x_bin] = to_0d(sol['x'][self.idx_x_bin])
-                lbx = ca.vcat([lbx, np.zeros(1)])  # add lower bound for the slacks
-                ubx = ca.vcat([ubx, np.inf * np.ones(1)])  # add upper bound for the slacks
 
                 sol_new = self.solver(
                     x0=ca.vcat(

@@ -91,14 +91,15 @@ class OuterApproxMILP(SolverClass):
             "x": self._x,
         }, self.options)
 
-        nlpdata.prev_solution = self.solver(
+        sol = self.solver(
             x0=ca.vertcat(x_sol, nlpdata.obj_val),
             lbx=ca.vertcat(nlpdata.lbx, -1e8),
             ubx=ca.vertcat(nlpdata.ubx, ca.inf),
             lbg=self._lbg,
             ubg=self._ubg,
         )
-        nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x]
+        sol['x'] = sol['x'][:self.nr_x]
+        nlpdata.prev_solution = sol
         nlpdata.solved, stats = self.collect_stats("OA-MILP")
         return nlpdata
 
@@ -109,7 +110,7 @@ class OuterApproxMILPImproved(SolverClass):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
         """Improved outer approximation."""
         super(OuterApproxMILPImproved, self).__init___(problem, stats)
-        self.options = regularize_options(options)
+        self.options = regularize_options(options, MIP_SETTINGS)
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
             {"jit": WITH_JIT}
@@ -180,13 +181,14 @@ class OuterApproxMILPImproved(SolverClass):
             "x": self._x,
         }, self.options)
 
-        nlpdata.prev_solution = self.solver(
+        sol = self.solver(
             x0=ca.vertcat(x_sol, nlpdata.obj_val),
             lbx=ca.vertcat(nlpdata.lbx, -1e8),
             ubx=ca.vertcat(nlpdata.ubx, ca.inf),
             lbg=self._lbg,
             ubg=self._ubg,
         )
-        nlpdata.prev_solution['x'] = nlpdata.prev_solution['x'][:self.nr_x]
+        sol['x'] = sol['x'][:self.nr_x]
+        nlpdata.prev_solution = sol
         nlpdata.solved, stats = self.collect_stats("OAI-MILP")
         return nlpdata

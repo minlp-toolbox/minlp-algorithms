@@ -13,6 +13,7 @@ from benders_exp.problems.double_tank import create_double_tank_problem2
 from benders_exp.problems.solarsys import create_stcs_problem
 from benders_exp.problems.gearbox import create_simple_gearbox, create_gearbox, \
     create_gearbox_int
+from benders_exp.problems.minlp import MINLP_PROBLEMS
 
 
 def create_ocp_unstable_system(p_val=[0.8, 0.7]):
@@ -234,7 +235,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         ubw += [1, gamma]
         w0 += [0.5, 0.5]
         idx_x_bin.append(np.arange(idx_var-nu, idx_var-1))
-        idx_control.append(np.arange(idx_var-nu, idx_var))
+        idx_control.append(np.arange(idx_var-nu+1, idx_var))
 
         # Integrate till the end of the interval
         Xk_end = F(Xk, Uk)
@@ -257,7 +258,9 @@ def create_double_tank_problem(p_val=[2, 2.5]):
 
     meta = MetaDataOcp(
         dt=dt, n_state=nx, n_continuous_control=1, n_discrete_control=1,
-        initial_state=p_val, idx_control=np.hstack(idx_control),
+        initial_state=p_val,
+        idx_control=np.hstack(idx_control),
+        idx_bin_control=np.hstack(idx_x_bin),
         idx_state=np.hstack(idx_state),
         scaling_coeff_control=scaling_coeff
     )
@@ -282,6 +285,7 @@ def counter_example_nonconvexity():
 
 def create_from_nl_file(file):
     """Load from NL file."""
+    global CASADI_VAR
     # Create an NLP instance
     nl = ca.NlpBuilder()
 
@@ -289,9 +293,25 @@ def create_from_nl_file(file):
     nl.import_nl(file, {"verbose": False})
     print(f"Loading MINLP with: {nl.repr()}")
 
-    problem = MinlpProblem(x=nl.x, f=nl.f, g=nl.g, idx_x_bin=nl.discrete)
-    data = MinlpData(x0=nl.x_init, _lbx=nl.x_lb, _ubx=nl.x_ub,
-                     _lbg=nl.g_lb, _ubg=nl.g_ub, p=[])
+    if not isinstance(nl.x[0], CASADI_VAR):
+        raise Exception(f"Set CASADI_VAR to {type(nl.x[0])} in defines!")
+
+    idx = np.where(np.array(nl.discrete))
+
+    problem = MinlpProblem(
+        x=ca.vcat(nl.x),
+        f=nl.f, g=ca.vcat(nl.g),
+        idx_x_bin=idx[0].tolist(),
+        p=[]
+    )
+    if nl.f.is_constant():
+        raise Exception("No objective!")
+
+    data = MinlpData(x0=np.array(nl.x_init),
+                     _lbx=np.array(nl.x_lb),
+                     _ubx=np.array(nl.x_ub),
+                     _lbg=np.array(nl.g_lb),
+                     _ubg=np.array(nl.g_ub), p=[])
     return problem, data
 
 
@@ -311,6 +331,7 @@ PROBLEMS = {
     "unstable_ocp": create_ocp_unstable_system,
     "nl_file": create_from_nl_file
 }
+PROBLEMS.update(MINLP_PROBLEMS)
 
 
 if __name__ == '__main__':
@@ -345,4 +366,3 @@ if __name__ == '__main__':
     # grad_g = ca.Function('grad_g', [prob.x, prob.p], [ca.jacobian(prob.g, prob.x).T])
     # lambda_k = grad_f(data.x_sol, data.p) + grad_g(data.x_sol, data.p) @ data.lam_g_sol
     # assert np.allclose(-data.lam_x_sol, lambda_k)
-    # breakpoint()
