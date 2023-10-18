@@ -13,6 +13,17 @@ from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp
 
 logger = logging.getLogger(__name__)
 
+try:
+    from colored import fg, stylize
+
+    def colored(text, color="red"):
+        """Color a text."""
+        logger.info(stylize(text, fg(color)))
+except Exception:
+    def colored(text, color=None):
+        """Color a text."""
+        logger.info(text)
+
 perf_ti = None
 CALLBACK_INPUTS = dict()
 for i, label in enumerate(ca.nlpsol_out()):
@@ -101,7 +112,7 @@ def to_0d(array):
     else:
         ret = array.full().squeeze()
     if ret.size == 1:
-        ret = [ret.tolist()]
+        ret = ret.reshape((-1, 1))
     return ret
 
 

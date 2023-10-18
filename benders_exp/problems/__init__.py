@@ -71,12 +71,14 @@ class MinlpData:
     _ubg: ca.DM
     prev_solutions: Optional[List[Dict[str, Any]]] = None
     solved_all: List[bool] = field(default_factory=lambda: [True])
-    best_solutions: Optional[list] = None
+    best_solutions: Optional[list] = field(default_factory=lambda: [])
 
     @property
     def nr_sols(self):
         if self.prev_solutions:
             return len(self.prev_solutions)
+        else:
+            return 1
 
     @property
     def solved(self):

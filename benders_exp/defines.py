@@ -17,6 +17,7 @@ _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
 OUT_DIR = path.join(SOURCE_FOLDER, "../results")
 CACHE_FOLDER = path.join(SOURCE_FOLDER, "../data/cache")
+USE_SOLUTION_POOL = True
 
 if not path.exists(IMG_DIR):
     makedirs(IMG_DIR)
@@ -64,6 +65,9 @@ GUROBI_SETTINGS = {
     # "gurobi.PoolSolutions": 100,  # Default 10
     # "gurobi.PoolObjBound" # Discard avoce this value
 }
+if USE_SOLUTION_POOL:
+    GUROBI_SETTINGS["gurobi.PoolSearchMode"] = 1
+    GUROBI_SETTINGS["gurobi.PoolSolutions"] = 5
 
 BONMIN_SETTINGS = {}
 HIGHS_SETTINGS = {}

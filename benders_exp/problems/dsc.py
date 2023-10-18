@@ -2,9 +2,9 @@
 
 from typing import Optional, Union, List, Tuple
 from benders_exp.defines import CASADI_VAR
-from casadi import vertcat, inf, hessian, Function, DM, reshape, jacobian
+from casadi import vertcat, inf, hessian, Function, DM, reshape, jacobian, vcat
 from math import isinf
-from benders_exp.problems import MinlpProblem, MinlpData, MetaDataOcp
+from benders_exp.problems import MinlpProblem, MinlpData
 import numpy as np
 
 
@@ -205,16 +205,24 @@ class Description:
                    is_linear=is_linear, is_discrete=is_discrete)
 
     def sym_bool(
-        self, name: str, nr: int = 1,
+        self, name: str, nr: int = 1, w0=1
     ) -> CASADI_VAR:
         """Create a symbolic boolean."""
-        return self.sym(name, nr, 0, 1, w0=1, discrete=True)
+        return self.sym(name, nr, 0, 1, w0=w0, discrete=True)
 
     def get_gauss_newton_hessian(self) -> CASADI_VAR:
         x = vertcat(*self.w)
         r = vertcat(*self.r)
         dr = jacobian(r, x)
         return dr.T @ dr
+
+    def create_f(self):
+        """Create function f."""
+        return Function("f", [vcat(self.w), vcat(self.p)], [self.f])
+
+    def create_g(self):
+        """Create function f."""
+        return Function("g", [vcat(self.w), vcat(self.p)], [vcat(self.g)])
 
     def get_problem(self, with_gn=True) -> MinlpProblem:
         """Extract problem."""

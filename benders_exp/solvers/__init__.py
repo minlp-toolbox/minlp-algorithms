@@ -6,6 +6,7 @@ import os
 from typing import Dict, List, Optional
 from benders_exp.problems import MinlpProblem, MinlpData
 from benders_exp.defines import OUT_DIR, WITH_DEBUG
+from benders_exp.utils import toc
 import casadi as ca
 import numpy as np
 import logging
@@ -37,22 +38,29 @@ class Stats:
         """Print statistics."""
         print("Statistics")
         for k, v in sorted(self.data.items()):
-            print(f"\t{k}: {v}")
+            if k not in ["iterate_data"]:
+                print(f"\t{k}: {v}")
 
     @staticmethod
     def create_iter_dict(iter_nr, best_iter, prev_feasible, ub, nlp_obj, last_benders, lb, x_sol):
-        return {"iter_nr": iter_nr,
-                "best_iter": best_iter,
-                "prev_feasible": prev_feasible,
-                "ub": ub,
-                "nlp_obj": nlp_obj,
-                "last_benders": last_benders,
-                "lb": lb,
-                "x_sol": x_sol}
+        """Create dictionary with useful data of this iteration."""
+        return {
+            "iter_nr": iter_nr,
+            "best_iter": best_iter,
+            "prev_feasible": prev_feasible,
+            "ub": ub,
+            "nlp_obj": nlp_obj,
+            "last_benders": last_benders,
+            "lb": lb,
+            "x_sol": x_sol,
+            "time": toc()
+        }
 
-    def save(self):
+    def save(self, dest=None):
         """Save statistics."""
-        dest = os.path.join(OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl')
+        if dest is None:
+            dest = os.path.join(
+                OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl')
         print(f"Saving to {dest}")
         save_pickle(self.data, dest)
 
@@ -69,16 +77,23 @@ class SolverClass(ABC):
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve the problem."""
 
-    def collect_stats(self, algo_name):
+    def collect_stats(self, algo_name, solver=None):
         """Collect statistics."""
-        stats = self.solver.stats()
+        if solver is None:
+            stats = self.solver.stats()
+        else:
+            stats = solver.stats()
 
         self.stats[f"{algo_name}.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
+        self.stats[f"{algo_name}.time_wall"] += sum(
+            [v for k, v in stats.items() if "t_wall" in k]
+        )
         self.stats[f"{algo_name}.iter"] += max(
             stats.get("n_call_solver", 0), stats["iter_count"]
         )
+        self.stats[f"{algo_name}.runs"] += 1
         return stats["success"], stats
 
 
@@ -86,7 +101,7 @@ def regularize_options(options, default):
     """Regularize options."""
     ret = {} if options is None else options.copy()
 
-    if WITH_DEBUG:
+    if not WITH_DEBUG:
         ret.update({"verbose": False, "print_time": 0})
 
     ret.update(default)
@@ -143,7 +158,8 @@ def extract_bounds(problem: MinlpProblem, data: MinlpData,
         try:
             if idx_x is None:
                 _x = problem.x
-                g = ca.Function("g_lin", [_x, problem.p], [problem.g[idx_g]])(new_x, data.p)
+                g = ca.Function("g_lin", [_x, problem.p], [
+                                problem.g[idx_g]])(new_x, data.p)
             else:
                 vec = []
                 j = 0
@@ -155,7 +171,8 @@ def extract_bounds(problem: MinlpProblem, data: MinlpData,
                         vec.append(0)
                 vec = ca.vertcat(*vec)
                 vec_fn = ca.Function("v", [new_x], [vec])
-                g = ca.Function("g_lin", [problem.x, problem.p], [problem.g[idx_g]])(vec_fn(new_x), data.p)
+                g = ca.Function("g_lin", [problem.x, problem.p], [
+                                problem.g[idx_g]])(vec_fn(new_x), data.p)
 
             lbg = data.lbg[idx_g].flatten().tolist()
             ubg = data.ubg[idx_g].flatten().tolist()
