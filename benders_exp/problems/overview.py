@@ -14,6 +14,7 @@ from benders_exp.problems.solarsys import create_stcs_problem
 from benders_exp.problems.gearbox import create_simple_gearbox, create_gearbox, \
     create_gearbox_int
 from benders_exp.problems.minlp import MINLP_PROBLEMS
+from benders_exp.defines import to_bool
 
 
 def create_ocp_unstable_system(p_val=[0.8, 0.7]):
@@ -326,7 +327,7 @@ def reduce_list(data):
     return out
 
 
-def create_from_nosnoc(file):
+def create_from_nosnoc(file, compiled=False):
     """Create a problem from nosnoc."""
     from benders_exp.utils.data import load_pickle
     from benders_exp.utils.cache import CachedFunction, cache_data, return_func
@@ -336,15 +337,25 @@ def create_from_nosnoc(file):
     data = load_pickle(file)
     x = CASADI_VAR.sym("x", data['w_shape'][0])
     p = CASADI_VAR.sym("p", data['p_shape'][0])
-    f = CachedFunction(f"{name}_f", return_func(data['f']))(x, p)
-    g = CachedFunction(f"{name}_g", return_func(data['g']))(x, p)
+    if to_bool(compiled):
+        f = CachedFunction(f"{name}_f", return_func(data['f']))(x, p)
+        g = CachedFunction(f"{name}_g", return_func(data['g']))(x, p)
+    else:
+        f = data['f'](x, p)
+        g = data['g'](x, p)
+
+    print("Loaded Functions")
     ind_x_bin = reduce_list(data['ind_bool'])
     problem = MinlpProblem(
         x=x, p=p, f=f, g=g,
         idx_x_bin=ind_x_bin
     )
-    problem.idx_g_lin, problem.idx_g_lin_bin = cache_data(
-        f"{name}_id", get_lin_bounds, problem)
+    if to_bool(compiled):
+        problem.idx_g_lin, problem.idx_g_lin_bin = cache_data(
+            f"{name}_id", get_lin_bounds, problem)
+    else:
+        # Probably this is just overkill, set them to 0
+        problem.idx_g_lin, problem.idx_g_lin_bin = [], []
 
     data = MinlpData(
         p=data['p0'], x0=data['w0'],
