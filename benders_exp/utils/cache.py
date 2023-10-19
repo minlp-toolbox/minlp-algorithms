@@ -50,6 +50,13 @@ def cache_data(name, generator_func, *args, **kwargs):
         return data
 
 
+def return_func(func):
+    """Create a function."""
+    def r():
+        return func
+    return r
+
+
 class CachedFunction:
     """A cached function."""
 

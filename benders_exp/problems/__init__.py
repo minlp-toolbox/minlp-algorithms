@@ -169,17 +169,26 @@ class MinlpData:
         self._ubx = value
 
 
+def to_float(val):
+    """To single float."""
+    if isinstance(val, np.ndarray):
+        return to_float(val[0])
+    elif isinstance(val, list):
+        return to_float(val[0])
+    return val
+
+
 def check_solution(problem: MinlpProblem, data: MinlpData, x_star, eps_obj=OBJECTIVE_TOL,
                    eps=CONSTRAINT_TOL, throws=True):
     """Check a solution."""
     f = ca.Function("f", [problem.x, problem.p], [problem.f])
     g = ca.Function("g", [problem.x, problem.p], [problem.g])
-    f_val = f(x_star, data.p).full()
+    f_val = to_float(f(x_star, data.p).full())
     g_val = g(x_star, data.p).full().squeeze()
     lbg, ubg = data.lbg.squeeze(), data.ubg.squeeze()
-    print(f"Objective value {float(f_val)} (real) vs {data.obj_val}")
+    print(f"Objective value {f_val} (real) vs {data.obj_val}")
     msg = []
-    if abs(float(data.obj_val) - float(f_val)) > eps_obj:
+    if abs(to_float(data.obj_val) - f_val) > eps_obj:
         msg.append("Objective value wrong!")
     if np.any(data.lbx > x_star + eps):
         msg.append(f"Lbx > x* for indices:\n{np.nonzero(data.lbx > x_star).T}")

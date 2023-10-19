@@ -128,6 +128,11 @@ def get_idx_linear_bounds_binary_x(problem: MinlpProblem):
     return problem.idx_g_lin_bin
 
 
+def get_lin_bounds(problem: MinlpProblem):
+    get_idx_linear_bounds_binary_x(problem)
+    return problem.idx_g_lin, problem.idx_g_lin_bin
+
+
 def get_idx_linear_bounds(problem: MinlpProblem):
     """Get the indices of the linear bounds."""
     if problem.idx_g_lin is None:

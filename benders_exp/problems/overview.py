@@ -315,6 +315,45 @@ def create_from_nl_file(file):
     return problem, data
 
 
+def reduce_list(data):
+    """Reduce list."""
+    out = []
+    for el in data:
+        if isinstance(el, list):
+            out.extend(reduce_list(el))
+        else:
+            out.append(el)
+    return out
+
+
+def create_from_nosnoc(file):
+    """Create a problem from nosnoc."""
+    from benders_exp.utils.data import load_pickle
+    from benders_exp.utils.cache import CachedFunction, cache_data, return_func
+    from benders_exp.solvers import get_lin_bounds
+    from os import path
+    name = path.basename(file)
+    data = load_pickle(file)
+    x = CASADI_VAR.sym("x", data['w_shape'][0])
+    p = CASADI_VAR.sym("p", data['p_shape'][0])
+    f = CachedFunction(f"{name}_f", return_func(data['f']))(x, p)
+    g = CachedFunction(f"{name}_g", return_func(data['g']))(x, p)
+    ind_x_bin = reduce_list(data['ind_bool'])
+    problem = MinlpProblem(
+        x=x, p=p, f=f, g=g,
+        idx_x_bin=ind_x_bin
+    )
+    problem.idx_g_lin, problem.idx_g_lin_bin = cache_data(
+        f"{name}_id", get_lin_bounds, problem)
+
+    data = MinlpData(
+        p=data['p0'], x0=data['w0'],
+        _lbx=data['lbw'], _ubx=data['ubw'],
+        _lbg=data['lbg'], _ubg=data['ubg']
+    )
+    return problem, data
+
+
 PROBLEMS = {
     "sign_check": create_check_sign_lagrange_problem,
     "dummy": create_dummy_problem,
@@ -329,7 +368,8 @@ PROBLEMS = {
     "gearbox_complx": create_gearbox,
     "nonconvex": counter_example_nonconvexity,
     "unstable_ocp": create_ocp_unstable_system,
-    "nl_file": create_from_nl_file
+    "nl_file": create_from_nl_file,
+    "nosnoc": create_from_nosnoc,
 }
 PROBLEMS.update(MINLP_PROBLEMS)
 

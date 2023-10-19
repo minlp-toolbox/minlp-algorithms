@@ -10,20 +10,15 @@ from benders_exp.problems import MetaDataOcp
 from benders_exp.problems.solarsys.system import System, ca
 from benders_exp.problems.solarsys.ambient import Ambient
 from benders_exp.problems.solarsys.simulator import Simulator
-from benders_exp.problems.dsc import Description, MinlpProblem
+from benders_exp.problems.dsc import Description
 from benders_exp.utils.cache import CachedFunction, cache_data
-from benders_exp.solvers import get_idx_linear_bounds_binary_x
+from benders_exp.solvers import get_lin_bounds
 from datetime import timedelta
 import logging
 
 from benders_exp.utils import convert_to_flat_list, to_0d
 
 logger = logging.getLogger(__name__)
-
-
-def get_lin_bounds(problem: MinlpProblem):
-    get_idx_linear_bounds_binary_x(problem)
-    return problem.idx_g_lin, problem.idx_g_lin_bin
 
 
 def create_stcs_problem(with_slack=True):

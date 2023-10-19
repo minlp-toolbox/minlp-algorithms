@@ -342,9 +342,9 @@ class BendersTRandMaster(BendersMasterMILP):
     def _solve_mix(self, nlpdata: MinlpData):
         """Solve mix."""
         do_trust_region = not self.qp_stagnates
-        if self.qp_not_improving > 5:
-            # Although giving different output for TR, do benders to improve LB
-            do_trust_region = False
+        # if self.qp_not_improving > 5:
+        #     # Although giving different output for TR, do benders to improve LB
+        #     do_trust_region = False
 
         if do_trust_region:
             constraint = (self.y_N_val + self.internal_lb) / 2
