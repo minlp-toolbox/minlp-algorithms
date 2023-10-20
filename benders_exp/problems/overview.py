@@ -345,10 +345,11 @@ def create_from_nosnoc(file, compiled=False):
         g = data['g'](x, p)
 
     print("Loaded Functions")
-    ind_x_bin = reduce_list(data['ind_bool'])
+    idx_x_bin = reduce_list(data['ind_bool'])
     problem = MinlpProblem(
         x=x, p=p, f=f, g=g,
-        idx_x_bin=ind_x_bin
+        idx_x_bin=idx_x_bin,
+        hessian_not_psd=True
     )
     if to_bool(compiled):
         problem.idx_g_lin, problem.idx_g_lin_bin = cache_data(
@@ -357,6 +358,7 @@ def create_from_nosnoc(file, compiled=False):
         # Probably this is just overkill, set them to 0
         problem.idx_g_lin, problem.idx_g_lin_bin = [], []
 
+    data['w0'][idx_x_bin] = np.round(data['w0'][idx_x_bin])
     data = MinlpData(
         p=data['p0'], x0=data['w0'],
         _lbx=data['lbw'], _ubx=data['ubw'],

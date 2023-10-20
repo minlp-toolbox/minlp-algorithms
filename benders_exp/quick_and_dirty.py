@@ -546,10 +546,19 @@ if __name__ == "__main__":
     stats = Stats(mode, problem_name, timestamp, {})
     toc()
 
-    problem, data, x_star = run_problem(mode, problem_name, stats, argv[3:])
+    extra_args = argv[3:]
+    target_file = None
+    if len(extra_args) >= 2 and extra_args[-2] == "--save":
+        target_file = extra_args[-1]
+        extra_args = extra_args[:-2]
+
+    problem, data, x_star = run_problem(mode, problem_name, stats, extra_args)
     stats.print()
     if WITH_LOG_DATA:
         stats.save()
+
+    if target_file is not None:
+        write_json({"w0": x_star}, target_file)
 
     print(f"Objective value: {data.obj_val}")
 

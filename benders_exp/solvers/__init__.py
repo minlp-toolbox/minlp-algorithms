@@ -79,6 +79,7 @@ class SolverClass(ABC):
 
     def collect_stats(self, algo_name, solver=None):
         """Collect statistics."""
+        logger.info(f"Solved {algo_name}")
         if solver is None:
             stats = self.solver.stats()
         else:

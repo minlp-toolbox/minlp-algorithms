@@ -168,6 +168,7 @@ class BendersTRandMaster(BendersMasterMILP):
         self.qp_stagnates = False
         self.qp_not_improving = 0
         self.with_benders_master = with_benders_master
+        self.hessian_not_psd = problem.hessian_not_psd
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
@@ -252,6 +253,13 @@ class BendersTRandMaster(BendersMasterMILP):
         f_k = self.f(self.x_sol_best, nlpdata.p)
         f_lin = self.grad_f_x_sub(self.x_sol_best, nlpdata.p)
         f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
+        if self.hessian_not_psd:
+            min_eigen_value = np.linalg.eigh(f_hess.full())[0][0]
+            logger.info(f"Eigen value detected {min_eigen_value}")
+            if min_eigen_value < 0:
+                f_hess -= min_eigen_value * ca.DM.eye(self.nr_x_orig)
+            else:
+                self.hessian_not_psd = False
 
         f = f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx
         # Order seems to be important!
@@ -369,7 +377,7 @@ class BendersTRandMaster(BendersMasterMILP):
 
     def _solve_tr_only(self, nlpdata: MinlpData):
         """Only solve trust regions."""
-        MIPGap = 0.01
+        MIPGap = 0.001
         constraint = self.y_N_val * (1 - MIPGap)
         self.options['gurobi.MIPGap'] = 0.1
         solution, success, stats = self._solve_trust_region_problem(nlpdata, constraint)
