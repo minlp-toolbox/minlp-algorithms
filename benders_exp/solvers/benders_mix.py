@@ -9,6 +9,7 @@ from benders_exp.defines import WITH_JIT, CASADI_VAR, EPS, MIP_SOLVER, \
 from benders_exp.solvers.benders import BendersMasterMILP
 from benders_exp.problems import check_integer_feasible, check_solution
 from benders_exp.solvers.utils import Constraints, get_solutions_pool, any_equal
+from benders_exp.solvers.tighten import tighten_bounds_x
 from enum import Enum
 import logging
 
@@ -69,11 +70,13 @@ class LowerApproximation:
                 self.g, self.dg_corrected, self.multipliers, self.x_lin)
         ]
 
-    def to_generic(self):
+    def to_generic(self, nu=None):
         """Create bounds."""
+        if nu is None:
+            nu = self.nu
         return Constraints(
             self.nr,
-            ca.vertcat(*self(self.x, self.nu)),
+            ca.vertcat(*self(self.x, nu)),
             -ca.inf * np.ones(self.nr),
             np.zeros(self.nr),
         )
@@ -347,13 +350,14 @@ class BendersTRandMaster(BendersMasterMILP):
             self.internal_lb = float(sol['f'])
             self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
 
+    def _tighten(self, nlpdata: MinlpData):
+        """Tighten bounds."""
+        tighten_bounds_x(nlpdata, self.g_lowerapprox.to_generic(nu=self.y_N_val),
+                         self.idx_x_bin, self._x, self.nr_x_orig)
+
     def _solve_mix(self, nlpdata: MinlpData):
         """Solve mix."""
         do_trust_region = not self.qp_stagnates
-        # if self.qp_not_improving > 5:
-        #     # Although giving different output for TR, do benders to improve LB
-        #     do_trust_region = False
-
         if do_trust_region:
             constraint = (self.y_N_val + self.internal_lb) / 2
             solution, success, stats = self._solve_trust_region_problem(nlpdata, constraint)
@@ -361,7 +365,7 @@ class BendersTRandMaster(BendersMasterMILP):
                 self.qp_stagnates = any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin)
                 do_benders = self.qp_stagnates
             else:
-                colored("Failed", "red")
+                colored("Failed solving TR", "red")
                 do_benders = True
         else:
             do_benders = True

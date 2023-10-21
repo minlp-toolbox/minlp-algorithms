@@ -19,31 +19,10 @@ $$
 
 import numpy as np
 import casadi as ca
-from benders_exp.utils import to_0d
-from benders_exp.solvers.benders_mix import Constraints
+from benders_exp.solvers.utils import Constraints
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, regularize_options
 from benders_exp.defines import IPOPT_SETTINGS, CASADI_VAR, WITH_JIT, MIP_SOLVER, MIP_SETTINGS
-
-
-def dyn_program(bound, a, min_contrib, lb, ub):
-    """Knapsack program to compute best bound."""
-    new_bound = min_contrib
-    sol = [min_contrib]
-    for i in range(2):
-        for xi in range(int(ub[i] - lb[i]+1)):
-            diff = xi * abs(a[i])
-            len_sol = len(sol)
-            for other in sol[:len_sol]:
-                new_val = other + diff
-                if new_val <= bound:
-                    if new_val > new_bound:
-                        new_bound = new_val
-                    if new_val not in sol:
-                        sol.append(new_val)
-                else:
-                    break
-        sol.sort()
-    return new_bound
+from benders_exp.solvers.tighten import tighten_bounds_x
 
 
 class BendersEquality(SolverClass):
@@ -131,50 +110,10 @@ class BendersEquality(SolverClass):
         """Tighten bounds on x."""
         if idx is None:
             constraints = self.get_g_benders()
-            idx = 0
         else:
             constraints = Constraints(1, self.cuts_benders[idx], -ca.inf, self.ub)
 
-        reduced = False
-        a = constraints.get_a(self._x, self.nr_x).full()
-        b = - constraints.get_b(self._x, self.nr_x).full() + self.ub
-
-        lbx = to_0d(data.lbx)
-        lbx[np.isneginf(lbx)] = -1e16
-        ubx = to_0d(data.ubx)
-        ubx[np.isposinf(ubx)] = 1e16
-
-        for j in range(a.shape[0]):
-            # Find max b:
-            lba = lbx * a[j, :]
-            uba = ubx * a[j, :]
-            min_eq = np.sum(lba * (lba < uba)) + np.sum(uba * (uba < lba))
-            for i in self.idx_x_bin:
-                diff_i = abs(uba[i] - lba[i])
-                if min_eq + diff_i > b[j]:
-                    reduced = True
-                    if a[j, i] < 0:
-                        lbx[i] -= np.floor(
-                            ((min_eq + diff_i) - b[j]) / a[j, i]
-                        )
-                        lba[i] = lbx[i] * a[j, i]
-                    else:
-                        ubx[i] -= np.ceil(
-                            ((min_eq + diff_i) - b[j]) / a[j, i]
-                        )
-                        uba[i] = ubx[i] * a[j, i]
-            reduced_bound = dyn_program(
-                b[j], a[j, :], min_eq, lbx, ubx
-            )
-            if reduced_bound < b[j]:
-                self.cuts_benders[j] -= b[j] - reduced_bound
-
-        if reduced:
-            data._lbx = lbx
-            data._ubx = ubx
-            print("Reduced bounds")
-
-        return reduced
+        return tighten_bounds_x(data, constraints, self.idx_x_bin, self._x, self.nr_x)
 
     def check_lb_valid(self, data: MinlpData):
         """Check if the LB is valid."""
