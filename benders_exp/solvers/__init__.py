@@ -79,6 +79,7 @@ class SolverClass(ABC):
 
     def collect_stats(self, algo_name, solver=None):
         """Collect statistics."""
+        logger.info(f"Solved {algo_name}")
         if solver is None:
             stats = self.solver.stats()
         else:
@@ -126,6 +127,11 @@ def get_idx_linear_bounds_binary_x(problem: MinlpProblem):
         ))
 
     return problem.idx_g_lin_bin
+
+
+def get_lin_bounds(problem: MinlpProblem):
+    get_idx_linear_bounds_binary_x(problem)
+    return problem.idx_g_lin, problem.idx_g_lin_bin
 
 
 def get_idx_linear_bounds(problem: MinlpProblem):
