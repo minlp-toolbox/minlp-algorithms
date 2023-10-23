@@ -1,37 +1,111 @@
-"""An random direction search NLP solver."""
+"""
+Collection of Pumps.
+
+This folder contains a collection of solvers based on the 'pump' idea. They
+include:
+    - Feasibility Pump
+    - Objective Feasibility Pump
+    - Random Objective Feasibility Pump
+"""
 
 import casadi as ca
-from concurrent.futures import ThreadPoolExecutor
-import numpy as np
 from typing import Tuple
-from benders_exp.solvers.nlp import NlpSolver
-from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-    regularize_options
-from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR, WITH_LOG_DATA
-from benders_exp.utils import to_0d, toc, logging
+from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
+from benders_exp.defines import WITH_LOG_DATA
+from benders_exp.solvers.nlp import NlpSolver
+from benders_exp.solvers import Stats, MinlpProblem, MinlpData
+from benders_exp.solvers.pumps.fp import LinearProjection, ObjectiveLinearProjection
+from benders_exp.solvers.pumps.utils import integer_error, create_rounded_data, \
+    perturbe_x, any_equal, random_perturbe_x
+from benders_exp.solvers.pumps.random_obj_fp import RandomDirectionNlpSolver
+from benders_exp.utils import to_0d, toc, logging
+
 
 logger = logging.getLogger(__name__)
 
 
-def integer_error(x_int, norm=1):
-    """Compute integer error."""
-    if norm == 1:
-        ret = np.sum(np.abs(np.round(x_int) - x_int))
-    else:
-        ret = np.linalg.norm(np.round(x_int) - x_int)
+def feasibility_pump(
+    problem: MinlpProblem, data: MinlpData, stats: Stats, nlp=None,
+    fp=None
+) -> Tuple[MinlpData, ca.DM]:
+    """
+    Feasibility Pump
 
-    logger.info(f"Integer error {ret:.3f} / {x_int.shape[0]:.3f}")
-    return ret
+    According to:
+        Bertacco, L., Fischetti, M., & Lodi, A. (2007). A feasibility pump
+        heuristic for general mixed-integer problems. Discrete Optimization,
+        4(1), 63-76.
+
+    returns all feasible integer solutions
+    returns proble, data, best_solution, is_last_relaxed
+    """
+    is_relaxed = nlp is not None
+    if not is_relaxed:
+        stats['total_time_calc'] += toc(reset=True)
+        nlp = NlpSolver(problem, stats)
+
+    if fp is None:
+        fp = LinearProjection(problem, stats)
+
+    stats['total_time_loading'] = toc(reset=True)
+    if not is_relaxed:
+        data = nlp.solve(data)
+
+    relaxed_value = data.obj_val
+    TOLERANCE = 0.01
+    MAX_ITER = 50
+    KK = 5  # Need an integer improvement in 5 steps
+    prev_x = []
+    distances = [integer_error(data.x_sol[problem.idx_x_bin])]
+    while distances[-1] > TOLERANCE and stats['iter'] < MAX_ITER:
+        datarounded = create_rounded_data(data, problem.idx_x_bin)
+        require_restart = False
+        for i, sol in enumerate(datarounded.solutions_all):
+            new_x = to_0d(sol['x'])
+            perturbe_remaining = 5
+            while any_equal(new_x, prev_x, problem.idx_x_bin) and perturbe_remaining > 0:
+                new_x = perturbe_x(
+                    to_0d(data.solutions_all[i]['x']), problem.idx_x_bin
+                )
+                perturbe_remaining -= 1
+
+            datarounded.prev_solutions[i]['x'] = new_x
+            if perturbe_remaining == 0:
+                require_restart = True
+
+            prev_x.append(new_x)
+
+        if not require_restart:
+            data = fp.solve(datarounded, int_error=distances[-1], obj_val=relaxed_value)
+            distances.append(integer_error(data.x_sol[problem.idx_x_bin]))
+
+        if (len(distances) > KK and distances[-KK - 1] < distances[-1]) or require_restart:
+            data.prev_solutions[0]['x'] = random_perturbe_x(
+                data.x_sol, problem.idx_x_bin)
+            data = fp.solve(data, int_error=distances[-1], obj_val=relaxed_value)
+            distances.append(integer_error(data.x_sol[problem.idx_x_bin]))
+
+        stats['iter'] += 1
+        logger.info(f"Iteration {stats['iter']} finished")
+
+    stats['total_time_calc'] += toc(reset=True)
+    data = nlp.solve(data, True)
+    return problem, data, data.x_sol
 
 
-def create_rounded_data(data, idx_x_bin):
-    x_var = to_0d(data.x_sol)
-    # Round the continuous solution
-    x_var[idx_x_bin] = np.round(x_var[idx_x_bin])
-    datarounded = deepcopy(data)
-    datarounded.prev_solutions[0]['x'] = x_var
-    return datarounded
+def objective_feasibility_pump(
+    problem: MinlpProblem, data: MinlpData, stats: Stats
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+    """
+    Objective Feasibility Pump
+
+        Sharma, S., Knudsen, B. R., & Grimstad, B. (2016). Towards an
+        objective feasibility pump for convex MINLPs. Computational
+        Optimization and Applications, 63, 737-753.
+    """
+    ofp = ObjectiveLinearProjection(problem, stats)
+    return feasibility_pump(problem, data, stats, fp=ofp)
 
 
 def random_objective_feasibility_pump(
@@ -132,85 +206,6 @@ def random_direction_rounding_algorithm(
     stats['total_time_loading'] = toc(reset=True)
     data = nlp.solve(data)
     problem, best, x_sol, _ = random_objective_feasibility_pump(
-        problem, data, stats, deepcopy(data), nlp)
+        problem, data, stats, data, nlp)
     stats['total_time_calc'] = toc(reset=True)
     return problem, best, x_sol
-
-
-class RandomDirectionNlpSolver(SolverClass):
-    """
-    Create NLP solver.
-
-    This solver solves an NLP problem. This is either relaxed or
-    the binaries are fixed.
-    """
-
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None, norm=2, penalty_scaling=0.5):
-        """Create NLP problem."""
-        super(RandomDirectionNlpSolver, self).__init___(problem, stats)
-        options = regularize_options(options, IPOPT_SETTINGS)
-        self.penalty_weight = 1.0
-        self.penalty_scaling = penalty_scaling
-
-        self.idx_x_bin = problem.idx_x_bin
-        x_bin_var = problem.x[self.idx_x_bin]
-        penalty = CASADI_VAR.sym("penalty", x_bin_var.shape[0])
-        rounded_value = CASADI_VAR.sym("rounded_value", x_bin_var.shape[0])
-
-        self.norm = norm
-        self.max_rounding_error = x_bin_var.shape[0]
-        if norm == 1:
-            penalty_term = ca.sum1(
-                ca.fabs(x_bin_var - rounded_value) * penalty)
-        else:
-            penalty_term = ca.norm_2(
-                (x_bin_var - rounded_value) * penalty) ** 2
-
-        options.update({"jit": WITH_JIT, "ipopt.max_iter": 5000})
-        self.solver = ca.nlpsol("nlpsol", "ipopt", {
-            "f": problem.f + penalty_term,
-            "g": problem.g, "x": problem.x,
-            "p": ca.vertcat(problem.p, rounded_value, penalty)
-        }, options)
-
-    def solve(self, nlpdata: MinlpData) -> MinlpData:
-        """Solve NLP."""
-        success_out = []
-        sols_out = []
-        for sol in nlpdata.solutions_all:
-            lbx = nlpdata.lbx
-            ubx = nlpdata.ubx
-
-            x_bin_var = to_0d(sol['x'][self.idx_x_bin])
-            x_rounded = np.round(x_bin_var)
-            if self.norm == 1:
-                rounding_error = ca.norm_1((x_bin_var - x_rounded))
-            else:
-                rounding_error = ca.norm_2((x_bin_var - x_rounded)) ** 2
-
-            penalty = self.penalty_weight * np.random.rand(len(self.idx_x_bin))
-            self.penalty_weight += self.penalty_scaling * abs(nlpdata.obj_val) * (
-                rounding_error / self.max_rounding_error + 0.01
-            )
-            logger.info(
-                f"{nlpdata.obj_val=:.3} rounding error={float(rounding_error):.3f} "
-                f"- weight {float(self.penalty_weight):.3e}"
-            )
-
-            new_sol = self.solver(
-                x0=nlpdata.x0,
-                lbx=lbx, ubx=ubx,
-                lbg=nlpdata.lbg, ubg=nlpdata.ubg,
-                p=ca.vertcat(nlpdata.p, x_rounded, penalty)
-            )
-
-            success, _ = self.collect_stats("RNLP")
-            if not success:
-                logger.debug("Infeasible solution!")
-            success_out.append(success)
-            sols_out.append(new_sol)
-
-        nlpdata.prev_solutions = sols_out
-        nlpdata.solved_all = success_out
-
-        return nlpdata

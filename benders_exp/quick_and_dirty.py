@@ -20,7 +20,8 @@ from benders_exp.solvers.benders_mix import BendersTRandMaster
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
-from benders_exp.solvers.random_obj_fp import random_direction_rounding_algorithm, random_objective_feasibility_pump
+from benders_exp.solvers.pumps import random_direction_rounding_algorithm, random_objective_feasibility_pump, \
+        feasibility_pump, objective_feasibility_pump
 from benders_exp.solvers.cia import cia_decomposition_algorithm
 from benders_exp.solvers.benders_equal_lb import BendersEquality
 
@@ -452,7 +453,9 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "voronoi_tr": lambda p, d, s: voronoi_tr_algorithm(p, d, s, termination_type='equality'),
         "relaxed": relaxed,
         "ampl": export_ampl,
-        "randomnlp": random_direction_rounding_algorithm,
+        "rofp": random_direction_rounding_algorithm,
+        "fp": feasibility_pump,
+        "ofp": objective_feasibility_pump,
         "cia": cia_decomposition_algorithm,
     }
 
