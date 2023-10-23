@@ -22,7 +22,7 @@ class RandomDirectionNlpSolver(SolverClass):
         """Create NLP problem."""
         super(RandomDirectionNlpSolver, self).__init___(problem, stats)
         options = regularize_options(options, IPOPT_SETTINGS)
-        self.penalty_weight = 1.0
+        self.penalty_weight = 0.01
         self.penalty_scaling = penalty_scaling
 
         self.idx_x_bin = problem.idx_x_bin

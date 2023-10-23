@@ -10,7 +10,6 @@ include:
 
 import casadi as ca
 from typing import Tuple
-from concurrent.futures import ThreadPoolExecutor
 from copy import deepcopy
 from benders_exp.defines import WITH_LOG_DATA
 from benders_exp.solvers.nlp import NlpSolver
@@ -131,60 +130,56 @@ def random_objective_feasibility_pump(
     stats['best_itr'] = -1
     done = False
     prev_int_error = ca.inf
-    with ThreadPoolExecutor(max_workers=2) as thread:
-        while not done:
-            logger.info(f"Starting iteration: {stats['iter']}")
-            datarounded = create_rounded_data(data, problem.idx_x_bin)
-            # Multithreaded
-            future_random = thread.submit(rnlp.solve, data)
-            future_rounded = thread.submit(
-                nlp.solve, datarounded, set_x_bin=True)
-            data = future_random.result()
-            logger.info(f"Current random NLP objective: {data.obj_val:.3e}")
-            datarounded = future_rounded.result()
+    while not done:
+        logger.info(f"Starting iteration: {stats['iter']}")
+        datarounded = create_rounded_data(data, problem.idx_x_bin)
+        # Multithreaded
+        data = rnlp.solve(data)
+        logger.info(f"Current random NLP objective: {data.obj_val:.3e}")
+        datarounded = nlp.solve(datarounded, set_x_bin=True)
 
-            if datarounded.solved:
-                logger.debug(f"Objective rounded NLP {datarounded.obj_val:.3e} (iter {stats['iter']}) "
-                             f"vs old {best_obj:.3e} (itr {stats['best_itr']})")
-                feasible_solutions.append(datarounded._sol)
-                if best_obj > datarounded.obj_val:
-                    logger.info(
-                        f"New best objective found in {stats['iter']=}")
-                    best_obj = datarounded.obj_val
-                    stats['best_itr'] = stats['iter']
-                    best_solution = datarounded._sol
+        if datarounded.solved:
+            logger.debug(f"Objective rounded NLP {datarounded.obj_val:.3e} (iter {stats['iter']}) "
+                         f"vs old {best_obj:.3e} (itr {stats['best_itr']})")
+            feasible_solutions.append(datarounded._sol)
+            if best_obj > datarounded.obj_val:
+                logger.info(
+                    f"New best objective found in {stats['iter']=}")
+                best_obj = datarounded.obj_val
+                stats['best_itr'] = stats['iter']
+                best_solution = datarounded._sol
 
-            int_error = integer_error(data.x_sol[problem.idx_x_bin])
-            stats['iterate_data'].append(stats.create_iter_dict(
-                stats['iter'], stats['best_itr'], datarounded.solved,
-                ub=best_obj, nlp_obj=datarounded.obj_val, last_benders=None,
-                lb=int_error, x_sol=to_0d(datarounded.x_sol))
-            )
-            if WITH_LOG_DATA:
-                stats.save()
-            if int_error < tolerance:
-                data = nlp.solve(create_rounded_data(
-                    data, problem.idx_x_bin), set_x_bin=True)
-                best_solution = data._sol
+        int_error = integer_error(data.x_sol[problem.idx_x_bin])
+        stats['iterate_data'].append(stats.create_iter_dict(
+            stats['iter'], stats['best_itr'], datarounded.solved,
+            ub=best_obj, nlp_obj=datarounded.obj_val, last_benders=None,
+            lb=int_error, x_sol=to_0d(datarounded.x_sol))
+        )
+        if WITH_LOG_DATA:
+            stats.save()
+        if int_error < tolerance:
+            data = nlp.solve(create_rounded_data(
+                data, problem.idx_x_bin), set_x_bin=True)
+            best_solution = data._sol
 
-            stats['iter'] += 1
-            done = int_error < tolerance or (
-                (stats['iter'] > max_accept_iter and best_obj <
-                 data.obj_val and prev_int_error < int_error)
-            )
-            prev_int_error = int_error
-            if not data.solved:
-                if len(feasible_solutions) > 0:
-                    done = True
-                elif not recover:
-                    return problem, relaxed_solution, relaxed_solution.x_sol, True
-                else:
-                    # If progress is frozen (unsolvable), try to fix it!
-                    data = rnlp.solve(deepcopy(relaxed_solution))
-                    logger.info(
-                        f"Current random NLP objective (restoration): {data.obj_val:.3e}")
-            if stats['iter'] > max_iter:
-                raise Exception("Problem can not be solved")
+        stats['iter'] += 1
+        done = int_error < tolerance or (
+            (stats['iter'] > max_accept_iter and best_obj <
+             data.obj_val and prev_int_error < int_error)
+        )
+        prev_int_error = int_error
+        if not data.solved:
+            if len(feasible_solutions) > 0:
+                done = True
+            elif not recover:
+                return problem, relaxed_solution, relaxed_solution.x_sol, True
+            else:
+                # If progress is frozen (unsolvable), try to fix it!
+                data = rnlp.solve(deepcopy(relaxed_solution))
+                logger.info(
+                    f"Current random NLP objective (restoration): {data.obj_val:.3e}")
+        if stats['iter'] > max_iter:
+            raise Exception("Problem can not be solved")
 
     # Construct nlpdata again!
     data.prev_solutions = [best_solution] + feasible_solutions
