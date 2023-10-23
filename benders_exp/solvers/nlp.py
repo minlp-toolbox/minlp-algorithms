@@ -29,12 +29,17 @@ class NlpSolver(SolverClass):
         # )
         # self.callback.add_to_solver_opts(options, 50)
 
+        options.update({
+            "ipopt.expect_infeasible_problem": "yes"
+        })
         if problem.precompiled_nlp is not None:
             self.solver = ca.nlpsol(
                 "nlp", "ipopt", problem.precompiled_nlp, options
             )
         else:
-            options.update({"jit": WITH_JIT})
+            options.update({
+                "jit": WITH_JIT,
+            })
             self.solver = ca.nlpsol("nlpsol", "ipopt", {
                 "f": problem.f, "g": problem.g, "x": problem.x, "p": problem.p
             }, options)
@@ -43,6 +48,8 @@ class NlpSolver(SolverClass):
         """Solve NLP."""
         success_out = []
         sols_out = []
+        # if set_x_bin:
+        #     self.solver.set_option("ipopt.expect_infeasible_problem", "yes")
         for sol in nlpdata.solutions_all:
             lbx = nlpdata.lbx
             ubx = nlpdata.ubx
