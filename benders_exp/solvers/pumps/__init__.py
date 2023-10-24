@@ -19,6 +19,7 @@ from benders_exp.solvers.pumps.utils import integer_error, create_rounded_data, 
     perturbe_x, any_equal, random_perturbe_x
 from benders_exp.solvers.pumps.random_obj_fp import RandomDirectionNlpSolver
 from benders_exp.utils import to_0d, toc, logging
+from benders_exp.problems import check_solution
 
 
 logger = logging.getLogger(__name__)
@@ -147,6 +148,7 @@ def random_objective_feasibility_pump(
                     f"New best objective found in {stats['iter']=}")
                 best_obj = datarounded.obj_val
                 stats['best_itr'] = stats['iter']
+                check_solution(problem, datarounded, datarounded.x_sol)
                 best_solution = datarounded._sol
 
         int_error = integer_error(data.x_sol[problem.idx_x_bin])
@@ -160,7 +162,10 @@ def random_objective_feasibility_pump(
         if int_error < tolerance:
             data = nlp.solve(create_rounded_data(
                 data, problem.idx_x_bin), set_x_bin=True)
-            best_solution = data._sol
+            if data.solved:
+                best_solution = data._sol
+            else:
+                int_error = ca.inf
 
         stats['iter'] += 1
         done = int_error < tolerance or (
@@ -184,7 +189,7 @@ def random_objective_feasibility_pump(
     # Construct nlpdata again!
     data.prev_solutions = [best_solution] + feasible_solutions
     data.solved_all = [True for _ in range(len(feasible_solutions) + 1)]
-    return problem, data, data.x_sol, False
+    return problem, data, best_solution['x'], False
 
 
 def random_direction_rounding_algorithm(

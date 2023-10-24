@@ -204,6 +204,8 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, eps_obj=OBJEC
         msg.append("Ubg < g(x*,p) for indices:\n"
                    f"{np.nonzero(ubg < g_val)}")
 
+    check_integer_feasible(problem.idx_x_bin, x_star, throws=throws)
+
     if msg:
         msg = "\n".join(msg)
         if throws:
