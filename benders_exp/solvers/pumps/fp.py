@@ -16,6 +16,9 @@ class LinearProjection(SolverClass):
 
     This solver solves an NLP problem. This is either relaxed or
     the binaries are fixed.
+    The NLP aims to satisfy original constraint in g and
+    minimize the distance of relaxed x_bin from their rounded value in
+    L1-norm. The rounding procedure follows a rule.
     """
 
     def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
@@ -80,6 +83,11 @@ class ObjectiveLinearProjection(SolverClass):
 
     This solver solves an NLP problem. This is either relaxed or
     the binaries are fixed.
+    The NLP aims to satisfy original constraint in g and
+    minimize a linear combination of the original objective and the
+    he distance of relaxed x_bin from their rounded value in
+    L1-norm. The rounding procedure follows a rule and the weight of
+    the L1-norm term in the objective is increased during iterations.
     """
 
     def __init__(self, problem: MinlpProblem, stats: Stats, options=None):

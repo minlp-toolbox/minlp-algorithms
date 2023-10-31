@@ -38,7 +38,7 @@ def feasibility_pump(
         4(1), 63-76.
 
     returns all feasible integer solutions
-    returns proble, data, best_solution, is_last_relaxed
+    returns problem, data, best_solution, is_last_relaxed
     """
     is_relaxed = nlp is not None
     if not is_relaxed:
@@ -116,7 +116,7 @@ def random_objective_feasibility_pump(
     Random objective FP.
 
     returns all feasible integer solutions
-    returns proble, data, best_solution, is_last_relaxed
+    returns problem, data, best_solution, is_last_relaxed
     """
     rnlp = RandomDirectionNlpSolver(problem, stats, norm=norm)
     logger.info("Solver initialized.")
@@ -124,9 +124,9 @@ def random_objective_feasibility_pump(
     feasible_solutions = []
     best_solution = None
     best_obj = ca.inf
-    max_accept_iter = 3
-    tolerance = 1e-2
-    max_iter = 50
+    MAX_ACCEPT_ITER = 3
+    TOLERANCE = 1e-2
+    MAX_ITER = 50
     stats['iterate_data'] = []
     stats['best_itr'] = -1
     done = False
@@ -159,7 +159,7 @@ def random_objective_feasibility_pump(
         )
         if WITH_LOG_DATA:
             stats.save()
-        if int_error < tolerance:
+        if int_error < TOLERANCE:
             data = nlp.solve(create_rounded_data(
                 data, problem.idx_x_bin), set_x_bin=True)
             if data.solved:
@@ -168,8 +168,8 @@ def random_objective_feasibility_pump(
                 int_error = ca.inf
 
         stats['iter'] += 1
-        done = int_error < tolerance or (
-            (stats['iter'] > max_accept_iter and best_obj <
+        done = int_error < TOLERANCE or (
+            (stats['iter'] > MAX_ACCEPT_ITER and best_obj <
              data.obj_val and prev_int_error < int_error)
         )
         prev_int_error = int_error
@@ -183,7 +183,7 @@ def random_objective_feasibility_pump(
                 data = rnlp.solve(deepcopy(relaxed_solution))
                 logger.info(
                     f"Current random NLP objective (restoration): {data.obj_val:.3e}")
-        if stats['iter'] > max_iter:
+        if stats['iter'] > MAX_ITER:
             raise Exception("Problem can not be solved")
 
     # Construct nlpdata again!
