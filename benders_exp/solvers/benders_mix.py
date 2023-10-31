@@ -305,9 +305,10 @@ class BendersTRandMaster(BendersMasterMILP):
         # Adding the following linearization might not be the best idea since
         # They can lead to false results!
         # g_cur_lin = self._get_g_linearized_nonlin(self.x_sol_best, dx, nlpdata)
-        g_total = (
-                self.g_lin + self.g_lowerapprox + self.g_infeasible
-        )
+        g_total = self._get_g_linearized(
+            self.x_sol_best, dx, nlpdata
+        ) + self.g_lowerapprox + self.g_infeasible
+
         # Add extra constraint (one step OA):
         g_total.add(-ca.inf, f - self._nu, 0)
         g, ubg, lbg = g_total.eq, g_total.ub, g_total.lb
