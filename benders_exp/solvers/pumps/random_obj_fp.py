@@ -19,8 +19,9 @@ class RandomDirectionNlpSolver(SolverClass):
     The NLP aims to satisfy original constraint in g and
     minimize a linear combination of the original objective and the
     he distance of relaxed x_bin from their rounded value in
-    L1-norm. The rounding procedure to compute x_bin is random and
-    the weight vector in the cost function is random as well.
+    L1-norm. The rounding procedure to compute x_bin is deterministic
+    (to closest integer) and the weight vector in the cost function
+    is random.
     """
 
     def __init__(self, problem: MinlpProblem, stats: Stats, options=None, norm=2, penalty_scaling=0.5):
