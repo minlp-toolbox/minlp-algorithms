@@ -367,6 +367,32 @@ def create_from_nosnoc(file, compiled=False):
     return problem, data
 
 
+def create_from_sto(file):
+    """Create a problem from STO."""
+    from benders_exp.utils.data import load_pickle
+    data = load_pickle(file)
+    nx = data['lbx'].shape[0]
+    x = CASADI_VAR.sym("x", nx)
+    p = CASADI_VAR.sym("p", 0)
+    f = data['f'](x)
+    g = data['g'](x)
+
+    idx_x_bin = np.where(data['int'].full() == 1)[0].tolist()
+    problem = MinlpProblem(
+        x=x, p=p, f=f, g=g,
+        idx_x_bin=idx_x_bin,
+        hessian_not_psd=True
+    )
+    problem.idx_g_lin, problem.idx_g_lin_bin = [], []
+    data['init'][idx_x_bin] = np.round(data['init'][idx_x_bin])
+    data = MinlpData(
+        p=[], x0=data['init'],
+        _lbx=data['lbx'], _ubx=data['ubx'],
+        _lbg=data['lbg'], _ubg=data['ubg']
+    )
+    return problem, data
+
+
 PROBLEMS = {
     "sign_check": create_check_sign_lagrange_problem,
     "dummy": create_dummy_problem,
@@ -383,6 +409,7 @@ PROBLEMS = {
     "unstable_ocp": create_ocp_unstable_system,
     "nl_file": create_from_nl_file,
     "nosnoc": create_from_nosnoc,
+    "from_sto": create_from_sto,
 }
 PROBLEMS.update(MINLP_PROBLEMS)
 
