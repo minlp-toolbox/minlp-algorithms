@@ -156,7 +156,7 @@ class BendersTRandMaster(BendersMasterMILP):
             problem, data, self.idx_g_lin, self._x, allow_fail=False
         ))
         self.g_lowerapprox = LowerApproximation(self._x_bin, self._nu)
-        self.g_infeasible = Constraints(0)
+        self.g_infeasible = LowerApproximation(self._x_bin, 0)
 
         self.options.update({"discrete": [
             1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]})
@@ -183,14 +183,24 @@ class BendersTRandMaster(BendersMasterMILP):
     def _add_infeasible_cut(self, x_sol, lam_g_sol, nlpdata: MinlpData):
         """Create infeasibility cut."""
         x_sol = x_sol[:self.nr_x_orig]
-        h_k = self.g(x_sol, nlpdata.p)
-        jac_h_k = self.jac_g_bin(x_sol, nlpdata.p)
-        g_k = lam_g_sol.T @ (
-                h_k + jac_h_k @ (self._x_bin - x_sol[self.idx_x_bin])
-                - (lam_g_sol > 0) * np.where(np.isinf(nlpdata.ubg), 0, nlpdata.ubg)
-                + (lam_g_sol < 0) * np.where(np.isinf(nlpdata.lbg), 0, nlpdata.lbg)
+        g_k = self.g(x_sol, nlpdata.p)
+        jac_g_k = self.jac_g_bin(x_sol, nlpdata.p)
+
+        g_bar_k = lam_g_sol.T @ (
+            g_k - (lam_g_sol > 0) * np.where(np.isinf(nlpdata.ubg), 0, nlpdata.ubg)
+            + (lam_g_sol < 0) * np.where(np.isinf(nlpdata.lbg), 0, nlpdata.lbg)
         )
-        self.g_infeasible.add(-ca.inf, g_k, 0)
+        grad_g_bar_k = (lam_g_sol.T @ jac_g_k).T
+
+        x_sol_best_bin = self.x_sol_best[self.idx_x_bin]
+        x_bin_new = x_sol[self.idx_x_bin]
+        if not self._check_cut_valid(g_bar_k, grad_g_bar_k, x_sol_best_bin, x_bin_new, 0.0):
+            # need gradient correction because we cut out best point
+            grad_corr = compute_gradient_correction(
+                x_sol_best_bin, x_bin_new, 0, g_bar_k, grad_g_bar_k)
+            self.g_infeasible.add(x_bin_new, g_bar_k, grad_g_bar_k, grad_corr)
+        else:
+            self.g_infeasible.add(x_bin_new, g_bar_k, grad_g_bar_k)
 
     def _gradient_amplification(self):
         if self.trust_region_feasibility_strategy == TrustRegionStrategy.GRADIENT_AMPLIFICATION:
