@@ -224,10 +224,12 @@ class BendersTRandMaster(BendersMasterMILP):
             grad_corr = compute_gradient_correction(
                 x_sol_best_bin, x_bin_new, self.y_N_val, f_k, lambda_k)
             self.g_lowerapprox.add(x_bin_new, f_k, lambda_k, grad_corr)
-            logger.debug(f"Correcting gradient at {x_bin_new=}")
+            logger.debug("Correcting new gradient at current best point")
         else:
             self.g_lowerapprox.add(x_bin_new, f_k, lambda_k)
 
+    def _gradient_corrections_old_cuts(self):
+        x_sol_best_bin = self.x_sol_best[self.idx_x_bin]
         # Check and correct - if necessary - all the points in memory
         for i in range(self.g_lowerapprox.nr - 1):
             # Reset the corrected gradient to original
@@ -239,8 +241,7 @@ class BendersTRandMaster(BendersMasterMILP):
                 self.g_lowerapprox.dg_corrected[i] = compute_gradient_correction(
                     x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val,
                     self.g_lowerapprox.g[i], self.g_lowerapprox.dg[i])
-                logger.debug(
-                    f"Correcting gradient at {self.g_lowerapprox.x_lin[i]=}")
+                logger.debug(f"Correcting gradient for lower approx {i}")
 
     def _trust_region_is_empty(self):
         if self.g_lowerapprox.nr == 0:
@@ -367,6 +368,8 @@ class BendersTRandMaster(BendersMasterMILP):
             self.x_sol_best = sol['x'][:self.nr_x_orig]
             self.internal_lb = float(sol['f'])
             self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
+
+        self._gradient_corrections_old_cuts()
 
     def _tighten(self, nlpdata: MinlpData):
         """Tighten bounds."""
