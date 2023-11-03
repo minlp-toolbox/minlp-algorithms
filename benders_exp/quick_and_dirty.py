@@ -562,7 +562,7 @@ if __name__ == "__main__":
         stats.save()
 
     if target_file is not None:
-        write_json({"w0": x_star}, target_file)
+        write_json({"w0": np.array(x_star).tolist()}, target_file)
 
     print(f"Objective value: {data.obj_val}")
 
