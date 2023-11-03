@@ -47,14 +47,14 @@ class LowerApproximation:
 
     def add(self, point, value, gradient, gradient_corrected=None):
         """Add a benders bound cut."""
+        if gradient_corrected is None:
+            gradient_corrected = gradient
+
         self.nr += 1
         self.x_lin.append(point)
         self.g.append(value)
         self.dg.append(gradient)
-        if gradient_corrected is None:
-            self.dg_corrected.append(gradient)
-        else:
-            self.dg_corrected.append(gradient_corrected)
+        self.dg_corrected.append(gradient_corrected)
         if not self.multipliers:
             self.multipliers.append(1)
         else:
@@ -233,9 +233,9 @@ class BendersTRandMaster(BendersMasterMILP):
         # Check and correct - if necessary - all the points in memory
         for i in range(self.g_lowerapprox.nr - 1):
             # Reset the corrected gradient to original
-            self.g_lowerapprox.dg_corrected[i] = self.g_lowerapprox.dg[i]
+            # self.g_lowerapprox.dg_corrected[i] = self.g_lowerapprox.dg[i]
             if not self._check_cut_valid(
-                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg[i],
+                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg_corrected[i],
                     x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val
             ):
                 self.g_lowerapprox.dg_corrected[i] = compute_gradient_correction(
