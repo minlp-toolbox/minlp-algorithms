@@ -162,6 +162,7 @@ class BendersTRandMaster(BendersMasterMILP):
             1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]})
         self.options_master = self.options.copy()
         self.options_master["discrete"] = self.options["discrete"] + [0]
+        self.options_master['error_on_fail'] = False
         self.options['error_on_fail'] = False
 
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
@@ -304,10 +305,8 @@ class BendersTRandMaster(BendersMasterMILP):
 
         # Adding the following linearization might not be the best idea since
         # They can lead to false results!
-        # g_cur_lin = self._get_g_linearized_nonlin(self.x_sol_best, dx, nlpdata)
-        g_total = self._get_g_linearized(
-            self.x_sol_best, dx, nlpdata
-        ) + self.g_lowerapprox + self.g_infeasible
+        g_cur_lin = self._get_g_linearized(self.x_sol_best, dx, nlpdata)
+        g_total = g_cur_lin + self.g_lowerapprox + self.g_infeasible
 
         # Add extra constraint (one step OA):
         g_total.add(-ca.inf, f - self._nu, 0)
@@ -321,15 +320,23 @@ class BendersTRandMaster(BendersMasterMILP):
         )
 
         solution = self.solver(
-            x0=ca.vertcat(self.x_sol_best, self.y_N_val),
-            lbx=ca.vertcat(nlpdata.lbx, -1e5),
+            x0=ca.vertcat(self.x_sol_best, self.y_N_val + 1e-5),
+            lbx=ca.vertcat(nlpdata.lbx, -ca.inf),
             ubx=ca.vertcat(nlpdata.ubx, ca.inf),
             lbg=lbg, ubg=ubg
         )
         success, stats = self.collect_stats("LB-MILP")
+        if not success:
+            if self.sol_best is None:
+                raise Exception("Problem can not be solved - Feasible zone is empty")
+            solution = self.sol_best
+            nlpdata.prev_solutions = [self.sol_best]
+            nlpdata.solved_all = [True]
+            colored("Failed solving LB-MILP")
+        else:
+            solution['x'] = solution['x'][:-1]
+            logger.info("SOLVED LB-MILP")
 
-        solution['x'] = solution['x'][:-1]
-        logger.info("SOLVED LB-MILP")
         return solution, success, stats
 
     def update_options(self, relaxed=False):
@@ -387,6 +394,8 @@ class BendersTRandMaster(BendersMasterMILP):
         self.options['gurobi.MIPGap'] = 0.1
         solution, success, stats = self._solve_trust_region_problem(nlpdata, constraint)
         if not success:
+            if self.sol_best is None:
+                raise Exception("Problem can not be solved")
             solution = self.sol_best
             nlpdata.prev_solutions = [self.sol_best]
             nlpdata.solved_all = [True]

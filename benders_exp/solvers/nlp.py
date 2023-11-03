@@ -30,7 +30,8 @@ class NlpSolver(SolverClass):
         # self.callback.add_to_solver_opts(options, 50)
 
         options.update({
-            "ipopt.expect_infeasible_problem": "yes"
+            "ipopt.expect_infeasible_problem": "yes",
+            "error_on_fail": False
         })
         if problem.precompiled_nlp is not None:
             self.solver = ca.nlpsol(

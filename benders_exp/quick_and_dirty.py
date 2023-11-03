@@ -62,7 +62,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
     # Benders algorithm
     lb = -ca.inf
     ub = ca.inf
-    tolerance = 0.001
+    tolerance = 1e-5
     feasible = True
     best_iter = -1
     x_star = np.nan * np.empty(problem.x.shape[0])
@@ -148,9 +148,10 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
 
     elif termination_type == 'std':
         def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
-            ret = (lb + tol - ub) >= 0
+            tol_abs = (abs(lb) + abs(ub)) * tol / 2
+            ret = (lb + tol_abs - ub) >= 0
             if ret:
-                logging.info(f"Terminated: {lb} >= {ub} - {tol}")
+                logging.info(f"Terminated: {lb} >= {ub} - {tol_abs} ({tol*100}%)")
             return ret
     else:
         raise AttributeError(
@@ -335,7 +336,7 @@ def benders_tr_master(
     fnlp = FeasibilityNlpSolver(problem, data, stats)
     lb = -ca.inf
     ub = ca.inf
-    tolerance = 0.1
+    tolerance = 1e-5
     feasible = True
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])

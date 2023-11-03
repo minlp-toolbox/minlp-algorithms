@@ -33,6 +33,7 @@ class MetaDataOcp(MetaData):
     min_uptime: Optional[int] = None
 
 
+
 @dataclass
 class MetaDataMpc(MetaData):
     """Meta data in case the problem is an OCP."""
