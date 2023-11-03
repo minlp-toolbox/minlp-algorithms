@@ -367,28 +367,104 @@ def create_from_nosnoc(file, compiled=False):
     return problem, data
 
 
-def create_from_sto(file):
+def create_from_sto(file, with_uptime=True):
     """Create a problem from STO."""
     from benders_exp.utils.data import load_pickle
+    from benders_exp.defines import to_bool
+    with_uptime = to_bool(with_uptime)
     data = load_pickle(file)
-    nx = data['lbx'].shape[0]
-    x = CASADI_VAR.sym("x", nx)
-    p = CASADI_VAR.sym("p", 0)
-    f = data['f'](x)
-    g = data['g'](x)
+    dt = data['dt']
+    N = data['N']
 
-    idx_x_bin = np.where(data['int'].full() == 1)[0].tolist()
+    nx = data['lbx'].shape[0] - 1
+    p = CASADI_VAR.sym("p", 1)
+    p0 = [dt * N]
+    x = CASADI_VAR.sym("x", nx)
+    x0 = data['init'][1:]
+    ubx, lbx = data['ubx'][1:], data['lbx'][1:]
+    f = data['f'](ca.vertcat(p, x))
+    g = data['g'](ca.vertcat(p, x))
+    idx_x_bin = np.where(data['int'][1:].full() == 1)[0].tolist()
+    ub_idx = data['ub_idx'] - 1
+    u_idx = data['u_idx']-1
+    x_idx = data['x_idx']-1
+
+    # Add extra switching constraints:
+    switches = []
+    constraints_eq = []  # 0 < item
+    constraints_leq = []  # 0 < item
+    min_uptime = [int(x/dt) for x in data['min_uptime']]
+    min_downtime = [int(x/dt) for x in data['min_downtime']]
+    if with_uptime:
+        ub_idx_c = ub_idx.reshape((-1, data['nub']))
+        for i, (min_up, min_down) in enumerate(zip(min_uptime[:-1], min_downtime[:-1])):
+            if min_up > 1 or min_down > 1:
+                switch = CASADI_VAR.sym(f"switch_x{i}", N)
+                switches.append(switch)
+                for idxt in range(N-1):
+                    constraints_eq.append((x[ub_idx_c[idxt, i]] + switch[idxt]) - x[ub_idx_c[idxt+1, i]])
+
+                if min_up > 1:
+                    for idxt in range(N-1):
+                        for idxt2 in range(idxt+1, min(N, idxt+min_up)):
+                            # switch < x -> 0 < x - switch
+                            constraints_leq.append(x[ub_idx_c[idxt2, i]] - switch[idxt])
+
+                if min_down > 1:
+                    for idxt in range(N-1):
+                        for idxt2 in range(idxt+1, min(N, idxt+min_down)):
+                            # 1 + switch < 1 - x -> 0 < 1 - x - switch - 1
+                            constraints_leq.append(x[ub_idx_c[idxt2, i]] + switch[idxt])
+    # Add to problem!
+    nr_switches = len(switches)
+    switches = ca.vcat(switches)
+    constraints_eq = ca.vcat(constraints_eq)
+    constraints_leq = ca.vcat(constraints_leq)
+    nub = data['nub'] + nr_switches
+    if nr_switches > 0:
+        idx_switches = [
+            [nx + N * swi + i for i in range(N)] for swi in range(nr_switches)
+        ]
+        ub_idx_c = np.hstack((ub_idx_c, np.array(idx_switches).T))
+        min_uptime = min_uptime[:-1] + [0] * nr_switches + [min_uptime[-1]]
+        min_downtime = min_downtime[:-1] + [0] * nr_switches + [min_downtime[-1]]
+
+    ub_idx_c = ub_idx_c.reshape((-1,))
+    x = ca.vertcat(x, switches)
+    g = ca.vertcat(g, constraints_eq, constraints_leq)
+    lbx = ca.vertcat(lbx, -np.ones(switches.shape))
+    ubx = ca.vertcat(ubx, np.ones(switches.shape))
+    x0 = ca.vertcat(x0, np.zeros(switches.shape))
+    x0[idx_x_bin] = np.round(x0[idx_x_bin])
+    lbg = ca.vertcat(data['lbg'], np.zeros(constraints_eq.shape), np.zeros(constraints_leq.shape))
+    ubg = ca.vertcat(data['ubg'], np.zeros(constraints_eq.shape), ca.inf * np.ones(constraints_leq.shape))
+
     problem = MinlpProblem(
         x=x, p=p, f=f, g=g,
         idx_x_bin=idx_x_bin,
         hessian_not_psd=True
     )
     problem.idx_g_lin, problem.idx_g_lin_bin = [], []
-    data['init'][idx_x_bin] = np.round(data['init'][idx_x_bin])
+
+    meta = MetaDataOcp(
+        dt=data['dt'],
+        n_state=data['nx'],
+        n_continuous_control=data['nu']-data['nub'],
+        n_discrete_control=nub,
+        initial_state=data['x0'],
+        idx_control=u_idx,
+        idx_state=x_idx,
+        idx_bin_control=ub_idx_c,
+        min_uptime=min_uptime,
+        min_downtime=min_downtime,
+    )
+
+    problem.meta = meta
+
     data = MinlpData(
-        p=[], x0=data['init'],
-        _lbx=data['lbx'], _ubx=data['ubx'],
-        _lbg=data['lbg'], _ubg=data['ubg']
+        p=p0,
+        x0=x0, _lbx=lbx, _ubx=ubx,
+        _lbg=lbg, _ubg=ubg
     )
     return problem, data
 
@@ -438,7 +514,8 @@ if __name__ == '__main__':
         meta = prob.meta
         state = to_0d(x_star)[meta.idx_state].reshape(-1, meta.n_state)
         state = np.vstack([meta.initial_state, state])
-        control = to_0d(x_star)[meta.idx_control].reshape(-1, meta.n_continuous_control)
+        control = to_0d(x_star)[
+            meta.idx_control].reshape(-1, meta.n_continuous_control)
         fig, axs = plot_trajectory(state, control, meta, title='problem name')
         plt.show()
 

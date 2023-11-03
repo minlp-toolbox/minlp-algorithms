@@ -31,7 +31,7 @@ class MetaDataOcp(MetaData):
     dt: Optional[float] = None
     scaling_coeff_control: Optional[List[float]] = None
     min_uptime: Optional[int] = None
-
+    min_downtime: Optional[int] = None
 
 
 @dataclass

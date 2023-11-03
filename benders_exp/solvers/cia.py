@@ -94,8 +94,10 @@ class PycombinaSolver(SolverClass):
         t = np.arange(0, N*self.meta.dt, self.meta.dt)  # NOTE assuming uniform grid
         binapprox = BinApprox(t, b_rel)
 
-        binapprox.set_min_down_times([self.meta.dt * self.meta.min_uptime for _ in range(b_rel.shape[1])])
-        binapprox.set_min_up_times([self.meta.dt * self.meta.min_uptime for _ in range(b_rel.shape[1])])
+        binapprox.set_min_down_times([self.meta.dt * self.meta.min_downtime[i]
+                                      for i in range(b_rel.shape[1])])
+        binapprox.set_min_up_times([self.meta.dt * self.meta.min_uptime[i]
+                                    for i in range(b_rel.shape[1])])
         # binapprox.set_n_max_switches(...)
         # binapprox.set_max_up_times(...)
 
