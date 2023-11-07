@@ -31,14 +31,14 @@ for i, label in enumerate(ca.nlpsol_out()):
 
 
 def get_control_vector(problem: MinlpProblem, data: MinlpData):
-    if problem.meta.n_continuous_control > 0 and problem.meta.n_discrete_control > 0:
-        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_continuous_control)
-        control = np.hstack([control, to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)])
-    elif problem.meta.n_continuous_control == 0:
-        control = to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control)
-    elif problem.meta.n_discrete_control == 0:
-        control = to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_continuous_control)
-    return control
+    out = []
+    if problem.meta.n_continuous_control > 0:
+        out.append(to_0d(data.x_sol)[problem.meta.idx_control].reshape(-1, problem.meta.n_continuous_control))
+    if problem.meta.n_discrete_control > 0:
+        out.append(to_0d(data.x_sol)[problem.meta.idx_bin_control].reshape(-1, problem.meta.n_discrete_control))
+    if len(out) > 1:
+        out = np.hstack(out)
+    return out
 
 
 def convert_to_flat_list(nr, indices, data):
@@ -193,7 +193,12 @@ def plot_trajectory(
         axs[s].set_ylabel(f"$x_{s}$")
 
     for a in range(n_controls):
-        axs[meta.n_state + a].set_ylim(0, 10.5)
+        if a >= meta.n_continuous_control:
+            # Discrete control
+            axs[meta.n_state + a].set_ylim(-1.5, 1.5)
+        else:
+            axs[meta.n_state + a].set_ylim(0, 10.5)
+
         for a_traj in a_collection:
             if len(a_traj.shape) == 1:
                 a_traj = a_traj[..., np.newaxis]
