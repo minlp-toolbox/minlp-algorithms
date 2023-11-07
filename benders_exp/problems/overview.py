@@ -430,7 +430,7 @@ def create_from_sto(file, with_uptime=True):
         min_downtime = min_downtime[:-1] + [0] * nr_switches + [min_downtime[-1]]
 
     ub_idx_c = ub_idx_c.reshape((-1,))
-    x = ca.vertcat(x, switches)
+    x_total = ca.vertcat(x, switches)
     g = ca.vertcat(g, constraints_eq, constraints_leq)
     lbx = ca.vertcat(lbx, -np.ones(switches.shape))
     ubx = ca.vertcat(ubx, np.ones(switches.shape))
@@ -440,7 +440,7 @@ def create_from_sto(file, with_uptime=True):
     ubg = ca.vertcat(data['ubg'], np.zeros(constraints_eq.shape), ca.inf * np.ones(constraints_leq.shape))
 
     problem = MinlpProblem(
-        x=x, p=p, f=f, g=g,
+        x=x_total, p=p, f=f, g=g,
         idx_x_bin=idx_x_bin,
         hessian_not_psd=True
     )
@@ -457,6 +457,7 @@ def create_from_sto(file, with_uptime=True):
         idx_bin_control=ub_idx_c,
         min_uptime=min_uptime,
         min_downtime=min_downtime,
+        dump_solution=ca.Function("dump", [x_total], [ca.vertcat(p0, x)])
     )
 
     problem.meta = meta
