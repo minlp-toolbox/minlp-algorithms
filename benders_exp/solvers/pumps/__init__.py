@@ -53,6 +53,7 @@ def feasibility_pump(
         data = nlp.solve(data)
 
     relaxed_value = data.obj_val
+    ATTEMPT_TOLERANCE = 0.1
     TOLERANCE = 0.01
     MAX_ITER = 50
     KK = 5  # Need an integer improvement in 5 steps
@@ -85,6 +86,13 @@ def feasibility_pump(
                 data.x_sol, problem.idx_x_bin)
             data = fp.solve(data, int_error=distances[-1], obj_val=relaxed_value)
             distances.append(integer_error(data.x_sol[problem.idx_x_bin]))
+
+        # Added heuristic, not present in the original implementation
+        if distances[-1] < ATTEMPT_TOLERANCE:
+            datarounded = nlp.solve(create_rounded_data(data, problem.idx_x_bin), True)
+            if datarounded.solved:
+                stats['total_time_calc'] += toc(reset=True)
+                return problem, datarounded, datarounded.x_sol
 
         stats['iter'] += 1
         logger.info(f"Iteration {stats['iter']} finished")
@@ -148,7 +156,6 @@ def random_objective_feasibility_pump(
                     f"New best objective found in {stats['iter']=}")
                 best_obj = datarounded.obj_val
                 stats['best_itr'] = stats['iter']
-                check_solution(problem, datarounded, datarounded.x_sol)
                 best_solution = datarounded._sol
 
         int_error = integer_error(data.x_sol[problem.idx_x_bin])
@@ -160,10 +167,10 @@ def random_objective_feasibility_pump(
         if WITH_LOG_DATA:
             stats.save()
         if int_error < TOLERANCE:
-            data = nlp.solve(create_rounded_data(
+            datarounded = nlp.solve(create_rounded_data(
                 data, problem.idx_x_bin), set_x_bin=True)
-            if data.solved:
-                best_solution = data._sol
+            if datarounded.solved:
+                best_solution = datarounded._sol
             else:
                 int_error = ca.inf
 
@@ -184,7 +191,7 @@ def random_objective_feasibility_pump(
                 logger.info(
                     f"Current random NLP objective (restoration): {data.obj_val:.3e}")
         if stats['iter'] > MAX_ITER:
-            raise Exception("Problem can not be solved")
+            return problem, data, None, False
 
     # Construct nlpdata again!
     data.prev_solutions = [best_solution] + feasible_solutions
@@ -207,5 +214,7 @@ def random_direction_rounding_algorithm(
     data = nlp.solve(data)
     problem, best, x_sol, _ = random_objective_feasibility_pump(
         problem, data, stats, data, nlp)
+    if x_sol is None:
+        raise Exception("Problem can not be solved")
     stats['total_time_calc'] = toc(reset=True)
     return problem, best, x_sol

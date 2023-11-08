@@ -564,7 +564,12 @@ if __name__ == "__main__":
         stats.save()
 
     if target_file is not None:
-        write_json({"w0": x_star}, target_file)
+        if isinstance(problem.meta, MetaDataOcp) and problem.meta.dump_solution is not None:
+            output_data = problem.meta.dump_solution(x_star)
+        else:
+            output_data = x_star
+
+        write_json({"w0": np.array(output_data).tolist()}, target_file)
 
     print(f"Objective value: {data.obj_val}")
 

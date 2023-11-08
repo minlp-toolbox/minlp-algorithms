@@ -65,6 +65,14 @@ def cia_decomposition_algorithm(problem: MinlpProblem, data: MinlpData,
     return problem, data, data.x_sol
 
 
+def to_list(dt, min_time, nr_b):
+    """Create a min up or downtime list."""
+    if isinstance(min_time, int):
+        return [dt * min_time for _ in range(nr_b)]
+    else:
+        return [dt * min_time[i] for i in range(nr_b)]
+
+
 class PycombinaSolver(SolverClass):
     """
     Create NLP solver.
@@ -79,12 +87,10 @@ class PycombinaSolver(SolverClass):
         self.idx_x_bin = problem.idx_x_bin
         self.meta = problem.meta
 
-
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve NLP."""
-
         b_rel = to_0d(nlpdata.x_sol[self.meta.idx_bin_control]).reshape(-1, self.meta.n_discrete_control)
-        b_rel = np.hstack([np.asarray(b_rel), np.array(1-b_rel.sum(axis=1).reshape(-1, 1))]) # Make sos1 structure
+        b_rel = np.hstack([np.asarray(b_rel), np.array(1-b_rel.sum(axis=1).reshape(-1, 1))])  # Make sos1 structure
 
         # Ensure values are not out of range due to numerical effects
         b_rel[b_rel < 0] = 0
@@ -94,10 +100,19 @@ class PycombinaSolver(SolverClass):
         t = np.arange(0, N*self.meta.dt, self.meta.dt)  # NOTE assuming uniform grid
         binapprox = BinApprox(t, b_rel)
 
-        binapprox.set_min_down_times([self.meta.dt * self.meta.min_uptime for _ in range(b_rel.shape[1])])
-        binapprox.set_min_up_times([self.meta.dt * self.meta.min_uptime for _ in range(b_rel.shape[1])])
+        value_set = False
+        if self.meta.min_downtime is not None:
+            value_set = True
+            binapprox.set_min_down_times(to_list(self.meta.dt, self.meta.min_downtime, b_rel.shape[1]))
+        if self.meta.min_uptime is not None:
+            value_set = True
+            binapprox.set_min_up_times(to_list(self.meta.dt, self.meta.min_uptime, b_rel.shape[1]))
+
         # binapprox.set_n_max_switches(...)
         # binapprox.set_max_up_times(...)
+
+        if not value_set:
+            raise Exception("Minimum uptime or downtime needs to be set!")
 
         combina = CombinaBnB(binapprox)
         combina.solve()
