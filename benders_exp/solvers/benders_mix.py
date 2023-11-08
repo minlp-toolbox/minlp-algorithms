@@ -232,15 +232,14 @@ class BendersTRandMaster(BendersMasterMILP):
         x_sol_best_bin = self.x_sol_best[self.idx_x_bin]
         # Check and correct - if necessary - all the points in memory
         for i in range(self.g_lowerapprox.nr - 1):
-            # Reset the corrected gradient to original
-            # self.g_lowerapprox.dg_corrected[i] = self.g_lowerapprox.dg[i]
+            # New corrections based on previously corrected gradients
             if not self._check_cut_valid(
                     self.g_lowerapprox.g[i], self.g_lowerapprox.dg_corrected[i],
                     x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val
             ):
                 self.g_lowerapprox.dg_corrected[i] = compute_gradient_correction(
                     x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val,
-                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg[i])
+                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg_corrected[i])
                 logger.debug(f"Correcting gradient for lower approx {i}")
 
     def _trust_region_is_empty(self):
