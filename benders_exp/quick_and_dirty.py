@@ -24,6 +24,7 @@ from benders_exp.solvers.pumps import random_direction_rounding_algorithm, rando
         feasibility_pump, objective_feasibility_pump
 from benders_exp.solvers.cia import cia_decomposition_algorithm
 from benders_exp.solvers.benders_equal_lb import BendersEquality
+from benders_exp.solvers.milp_tr import milp_tr
 
 logger = logging.getLogger(__name__)
 
@@ -458,6 +459,7 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "fp": feasibility_pump,
         "ofp": objective_feasibility_pump,
         "cia": cia_decomposition_algorithm,
+        "milp_tr": milp_tr
     }
 
     if mode_name not in MODES:
