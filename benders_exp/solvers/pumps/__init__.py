@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 def feasibility_pump(
     problem: MinlpProblem, data: MinlpData, stats: Stats, nlp=None,
     fp=None
-) -> Tuple[MinlpData, ca.DM]:
+) -> Tuple[MinlpProblem, MinlpData, ca.DM, bool]:
     """
     Feasibility Pump
 

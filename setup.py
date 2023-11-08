@@ -16,6 +16,7 @@ setup(
         "matplotlib",
         "parameterized",
         "timeout-decorator",
-        "tox"
+        "tox",
+        "colored"
     ]
 )
