@@ -35,12 +35,12 @@ def milp_tr(
 
     delta = 1.0  # Initial radius
     delta_max = 64  # Max delta
-    eps = 10e-5  # Tolerance
+    eps = 1e-4  # Tolerance
     # Sufficient decrease, and update rhos:
     rho = [0.1, 0.1, 0.2]
     kappa = 0.5  # Reduction factor
     p = 0.5  # Monotonicity parameter
-    data = nlp.solve(data, True)
+    data = nlp.solve(data, set_x_bin=True)
     phi = data.obj_val
     logger.info(f"Initial start {phi=}")
     while True:
@@ -50,11 +50,10 @@ def milp_tr(
         # Make feasible if possible:
         if with_nlp_improvement:
             # This is a step, not described by De Marchi:
-            data_p = nlp.solve(data_p, True)
+            data_p = nlp.solve(data_p, set_x_bin=True)
             f = data_p.obj_val
         else:
-            f = tr.f(data_p.x_sol, data_p.p).full()[0, 0]
-
+            f = float(tr.f(data_p.x_sol, data_p.p))
         if data_p.solved:
             logger.info(f"MILP-TR result {psi_k=}, {f=} < {phi=}")
             # Merit decrease
