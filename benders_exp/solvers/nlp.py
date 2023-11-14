@@ -55,7 +55,8 @@ class NlpSolver(SolverClass):
             lbx = nlpdata.lbx
             ubx = nlpdata.ubx
             if set_x_bin:
-                x_bin_var = to_0d(sol['x'][self.idx_x_bin])
+                # Remove integer errors
+                x_bin_var = np.round(to_0d(sol['x'][self.idx_x_bin]))
                 lbx[self.idx_x_bin] = x_bin_var
                 ubx[self.idx_x_bin] = x_bin_var
 
@@ -163,6 +164,60 @@ class FeasibilityNlpSolver(SolverClass):
                 # Maintain that it is caused due to infeasibility!!!
                 success_out.append(False)
                 sols_out.append(sol_new)
+
+        nlpdata.prev_solutions = sols_out
+        nlpdata.solved_all = success_out
+        return nlpdata
+
+
+class FindClosestNlpSolver(SolverClass):
+    """Find closest feasible."""
+
+    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+        """Create NLP problem."""
+        super(FindClosestNlpSolver, self).__init___(problem, stats)
+        options = regularize_options(options, IPOPT_SETTINGS)
+
+        self.idx_x_bin = problem.idx_x_bin
+        options["calc_multipliers"] = True
+        options.update({
+            "jit": WITH_JIT,
+        })
+
+        x_hat = CASADI_VAR.sym("x_hat", len(self.idx_x_bin))
+
+        f = ca.norm_2(problem.x[self.idx_x_bin] - x_hat)
+        self.solver = ca.nlpsol("nlpsol", "ipopt", {
+            "f": f, "g": problem.g, "x": problem.x,
+            "p": ca.vertcat(problem.p, x_hat)
+        }, options)
+
+    def solve(self, nlpdata: MinlpData) -> MinlpData:
+        """Solve NLP."""
+        success_out = []
+        sols_out = []
+        for success_prev, sol in zip(nlpdata.solved_all, nlpdata.solutions_all):
+            if success_prev:
+                success_out.append(success_prev)
+                sols_out.append(sol)
+            else:
+                lbx = nlpdata.lbx
+                ubx = nlpdata.ubx
+                x_bin_var = to_0d(sol['x'][self.idx_x_bin])
+
+                new_sol = self.solver(
+                    x0=nlpdata.x0,
+                    lbx=lbx, ubx=ubx,
+                    lbg=nlpdata.lbg, ubg=nlpdata.ubg,
+                    p=ca.vertcat(nlpdata.p, x_bin_var)
+                )
+                new_sol['x_infeasible'] = sol['x']
+
+                success, _ = self.collect_stats("FC-NLP")
+                if not success:
+                    print("FC-NLP not solved")
+                success_out.append(False)
+                sols_out.append(new_sol)
 
         nlpdata.prev_solutions = sols_out
         nlpdata.solved_all = success_out

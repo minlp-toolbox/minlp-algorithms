@@ -56,6 +56,7 @@ class RandomDirectionNlpSolver(SolverClass):
             "g": problem.g, "x": problem.x,
             "p": ca.vertcat(problem.p, rounded_value, penalty, alpha, obj_val, int_error)
         }, options)
+        self.f = ca.Function("f", [problem.x, problem.p], [problem.f])
 
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve NLP."""
@@ -78,6 +79,8 @@ class RandomDirectionNlpSolver(SolverClass):
                 f"{nlpdata.obj_val=:.3} rounding error={int_error:.3f} "
                 f"- weight {float(self.alpha):.3e}"
             )
+            if self.alpha < 1e-4:
+                self.alpha = 0
 
             new_sol = self.solver(
                 x0=nlpdata.x0,

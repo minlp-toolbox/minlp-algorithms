@@ -10,18 +10,18 @@ import numpy as np
 from benders_exp.utils import get_control_vector, plot_trajectory, tic, to_0d, toc, \
     make_bounded, setup_logger, logging, colored
 from benders_exp.json_tools import write_json
-from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, WITH_LOG_DATA, WITH_DEBUG
+from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, WITH_LOG_DATA, WITH_DEBUG, TIME_LIMIT
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
 from benders_exp.solvers import Stats
-from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass
+from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass, FindClosestNlpSolver
 from benders_exp.solvers.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
 from benders_exp.solvers.benders_mix import BendersTRandMaster
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
 from benders_exp.solvers.bonmin import BonminSolver
 from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
 from benders_exp.solvers.pumps import random_direction_rounding_algorithm, random_objective_feasibility_pump, \
-        feasibility_pump, objective_feasibility_pump
+    feasibility_pump, objective_feasibility_pump
 from benders_exp.solvers.cia import cia_decomposition_algorithm
 from benders_exp.solvers.benders_equal_lb import BendersEquality
 from benders_exp.solvers.milp_tr import milp_tr
@@ -63,7 +63,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
     # Benders algorithm
     lb = -ca.inf
     ub = ca.inf
-    tolerance = 1e-5
+    tolerance = 1e-2
     feasible = True
     best_iter = -1
     x_star = np.nan * np.empty(problem.x.shape[0])
@@ -74,7 +74,6 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
         data = master_problem.solve(data, relaxed=True)
 
     while (not termination_condition(lb, ub, tolerance, x_star, x_hat)) and feasible:
-        toc()
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
@@ -113,6 +112,12 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
     :param data: data
     :return: callable that returns true if the termination condition holds
     """
+    def max_time(ret):
+        if toc() > TIME_LIMIT:
+            logging.info("Terminated - TIME LIMIT")
+            return True
+        return ret
+
     if termination_type == 'gradient':
         idx_x_bin = problem.idx_x_bin
         f_fn = ca.Function("f", [problem.x, problem.p], [
@@ -129,7 +134,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
             ) >= 0
             if ret:
                 logging.info("Terminated - gradient ok")
-            return ret
+            return max_time(ret)
     elif termination_type == 'equality':
         idx_x_bin = problem.idx_x_bin
 
@@ -138,22 +143,23 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
                 for x in x_best:
                     if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS):
                         logging.info(f"Terminated - all close within {EPS}")
-                        return True
-                return False
+                        return max_time(True)
+                return max_time(False)
             else:
                 ret = np.allclose(
                     x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS)
                 if ret:
                     logging.info(f"Terminated - all close within {EPS}")
-                return ret
+                return max_time(ret)
 
     elif termination_type == 'std':
         def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
             tol_abs = (abs(lb) + abs(ub)) * tol / 2
             ret = (lb + tol_abs - ub) >= 0
             if ret:
-                logging.info(f"Terminated: {lb} >= {ub} - {tol_abs} ({tol*100}%)")
-            return ret
+                logging.info(
+                    f"Terminated: {lb} >= {ub} - {tol_abs} ({tol*100}%)")
+            return max_time(ret)
     else:
         raise AttributeError(
             f"Invalid type of termination condition, you set '{termination_type}' but the only option is 'std'!")
@@ -289,8 +295,6 @@ def bonmin(
     algo_type="B-BB"
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Create benders algorithm."""
-    tic()
-    toc()
     logger.info("Create bonmin.")
     minlp = BonminSolver(problem, stats, algo_type=algo_type)
     stats['total_time_loading'] = toc(reset=True)
@@ -321,7 +325,8 @@ def voronoi_tr_algorithm(
 
 def benders_tr_master(
     problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'std',
-    first_relaxed=True, use_feasibility_pump=True, with_benders_master=True
+    first_relaxed=True, use_feasibility_pump=True, with_benders_master=True,
+    with_new_inf=False
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
     termination_condition = get_termination_condition(
@@ -334,10 +339,13 @@ def benders_tr_master(
     nlp = NlpSolver(problem, stats)
     toc()
     logger.info("Setup FNLP solver...")
-    fnlp = FeasibilityNlpSolver(problem, data, stats)
+    if with_new_inf:
+        fnlp = FindClosestNlpSolver(problem, stats)
+    else:
+        fnlp = FeasibilityNlpSolver(problem, data, stats)
     lb = -ca.inf
     ub = ca.inf
-    tolerance = 1e-5
+    tolerance = 1e-2
     feasible = True
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
@@ -350,8 +358,7 @@ def benders_tr_master(
     if use_feasibility_pump:
         data = nlp.solve(data)
         master_problem.update_relaxed_solution(data)
-        lb = data.obj_val
-        problem, data, _, is_relaxed = random_objective_feasibility_pump(
+        problem, data, _, is_relaxed, lb = random_objective_feasibility_pump(
             problem, data, stats, data, nlp)
         if not is_relaxed:
             ub, x_star, best_iter = update_best_solutions(
@@ -371,7 +378,6 @@ def benders_tr_master(
 
     try:
         while feasible and not termination_met:
-            toc()
             # Solve NLP(y^k)
             data = nlp.solve(data, set_x_bin=True)
             logger.info("SOLVED NLP")
@@ -379,6 +385,10 @@ def benders_tr_master(
             ub, x_star, best_iter = update_best_solutions(
                 data, stats['iter_nr'], ub, x_star, best_iter
             )
+            if ub < lb - EPS:
+                lb = ub - (abs(lb) + abs(ub)) / 2
+                master_problem.internal_lb = lb
+                colored(f"Upper bound higher than lb new {lb}")
 
             if not np.all(data.solved_all):
                 # Solve NLPF(y^k)
@@ -401,7 +411,7 @@ def benders_tr_master(
             # Solve master^k and set lower bound:
             data, last_benders = master_problem.solve(data)
             if last_benders:
-                lb = max(data.obj_val, lb)
+                lb = data.obj_val
             logger.debug(f"MIP {data.obj_val=}, {ub=}, {lb=}")
 
             x_hat = data.x_sol
@@ -436,6 +446,9 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "benders_tr_fp": lambda p, d, s: benders_tr_master(p, d, s, termination_type='equality',
                                                            use_feasibility_pump=True, with_benders_master=False),
         "benders_trm": lambda p, d, s: benders_tr_master(p, d, s, use_feasibility_pump=False, with_benders_master=True),
+        "benders_trm_i": lambda p, d, s: benders_tr_master(
+            p, d, s, use_feasibility_pump=False, with_benders_master=True, with_new_inf=True
+        ),
         "benders_trm_fp": lambda p, d, s: benders_tr_master(p, d, s, use_feasibility_pump=True,
                                                             with_benders_master=True),
         "oa": outer_approx_algorithm,
@@ -574,13 +587,12 @@ if __name__ == "__main__":
     print(f"Objective value: {data.obj_val}")
 
     print(x_star)
-    check_solution(problem, data, x_star)
     if isinstance(problem.meta, MetaDataOcp):
         meta = problem.meta
         state = to_0d(x_star)[meta.idx_state].reshape(-1, meta.n_state)
         state = np.vstack([meta.initial_state, state])
         control = get_control_vector(problem, data)
-        fig, axs = plot_trajectory(state, control, meta, title=problem_name)
+        fig, axs = plot_trajectory(to_0d(x_star), state, control, meta, title=problem_name)
 
         # TODO the next is only a patch for plotting the demand for the double tank problem
         if problem_name == 'doubletank2':
@@ -596,5 +608,6 @@ if __name__ == "__main__":
     elif isinstance(problem.meta, MetaDataMpc):
         problem.meta.plot(data, x_star)
 
+    check_solution(problem, data, x_star)
     if WITH_PLOT:
         plt.show()

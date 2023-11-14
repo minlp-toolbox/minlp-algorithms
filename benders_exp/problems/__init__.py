@@ -33,6 +33,7 @@ class MetaDataOcp(MetaData):
     min_uptime: Optional[int] = None
     min_downtime: Optional[int] = None
     dump_solution: ca.Function = None
+    idx_t: Optional[int] = None
 
 
 @dataclass

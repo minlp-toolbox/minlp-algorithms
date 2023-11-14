@@ -12,12 +12,13 @@ def to_bool(val):
         return not (val.lower() in ["0", "false", "false", "no"])
 
 
+TIME_LIMIT = ca.inf  # 600.0
 SOURCE_FOLDER = path.dirname(path.abspath(__file__))
 _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
 OUT_DIR = path.join(SOURCE_FOLDER, "../results")
 CACHE_FOLDER = path.join(SOURCE_FOLDER, "../data/cache")
-USE_SOLUTION_POOL = True
+USE_SOLUTION_POOL = False
 
 if not path.exists(IMG_DIR):
     makedirs(IMG_DIR)
@@ -31,7 +32,7 @@ WITH_PLOT = False
 EPS = 1e-5
 OBJECTIVE_TOL = 1e-2
 CONSTRAINT_INT_TOL = 1e-2
-CONSTRAINT_TOL = 1e-4
+CONSTRAINT_TOL = 1e-3
 BENDERS_LB = -1e16
 CASADI_VAR = ca.MX
 MIP_SOLVER = environ.get("MIP_SOLVER", "gurobi")
@@ -53,7 +54,7 @@ IPOPT_SETTINGS = {  # TODO: make ipopt setting change according to the problem c
     "ipopt.acceptable_compl_inf_tol": 10.0,
     "ipopt.acceptable_obj_change_tol": 1e-1,
     "ipopt.mu_strategy": "adaptive",
-    "ipopt.mu_target": 1e-5,
+    "ipopt.mu_target": 1e-3,
 }
 BONMIN_SETTINGS = {}
 GUROBI_SETTINGS = {
