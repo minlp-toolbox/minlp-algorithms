@@ -64,11 +64,14 @@ class LowerApproximation:
 
     def __call__(self, x_value, nu=0):
         """Evaluate the bounds."""
-        return [
-            gi + m * dgi.T @ (x_value - xi) - nu
-            for gi, dgi, m, xi in zip(
-                self.g, self.dg_corrected, self.multipliers, self.x_lin)
-        ]
+        try:
+            return [
+                gi + m * dgi.T @ (x_value - xi) - nu
+                for gi, dgi, m, xi in zip(
+                    self.g, self.dg_corrected, self.multipliers, self.x_lin)
+            ]
+        except:
+            breakpoint()
 
     def to_generic(self, nu=None):
         """Create bounds."""
@@ -128,10 +131,8 @@ class BendersTRandMaster(BendersMasterMILP):
 
         # Setups
         self.setup_common(problem, options)
-        self.idx_g_lin = get_idx_linear_bounds(problem)
-        self.idx_g_nonlin = get_idx_inverse(self.idx_g_lin, problem.g.shape[0])
 
-        self.grad_f_x_sub = ca.Function(
+        self.grad_f_x = ca.Function(
             "gradient_f_x",
             [problem.x, problem.p], [ca.gradient(
                 problem.f, problem.x
@@ -152,9 +153,6 @@ class BendersTRandMaster(BendersMasterMILP):
 
         self._x = CASADI_VAR.sym("x_benders", problem.x.numel())
         self._x_bin = self._x[problem.idx_x_bin]
-        self.g_lin = Constraints(*extract_bounds(
-            problem, data, self.idx_g_lin, self._x, allow_fail=False
-        ))
         self.g_lowerapprox = LowerApproximation(self._x_bin, self._nu)
         self.g_infeasible = LowerApproximation(self._x_bin, 0)
 
@@ -277,7 +275,7 @@ class BendersTRandMaster(BendersMasterMILP):
         dx = self._x - self.x_sol_best
 
         f_k = self.f(self.x_sol_best, nlpdata.p)
-        f_lin = self.grad_f_x_sub(self.x_sol_best, nlpdata.p)
+        f_lin = self.grad_f_x(self.x_sol_best, nlpdata.p)
         f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
         if self.hessian_not_psd:
             min_eigen_value = np.linalg.eigh(f_hess.full())[0][0]
@@ -322,7 +320,7 @@ class BendersTRandMaster(BendersMasterMILP):
         dx = self._x - self.x_sol_best
 
         f_k = self.f(self.x_sol_best, nlpdata.p)
-        f_lin = self.grad_f_x_sub(self.x_sol_best, nlpdata.p)
+        f_lin = self.grad_f_x(self.x_sol_best, nlpdata.p)
         f = f_k + f_lin.T @ dx
 
         # Adding the following linearization might not be the best idea since

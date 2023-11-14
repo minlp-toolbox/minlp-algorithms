@@ -25,6 +25,7 @@ from benders_exp.solvers.pumps import random_direction_rounding_algorithm, rando
 from benders_exp.solvers.cia import cia_decomposition_algorithm
 from benders_exp.solvers.benders_equal_lb import BendersEquality
 from benders_exp.solvers.milp_tr import milp_tr
+from benders_exp.solvers.benders_low_approx import BendersTRLB
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +280,26 @@ def benders_equality(
     return base_strategy(problem, data, stats, benders_tr_master, termination_condition)
 
 
+def benders_trm_lp(
+    problem: MinlpProblem, data: MinlpData, stats: Stats, termination_type: str = 'std'
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+    """
+    Create and run benders TRM as LB.
+
+    parameters:
+        - termination_type:
+            - gradient: based on local linearization
+            - equality: the binaries of the last solution coincides with the ones of the best solution
+            - std: based on lower and upper bound
+    """
+    logger.info("Setup Idea MIQP solver...")
+    benders_tr_master = BendersTRLB(problem, data, stats)
+    termination_condition = get_termination_condition(
+        termination_type, problem, data)
+    toc()
+    return base_strategy(problem, data, stats, benders_tr_master, termination_condition, first_relaxed=True)
+
+
 def relaxed(
     problem: MinlpProblem, data: MinlpData, stats: Stats
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
@@ -451,6 +472,7 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         ),
         "benders_trm_fp": lambda p, d, s: benders_tr_master(p, d, s, use_feasibility_pump=True,
                                                             with_benders_master=True),
+        "benders_trl": benders_trm_lp,
         "oa": outer_approx_algorithm,
         "oai": outer_approx_algorithm_improved,
         "bonmin": bonmin,
