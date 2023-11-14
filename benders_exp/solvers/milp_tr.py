@@ -62,6 +62,7 @@ def milp_tr(
             if psi_k < eps:
                 stats['total_time_calc'] = toc(reset=True)
                 colored("Problem solved", "green")
+                data_p.prev_solutions[0]['f'] = tr.f(data_p.x_sol, data_p.p)
                 return problem, data_p, data_p.x_sol
             if a_k < rho[0] * psi_k:
                 delta = kappa * delta

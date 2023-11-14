@@ -157,6 +157,7 @@ def latexify(fig_width=None, fig_height=None):
 
 
 def plot_trajectory(
+    x_star: np.ndarray,
     s_collection: Union[np.ndarray, list],
     a_collection: Union[np.ndarray, list],
     meta: MetaDataOcp,
@@ -174,7 +175,10 @@ def plot_trajectory(
 
     N = a_collection[0].shape[0]
     dt = meta.dt
-    time_array = np.linspace(0, N * dt, N + 1)
+    if dt is None:
+        time_array = np.hstack((np.array([0]), x_star[meta.idx_t]))
+    else:
+        time_array = np.linspace(0, N * dt, N + 1)
     n_controls = meta.n_continuous_control + meta.n_discrete_control
 
     latexify()
@@ -197,7 +201,7 @@ def plot_trajectory(
             # Discrete control
             axs[meta.n_state + a].set_ylim(-1.5, 1.5)
         else:
-            axs[meta.n_state + a].set_ylim(0, 10.5)
+            axs[meta.n_state + a].set_ylim(-10.5, 10.5)
 
         for a_traj in a_collection:
             if len(a_traj.shape) == 1:

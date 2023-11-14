@@ -15,6 +15,8 @@ from benders_exp.problems.gearbox import create_simple_gearbox, create_gearbox, 
     create_gearbox_int
 from benders_exp.problems.minlp import MINLP_PROBLEMS
 from benders_exp.defines import to_bool
+from benders_exp.problems.time_opt import time_opt_car
+from benders_exp.problems.sto_based import particle_trajectory
 
 
 def create_ocp_unstable_system(p_val=[0.8, 0.7]):
@@ -395,8 +397,8 @@ def create_from_sto(file, with_uptime=True):
     constraints_leq = []  # 0 < item
     min_uptime = [int(x/dt) for x in data['min_uptime']]
     min_downtime = [int(x/dt) for x in data['min_downtime']]
+    ub_idx_c = ub_idx.reshape((-1, data['nub']))
     if with_uptime:
-        ub_idx_c = ub_idx.reshape((-1, data['nub']))
         for i, (min_up, min_down) in enumerate(zip(min_uptime[:-1], min_downtime[:-1])):
             if min_up > 1 or min_down > 1:
                 switch = CASADI_VAR.sym(f"switch_x{i}", N)
@@ -487,6 +489,8 @@ PROBLEMS = {
     "nl_file": create_from_nl_file,
     "nosnoc": create_from_nosnoc,
     "from_sto": create_from_sto,
+    "to_car": time_opt_car,
+    "particle": particle_trajectory
 }
 PROBLEMS.update(MINLP_PROBLEMS)
 
@@ -517,7 +521,7 @@ if __name__ == '__main__':
         state = np.vstack([meta.initial_state, state])
         control = to_0d(x_star)[
             meta.idx_control].reshape(-1, meta.n_continuous_control)
-        fig, axs = plot_trajectory(state, control, meta, title='problem name')
+        fig, axs = plot_trajectory(to_0d(x_star), state, control, meta, title='problem name')
         plt.show()
 
     # grad_f = ca.Function('grad_f', [prob.x, prob.p], [ca.gradient(prob.f, prob.x)])

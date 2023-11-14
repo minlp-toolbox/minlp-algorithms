@@ -1,10 +1,11 @@
 """Set of utilities to model a problem."""
 
+from typing import Union
 from benders_exp.defines import CASADI_VAR
 import casadi as ca
 
 
-def integrate_rk4(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_steps: int = 1):
+def integrate_rk4(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: Union[float, CASADI_VAR], m_steps: int = 1):
     """
     Implement RK4 integrator for ODE.
 
@@ -27,7 +28,11 @@ def integrate_rk4(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_
         k3 = f(X + dt / 2 * k2, U)
         k4 = f(X + dt * k3, U)
         X = X + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
-    return ca.Function("I_rk4", [X0, U], [X], ["x0", "u"], ["xf"])
+
+    if isinstance(dt, CASADI_VAR):
+        return ca.Function("I_rk4", [X0, U, dt], [X], ["x0", "u", "dt"], ["xf"])
+    else:
+        return ca.Function("I_rk4", [X0, U], [X], ["x0", "u"], ["xf"])
 
 
 def integrate_ee(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_steps: int = 1):
@@ -51,3 +56,13 @@ def integrate_ee(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_s
         k1 = f(X, U)
         X = X + dt * k1
     return ca.Function("I_ee", [X0, U], [X], ["x0", "u"], ["xf"])
+
+
+def integrate_ie(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_steps: int = 1):
+    """Integrate Implicit Euler."""
+    f = ca.Function("f", [x, u], [x_dot])
+    X0 = CASADI_VAR.sym("X0", x.shape[0])
+    Xk = CASADI_VAR.sym("Xk", x.shape[0])
+    U = CASADI_VAR.sym("U", u.shape[0])
+    f = X0 + dt * f(Xk, U) - Xk
+    return ca.Function("I_ee", [X0, Xk, U], [f], ["x0", "xk", "u"], ["xf"])

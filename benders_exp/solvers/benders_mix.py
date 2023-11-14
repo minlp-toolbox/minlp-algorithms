@@ -169,8 +169,6 @@ class BendersTRandMaster(BendersMasterMILP):
         self.internal_lb = -ca.inf
         self.x_sol_best = data.x0  # take a point as initialization
         self.sol_best = None
-        self.qp_stagnates = False
-        self.qp_not_improving = 0
         self.with_benders_master = with_benders_master
         self.hessian_not_psd = problem.hessian_not_psd
 
@@ -179,6 +177,20 @@ class BendersTRandMaster(BendersMasterMILP):
         value = g + grad_g.T @ (x_best - x_sol)
         # print(f"Cut valid (lower bound)?: {value} vs real {x_sol_obj}")
         return (value - EPS <= x_sol_obj)  # TODO: check sign EPS
+
+    def _add_infeasibility_cut(self, sol, nlpdata):
+        """Add infeasibility cut."""
+        if 'x_infeasible' in sol:
+            self._add_infeasible_cut_closest_point(sol)
+        else:
+            self._add_infeasible_cut(sol['x'], sol['lam_g'], nlpdata)
+
+    def _add_infeasible_cut_closest_point(self, sol):
+        """Add infeasible cut closest point."""
+        # Rotate currently around x, but preferrably around x_infeasible
+        dx = sol['x_infeasible'] - sol['x']
+        self.g_infeasible.add(sol['x'][self.idx_x_bin], 0, dx[self.idx_x_bin])
+        colored("New cut type", "blue")
 
     def _add_infeasible_cut(self, x_sol, lam_g_sol, nlpdata: MinlpData):
         """Create infeasibility cut."""
@@ -359,14 +371,14 @@ class BendersTRandMaster(BendersMasterMILP):
         else:
             self.options['gurobi.MIPGap'] = 0.1
         logger.info(f"MIP Gap set to {self.options['gurobi.MIPGap']} - "
-                    f"Expected Range {self.internal_lb} - {self.y_N_val}")
+                    f"Expected Range lb={self.internal_lb}  ub={self.y_N_val}")
 
     def update_relaxed_solution(self, nlpdata: MinlpData):
         for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
             # check if new best solution found
-            self.x_sol_best = sol['x'][:self.nr_x_orig]
-            self.internal_lb = float(sol['f'])
-            self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
+            if np.isinf(self.internal_lb) or self.internal_lb > float(sol['f']):
+                self.x_sol_best = sol['x'][:self.nr_x_orig]
+                self.internal_lb = float(sol['f'])
 
         self._gradient_corrections_old_cuts()
 
@@ -377,24 +389,22 @@ class BendersTRandMaster(BendersMasterMILP):
 
     def _solve_mix(self, nlpdata: MinlpData):
         """Solve mix."""
-        do_trust_region = not self.qp_stagnates
-        if do_trust_region:
+        # We miss the LB, try to find one...
+        do_benders = np.isinf(self.internal_lb)
+        if not do_benders:
             constraint = (self.y_N_val + self.internal_lb) / 2
             solution, success, stats = self._solve_trust_region_problem(nlpdata, constraint)
             if success:
-                self.qp_stagnates = any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin)
-                do_benders = self.qp_stagnates
+                if any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin):
+                    colored("QP stagnates, need LB problem", "yellow")
+                    do_benders = True
             else:
                 colored("Failed solving TR", "red")
                 do_benders = True
-        else:
-            do_benders = True
 
         if do_benders:
-            logger.info("QP stagnates, need benders problem!")
             solution, success, stats = self._solve_benders_problem(nlpdata)
             self.internal_lb = float(solution['f'])
-            self.qp_not_improving = 0
 
         nlpdata = get_solutions_pool(nlpdata, success, stats, solution, self.idx_x_bin)
         return nlpdata, do_benders
@@ -420,7 +430,6 @@ class BendersTRandMaster(BendersMasterMILP):
         if relaxed:
             self.update_relaxed_solution(nlpdata)
         else:
-            self.qp_not_improving += 1
             needs_trust_region_update = False
             for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
                 # check if new best solution found
@@ -431,12 +440,11 @@ class BendersTRandMaster(BendersMasterMILP):
                         self.x_sol_best = sol['x'][:self.nr_x_orig]
                         self.sol_best = sol
                         self.y_N_val = float(sol['f'])  # update best objective
-                        self.qp_stagnates = False
-                        self.qp_not_improving = 0
-                        colored(f"NEW UPPER BOUND: {self.y_N_val}", "green")
+                        colored(f"New upper bound: {self.y_N_val}", "green")
+                    colored("Regular Cut", "blue")
                 else:
                     colored("Infeasibility Cut", "blue")
-                    self._add_infeasible_cut(sol['x'], sol['lam_g'], nlpdata)
+                    self._add_infeasibility_cut(sol, nlpdata)
 
             if needs_trust_region_update:
                 self._gradient_amplification()
