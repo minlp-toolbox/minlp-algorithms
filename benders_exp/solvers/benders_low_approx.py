@@ -75,7 +75,14 @@ class BendersTRLB(BendersTRandMaster):
             needs_trust_region_update = False
             for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
                 # check if new best solution found
-                nonzero = np.count_nonzero((sol['x'] - self.x_sol_best)[self.idx_x_bin])
+                try:
+                    nonzero = np.count_nonzero((sol['x'][:self.nr_x_orig] - self.x_sol_best)[self.idx_x_bin])
+                except TypeError:
+                    colored(sol['x'])
+                    nonzero = -1
+                if nonzero == 0:
+                    breakpoint()
+
                 if prev_feasible:
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
                     self._lowerapprox_oa(sol['x'], nlpdata)
@@ -169,9 +176,9 @@ class BendersTRLB(BendersTRandMaster):
         if len(self.values) < 2:
             MIPGap = 0.1
         else:
-            MIPGap = 0.001
+            MIPGap = 0.01
         # constraint = self.y_N_val * (1 - MIPGap)
-        constraint = (self.y_N_val + self.internal_lb) / 2
+        constraint = (self.y_N_val + min(self.internal_lb, self.y_N_val - MIPGap)) / 2
         self.options['gurobi.MIPGap'] = MIPGap
         solution, success, stats = self._solve_miqp(nlpdata, 1.0, constraint)
         if not success or solution['f'] > self.y_N_val:
