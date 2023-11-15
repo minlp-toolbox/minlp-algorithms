@@ -399,12 +399,12 @@ class BendersTRandMaster(BendersMasterMILP):
         if not do_benders:
             constraint = (self.y_N_val + self.internal_lb) / 2
             solution, success, stats = self._solve_trust_region_problem(nlpdata, constraint)
-            if success and solution['f'] < self.y_N_val:
+            if success:
                 if any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin):
                     colored("QP stagnates, need LB problem", "yellow")
                     do_benders = True
             else:
-                colored(f"Failed solving TR - {solution['f']}", "red")
+                colored("Failed solving TR", "red")
                 do_benders = True
 
         if do_benders:
