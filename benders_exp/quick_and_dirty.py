@@ -75,9 +75,11 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
     if first_relaxed:
         data = nlp.solve(data)
         data = master_problem.solve(data, relaxed=True)
-        check(data)
 
     while (not termination_condition(lb, ub, tolerance, x_star, x_hat)) and feasible:
+        # Sanity check, not solve a known NLP twice!
+        check(data)
+
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
@@ -95,7 +97,6 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
 
         # Solve master^k and set lower bound:
         data = master_problem.solve(data, prev_feasible=prev_feasible)
-        check(data)
         feasible = data.solved
         lb = data.obj_val
         x_hat = data.x_sol
@@ -402,9 +403,10 @@ def benders_tr_master(
         stats['total_time_loading'] = toc(reset=True)
         logger.info("Solver initialized.")
 
-    check(data)
     try:
         while feasible and not termination_met:
+            check(data)
+
             # Solve NLP(y^k)
             data = nlp.solve(data, set_x_bin=True)
             logger.info("SOLVED NLP")
@@ -437,7 +439,6 @@ def benders_tr_master(
             ))
             # Solve master^k and set lower bound:
             data, last_benders = master_problem.solve(data)
-            check(data)
             if last_benders:
                 lb = data.obj_val
             logger.debug(f"MIP {data.obj_val=}, {ub=}, {lb=}")

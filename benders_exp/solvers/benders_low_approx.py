@@ -171,7 +171,7 @@ class BendersTRLB(BendersTRandMaster):
         )
         nlpdata.prev_solutions = [solution]
         success, stats = self.collect_stats("TR-MILP")
-        logger.info(f"SOLVED TR-MIQP with ub {constraint} - {self.hess_correction=} {success=}")
+        logger.info(f"SOLVED TR-MIQP with ub {constraint} - {correction=} {success=}")
         return solution, success, stats
 
     def _solve_internal(self, nlpdata: MinlpData):
@@ -186,7 +186,7 @@ class BendersTRLB(BendersTRandMaster):
         solution, success, stats = self._solve_miqp(nlpdata, 1.0, constraint)
         if not success or solution['f'] > self.y_N_val:
             correction = self.hess_correction if self.trust_hessian() else 0
-            solution, success, stats = self._solve_miqp(nlpdata, correction, self.y_N_val - MIPGap / 10)
+            solution, success, stats = self._solve_miqp(nlpdata, correction, self.y_N_val - MIPGap)
             if success:
                 self.internal_lb = solution['f']
                 colored(f"Trusted lb to {self.internal_lb}", "green")
