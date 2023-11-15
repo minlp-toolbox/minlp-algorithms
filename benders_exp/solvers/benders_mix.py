@@ -431,6 +431,9 @@ class BendersTRandMaster(BendersMasterMILP):
             needs_trust_region_update = False
             for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
                 # check if new best solution found
+                nonzero = np.count_nonzero((sol['x'][:self.nr_x_orig] - self.x_sol_best)[self.idx_x_bin])
+                if nonzero == 0:
+                    breakpoint()
                 if prev_feasible:
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
                     needs_trust_region_update = True
@@ -439,9 +442,9 @@ class BendersTRandMaster(BendersMasterMILP):
                         self.sol_best = sol
                         self.y_N_val = float(sol['f'])  # update best objective
                         colored(f"New upper bound: {self.y_N_val}", "green")
-                    colored("Regular Cut", "blue")
+                    colored(f"Regular Cut - distance {nonzero}", "blue")
                 else:
-                    colored("Infeasibility Cut", "blue")
+                    colored(f"Infeasibility Cut - distance {nonzero}", "blue")
                     self._add_infeasibility_cut(sol, nlpdata)
 
             if needs_trust_region_update:
