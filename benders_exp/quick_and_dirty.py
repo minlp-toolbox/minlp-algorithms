@@ -26,6 +26,7 @@ from benders_exp.solvers.cia import cia_decomposition_algorithm
 from benders_exp.solvers.benders_equal_lb import BendersEquality
 from benders_exp.solvers.milp_tr import milp_tr
 from benders_exp.solvers.benders_low_approx import BendersTRLB
+from benders_exp.utils.debugtools import CheckNoDuplicate
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
                   master_problem: SolverClass, termination_condition: Callable[..., bool],
                   first_relaxed=False) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
+    check = CheckNoDuplicate(problem)
     logger.info("Setup NLP solver...")
     nlp = NlpSolver(problem, stats)
     toc()
@@ -73,6 +75,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
     if first_relaxed:
         data = nlp.solve(data)
         data = master_problem.solve(data, relaxed=True)
+        check(data)
 
     while (not termination_condition(lb, ub, tolerance, x_star, x_hat)) and feasible:
         # Solve NLP(y^k)
@@ -92,6 +95,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
 
         # Solve master^k and set lower bound:
         data = master_problem.solve(data, prev_feasible=prev_feasible)
+        check(data)
         feasible = data.solved
         lb = data.obj_val
         x_hat = data.x_sol
@@ -350,6 +354,7 @@ def benders_tr_master(
     with_new_inf=False
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
+    check = CheckNoDuplicate(problem)
     termination_condition = get_termination_condition(
         termination_type, problem, data)
     logger.info("Setup Mixed Benders TR/Master")
@@ -397,6 +402,7 @@ def benders_tr_master(
         stats['total_time_loading'] = toc(reset=True)
         logger.info("Solver initialized.")
 
+    check(data)
     try:
         while feasible and not termination_met:
             # Solve NLP(y^k)
@@ -431,6 +437,7 @@ def benders_tr_master(
             ))
             # Solve master^k and set lower bound:
             data, last_benders = master_problem.solve(data)
+            check(data)
             if last_benders:
                 lb = data.obj_val
             logger.debug(f"MIP {data.obj_val=}, {ub=}, {lb=}")
