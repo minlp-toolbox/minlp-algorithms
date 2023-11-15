@@ -7,6 +7,7 @@ from benders_exp.solvers import Stats, MinlpProblem, MinlpData, regularize_optio
 from benders_exp.defines import EPS, WITH_DEBUG, MIP_SOLVER, CASADI_VAR, IPOPT_SETTINGS
 from benders_exp.utils import colored
 from benders_exp.problems import check_integer_feasible, check_solution
+from benders_exp.utils.debugtools import CheckNoDuplicate
 import logging
 
 logger = logging.getLogger(__name__)
@@ -30,10 +31,11 @@ class BendersTRLB(BendersTRandMaster):
 
         self.g_lowerapprox_oa = LowerApproximation(self._x, self._nu)
         self.ipopt_settings = regularize_options(options, IPOPT_SETTINGS)
+        self.check = CheckNoDuplicate(problem)
 
     def trust_hessian(self):
         """Trust hessian."""
-        return (self.hess_trust_points_setting < len(self.values))
+        return (self.hess_trust_points_setting <= len(self.values))
 
     def compute_hess_correction(self, nlpdata):
         correction = CASADI_VAR.sym("correction", 1)
@@ -167,8 +169,9 @@ class BendersTRLB(BendersTRandMaster):
             ubg=g_total.ub,
             p=[constraint]
         )
+        nlpdata.prev_solutions = [solution]
         success, stats = self.collect_stats("TR-MILP")
-        logger.info(f"SOLVED TR-MIQP with ub {constraint} - {self.hess_correction=}")
+        logger.info(f"SOLVED TR-MIQP with ub {constraint} - {self.hess_correction=} {success=}")
         return solution, success, stats
 
     def _solve_internal(self, nlpdata: MinlpData):
@@ -182,10 +185,17 @@ class BendersTRLB(BendersTRandMaster):
         self.options['gurobi.MIPGap'] = MIPGap
         solution, success, stats = self._solve_miqp(nlpdata, 1.0, constraint)
         if not success or solution['f'] > self.y_N_val:
-            solution, success, stats = self._solve_miqp(nlpdata, self.hess_correction, self.y_N_val)
-            if self.trust_hessian():
+            correction = self.hess_correction if self.trust_hessian() else 0
+            solution, success, stats = self._solve_miqp(nlpdata, correction, self.y_N_val - MIPGap / 10)
+            if success:
                 self.internal_lb = solution['f']
                 colored(f"Trusted lb to {self.internal_lb}", "green")
+            else:
+                self.internal_lb = self.y_N_val
 
-        nlpdata = get_solutions_pool(nlpdata, success, stats, solution, self.idx_x_bin)
+        if success:
+            nlpdata = get_solutions_pool(nlpdata, success, stats, solution, self.idx_x_bin)
+        else:
+            nlpdata.prev_solutions = [{"x": self.x_sol_best, "f": self.y_N_val}]
+
         return nlpdata
