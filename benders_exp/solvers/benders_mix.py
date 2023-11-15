@@ -64,14 +64,11 @@ class LowerApproximation:
 
     def __call__(self, x_value, nu=0):
         """Evaluate the bounds."""
-        try:
-            return [
-                gi + m * dgi.T @ (x_value - xi) - nu
-                for gi, dgi, m, xi in zip(
-                    self.g, self.dg_corrected, self.multipliers, self.x_lin)
-            ]
-        except:
-            breakpoint()
+        return [
+            gi + m * dgi.T @ (x_value - xi) - nu
+            for gi, dgi, m, xi in zip(
+                self.g, self.dg_corrected, self.multipliers, self.x_lin)
+        ]
 
     def to_generic(self, nu=None):
         """Create bounds."""
@@ -196,11 +193,15 @@ class BendersTRandMaster(BendersMasterMILP):
         g_k = self.g(x_sol, nlpdata.p)
         jac_g_k = self.jac_g_bin(x_sol, nlpdata.p)
 
-        g_bar_k = lam_g_sol.T @ (
-            g_k - (lam_g_sol > 0) * np.where(np.isinf(nlpdata.ubg), 0, nlpdata.ubg)
-            + (lam_g_sol < 0) * np.where(np.isinf(nlpdata.lbg), 0, nlpdata.lbg)
+        # g_k > ubg -> lam_g_sol > 0
+        # Convert to g_lin < 0 -> g_k - ubg > 0
+        g_bar_k = np.abs(lam_g_sol).T @ (
+            (lam_g_sol > 0) * (g_k > nlpdata.ubg) * (g_k - np.where(np.isinf(nlpdata.ubg), 0, nlpdata.ubg))
+            + (lam_g_sol < 0) * (g_k < nlpdata.lbg) * (g_k - np.where(np.isinf(nlpdata.lbg), 0, nlpdata.lbg))
         )
-        grad_g_bar_k = (lam_g_sol.T @ jac_g_k).T
+        assert g_bar_k > 0
+        # g_bar_k is positive by definition
+        grad_g_bar_k = self.clip_gradient(g_bar_k + 10, 0, (lam_g_sol.T @ jac_g_k).T)
 
         x_sol_best_bin = self.x_sol_best[self.idx_x_bin]
         x_bin_new = x_sol[self.idx_x_bin]
@@ -221,14 +222,18 @@ class BendersTRandMaster(BendersMasterMILP):
         else:
             raise NotImplementedError()
 
+    def clip_gradient(self, current_value, lower_bound, gradients):
+        max_gradient = float(max(current_value - lower_bound, 1e1) * 2)  # TODO: Who knows the LB doesn't hold, might reclipping!
+        return np.clip(gradients, - max_gradient, max_gradient)
+
     def _gradient_correction(self, x_sol, lam_x_sol, nlpdata: MinlpData):
         # TODO: (to improve computation speed) if the best point does not change, check only the last point
         x_sol_best_bin = self.x_sol_best[self.idx_x_bin]
 
         # On the last integer point: check, correct (if needed) and add to g_lowerapprox
-        lambda_k = -lam_x_sol[self.idx_x_bin]
         f_k = self.f(x_sol, nlpdata.p)
         x_bin_new = x_sol[self.idx_x_bin]
+        lambda_k = self.clip_gradient(f_k, self.internal_lb, -lam_x_sol[self.idx_x_bin])
 
         if not self._check_cut_valid(f_k, lambda_k, x_sol_best_bin, x_bin_new, self.y_N_val):
             grad_corr = compute_gradient_correction(
@@ -342,9 +347,11 @@ class BendersTRandMaster(BendersMasterMILP):
         solution = self.solver(
             x0=ca.vertcat(self.x_sol_best, self.y_N_val + 1e-5),
             lbx=ca.vertcat(nlpdata.lbx, -ca.inf),
-            ubx=ca.vertcat(nlpdata.ubx, ca.inf),
+            ubx=ca.vertcat(nlpdata.ubx, self.y_N_val),
             lbg=lbg, ubg=ubg
         )
+        nu_check = np.max(self.g_lowerapprox(solution['x'][self.idx_x_bin], 0))
+        print(nu_check)
         success, stats = self.collect_stats("LB-MILP")
         if not success:
             if self.sol_best is None:
@@ -392,12 +399,12 @@ class BendersTRandMaster(BendersMasterMILP):
         if not do_benders:
             constraint = (self.y_N_val + self.internal_lb) / 2
             solution, success, stats = self._solve_trust_region_problem(nlpdata, constraint)
-            if success:
+            if success and solution['f'] < self.y_N_val:
                 if any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin):
                     colored("QP stagnates, need LB problem", "yellow")
                     do_benders = True
             else:
-                colored("Failed solving TR", "red")
+                colored(f"Failed solving TR - {solution['f']}", "red")
                 do_benders = True
 
         if do_benders:
