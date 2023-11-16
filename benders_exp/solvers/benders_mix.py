@@ -166,7 +166,6 @@ class BendersTRandMaster(BendersMasterMILP):
         self.sol_best = None
         self.with_benders_master = with_benders_master
         self.hessian_not_psd = problem.hessian_not_psd
-        self.stay_with_master = False
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
@@ -201,6 +200,7 @@ class BendersTRandMaster(BendersMasterMILP):
             + (lam_g_sol < 0) * (g_k < nlpdata.lbg) * (g_k - np.where(np.isinf(nlpdata.lbg), 0, nlpdata.lbg))
         )
         assert g_bar_k > 0
+        colored(f"Infeasibility cut of {g_bar_k}")
         # g_bar_k is positive by definition
         grad_g_bar_k = self.clip_gradient(g_bar_k + 10, 0, (lam_g_sol.T @ jac_g_k).T)
 
@@ -225,7 +225,7 @@ class BendersTRandMaster(BendersMasterMILP):
 
     def clip_gradient(self, current_value, lower_bound, gradients):
         # TODO: Who knows the LB doesn't hold, might reclipping!
-        max_gradient = float(max(current_value - lower_bound, 0.01))
+        max_gradient = float(current_value - lower_bound)
         return np.clip(gradients, - max_gradient, max_gradient)
 
     def _gradient_correction(self, x_sol, lam_x_sol, nlpdata: MinlpData):
@@ -352,8 +352,6 @@ class BendersTRandMaster(BendersMasterMILP):
             ubx=ca.vertcat(nlpdata.ubx, self.y_N_val),
             lbg=lbg, ubg=ubg
         )
-        nu_check = np.max(self.g_lowerapprox(solution['x'][self.idx_x_bin], 0))
-        print(nu_check)
         success, stats = self.collect_stats("LB-MILP")
         if not success:
             if self.sol_best is None:
@@ -397,16 +395,19 @@ class BendersTRandMaster(BendersMasterMILP):
     def _solve_mix(self, nlpdata: MinlpData):
         """Solve mix."""
         # We miss the LB, try to find one...
-        do_benders = np.isinf(self.internal_lb) or self.stay_with_master
+        do_benders = np.isinf(self.internal_lb)
         if not do_benders:
             constraint = (self.y_N_val + self.internal_lb) / 2
             solution, success, stats = self._solve_trust_region_problem(nlpdata, constraint)
+            if self.g_lowerapprox.nr == 0:
+                solution['f'] = self.internal_lb
+            else:
+                solution['f'] = self.compute_lb(solution['x'])
+
             if success:
                 if any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin):
                     colored("QP stagnates, need LB problem", "yellow")
                     do_benders = True
-                if solution['f'] > self.y_N_val:
-                    self.stay_with_master = True
             else:
                 colored("Failed solving TR", "red")
                 do_benders = True
@@ -416,7 +417,7 @@ class BendersTRandMaster(BendersMasterMILP):
             self.internal_lb = float(solution['f'])
 
         nlpdata = get_solutions_pool(nlpdata, success, stats, solution, self.idx_x_bin)
-        return nlpdata, do_benders
+        return nlpdata, True
 
     def _solve_tr_only(self, nlpdata: MinlpData):
         """Only solve trust regions."""
@@ -434,6 +435,10 @@ class BendersTRandMaster(BendersMasterMILP):
             nlpdata = get_solutions_pool(nlpdata, success, stats, solution, self.idx_x_bin)
         return nlpdata, False
 
+    def compute_lb(self, x_sol):
+        """Compute LB."""
+        return np.max(self.g_lowerapprox(x_sol[self.idx_x_bin], 0))
+
     def solve(self, nlpdata: MinlpData, relaxed=False) -> MinlpData:
         """Solve."""
         if relaxed:
@@ -449,12 +454,11 @@ class BendersTRandMaster(BendersMasterMILP):
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
                     needs_trust_region_update = True
                     if float(sol['f']) + EPS < self.y_N_val:
-                        self.stay_with_master = False
                         self.x_sol_best = sol['x'][:self.nr_x_orig]
                         self.sol_best = sol
                         self.y_N_val = float(sol['f'])  # update best objective
                         colored(f"New upper bound: {self.y_N_val}", "green")
-                    colored(f"Regular Cut - distance {nonzero}", "blue")
+                    colored(f"Regular Cut {float(sol['f']):.3f} - {nonzero}", "blue")
                 else:
                     colored(f"Infeasibility Cut - distance {nonzero}", "blue")
                     self._add_infeasibility_cut(sol, nlpdata)

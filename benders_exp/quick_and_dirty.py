@@ -414,10 +414,6 @@ def benders_tr_master(
             ub, x_star, best_iter = update_best_solutions(
                 data, stats['iter_nr'], ub, x_star, best_iter
             )
-            if ub < lb - EPS:
-                lb = ub - (abs(lb) + abs(ub)) / 2
-                master_problem.internal_lb = lb
-                colored(f"Upper bound higher than lb new {lb}")
 
             if not np.all(data.solved_all):
                 # Solve NLPF(y^k)
@@ -461,6 +457,28 @@ def benders_tr_master(
     return problem, data, x_star
 
 
+def test(
+    problem: MinlpProblem, data: MinlpData, stats: Stats
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+    nlp = NlpSolver(problem, stats)
+    x_sol = nlp.solve(data).x_sol
+    f = ca.Function("f", [problem.x, problem.p], [problem.f])
+    df = ca.Function("df", [problem.x, problem.p], [ca.gradient(
+        problem.f, problem.x
+    )])(x_sol, data.p)
+    results = []
+    for i in problem.idx_x_bin:
+        if np.floor(x_sol[i]) != np.ceil(x_sol[i]):
+            x = x_sol.full()
+            x[i] = np.floor(x_sol[i])
+            lb = float(f(x, data.p))
+            x[i] = np.ceil(x_sol[i])
+            ub = float(f(x, data.p))
+            results.append([lb, ub])
+            print(f"{i}: {lb} - {ub} ({x_sol[i]}) - df {df[i]}")
+    return problem, data, data.x_sol
+
+
 def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, MinlpData, ca.DM]:
     """Run a problem and return the results."""
     MODES = {
@@ -475,7 +493,7 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "benders_tr_fp": lambda p, d, s: benders_tr_master(p, d, s, termination_type='equality',
                                                            use_feasibility_pump=True, with_benders_master=False),
         "benders_trm": lambda p, d, s: benders_tr_master(p, d, s, use_feasibility_pump=False, with_benders_master=True),
-        "benders_trm_i": lambda p, d, s: benders_tr_master(
+        "benders_trmi": lambda p, d, s: benders_tr_master(
             p, d, s, use_feasibility_pump=False, with_benders_master=True, with_new_inf=True
         ),
         "benders_trm_fp": lambda p, d, s: benders_tr_master(p, d, s, use_feasibility_pump=True,
@@ -502,7 +520,8 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         "fp": feasibility_pump,
         "ofp": objective_feasibility_pump,
         "cia": cia_decomposition_algorithm,
-        "milp_tr": milp_tr
+        "milp_tr": milp_tr,
+        "test": test
     }
 
     if mode_name not in MODES:
