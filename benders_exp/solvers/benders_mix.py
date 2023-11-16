@@ -166,6 +166,7 @@ class BendersTRandMaster(BendersMasterMILP):
         self.sol_best = None
         self.with_benders_master = with_benders_master
         self.hessian_not_psd = problem.hessian_not_psd
+        self.stay_with_master = False
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
@@ -223,7 +224,8 @@ class BendersTRandMaster(BendersMasterMILP):
             raise NotImplementedError()
 
     def clip_gradient(self, current_value, lower_bound, gradients):
-        max_gradient = float(max(current_value - lower_bound, 1e1) * 2)  # TODO: Who knows the LB doesn't hold, might reclipping!
+        # TODO: Who knows the LB doesn't hold, might reclipping!
+        max_gradient = float(max(current_value - lower_bound, 0.01))
         return np.clip(gradients, - max_gradient, max_gradient)
 
     def _gradient_correction(self, x_sol, lam_x_sol, nlpdata: MinlpData):
@@ -395,7 +397,7 @@ class BendersTRandMaster(BendersMasterMILP):
     def _solve_mix(self, nlpdata: MinlpData):
         """Solve mix."""
         # We miss the LB, try to find one...
-        do_benders = np.isinf(self.internal_lb)
+        do_benders = np.isinf(self.internal_lb) or self.stay_with_master
         if not do_benders:
             constraint = (self.y_N_val + self.internal_lb) / 2
             solution, success, stats = self._solve_trust_region_problem(nlpdata, constraint)
@@ -403,6 +405,8 @@ class BendersTRandMaster(BendersMasterMILP):
                 if any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin):
                     colored("QP stagnates, need LB problem", "yellow")
                     do_benders = True
+                if solution['f'] > self.y_N_val:
+                    self.stay_with_master = True
             else:
                 colored("Failed solving TR", "red")
                 do_benders = True
@@ -445,6 +449,7 @@ class BendersTRandMaster(BendersMasterMILP):
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
                     needs_trust_region_update = True
                     if float(sol['f']) + EPS < self.y_N_val:
+                        self.stay_with_master = False
                         self.x_sol_best = sol['x'][:self.nr_x_orig]
                         self.sol_best = sol
                         self.y_N_val = float(sol['f'])  # update best objective

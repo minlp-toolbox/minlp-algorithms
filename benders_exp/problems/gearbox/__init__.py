@@ -161,6 +161,7 @@ def create_simple_gearbox(N=10, traject=None):
 
 def create_gearbox(N=10, gearbox_type="gasoline", dt=1.0, switch_cost=False) -> Union[MinlpProblem, MinlpData]:
     """Create a gearbox model."""
+    N = int(N)
     cycle, dcycle = get_cycle_data(dt, N)
 
     # ------------------------------------------------

@@ -18,7 +18,7 @@ _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
 OUT_DIR = path.join(SOURCE_FOLDER, "../results")
 CACHE_FOLDER = path.join(SOURCE_FOLDER, "../data/cache")
-USE_SOLUTION_POOL = False
+USE_SOLUTION_POOL = True
 
 if not path.exists(IMG_DIR):
     makedirs(IMG_DIR)

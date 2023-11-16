@@ -17,5 +17,6 @@ class CheckNoDuplicate:
             new = sol['x'][self.idx_x_bin]
             for el in self.old:
                 if np.allclose(el, new, equal_nan=False, atol=EPS):
-                    raise Exception("Duplicate Found.")
+                    print("Duplicate!")
+                    breakpoint()
             self.old.append(new)
