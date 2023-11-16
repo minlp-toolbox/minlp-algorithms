@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import os
 from typing import Dict, List, Optional
 from benders_exp.problems import MinlpProblem, MinlpData
-from benders_exp.defines import OUT_DIR, WITH_DEBUG
+from benders_exp.defines import OUT_DIR, WITH_DEBUG, EPS
 from benders_exp.utils import toc
 import casadi as ca
 import numpy as np
@@ -108,6 +108,43 @@ def regularize_options(options, default):
     ret.update(default)
 
     return ret
+
+
+def inspect_problem(problem: MinlpProblem, data: MinlpData):
+    """Inspect problem for linear and convex bounds."""
+    x_cont_idx = [
+        i for i in range(problem.x.shape[0]) if i not in problem.idx_x_bin
+    ]
+    g_expr = ca.Function("g_func", [problem.x, problem.p], [problem.g])
+    sp = np.array(g_expr.sparsity_jac(0, 0))
+
+    g_lin = []
+    g_lin_bin = []
+    g_eq = []
+    g_conv = []
+    for i in range(problem.g.shape[0]):
+        hess = ca.hessian(problem.g[i], problem.x)[0]
+        if hess.nnz() == 0:
+            g_lin.append(i)
+            if sum(sp[i, x_cont_idx]) == 0:
+                g_lin_bin.append(i)
+        elif not np.isinf(data.ubg[i]) and not np.isinf(data.lbg[i]):
+            g_eq.append(i)
+        else:
+            # Assume for now...
+            # ccs = hess.sparsity().get_ccs()
+            # hess[0, ccs[0]].is_numeric()
+            g_conv.append(i)
+
+    return g_lin, g_lin_bin, g_eq, g_conv
+
+
+def set_constraint_types(problem, g_lin, g_lin_bin, g_eq, g_conv):
+    """Set problem indices."""
+    problem.idx_g_lin = g_lin
+    problem.idx_g_lin_bin = g_lin_bin
+    problem.idx_g_eq = g_eq
+    problem.idx_g_conv = g_conv
 
 
 def get_idx_linear_bounds_binary_x(problem: MinlpProblem):

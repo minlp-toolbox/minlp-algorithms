@@ -153,6 +153,8 @@ class BendersTRandMaster(BendersMasterMILP):
         self.g_lowerapprox = LowerApproximation(self._x_bin, self._nu)
         self.g_lowerapprox_oa = LowerApproximation(self._x, self._nu)
         self.g_infeasible = LowerApproximation(self._x_bin, 0)
+        self.g_infeasible_oa = LowerApproximation(self._x, 0)
+        self.idx_g_conv = problem.idx_g_conv
 
         self.options.update({"discrete": [
             1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]})
@@ -245,6 +247,18 @@ class BendersTRandMaster(BendersMasterMILP):
         else:
             self.g_infeasible.add(x_bin_new, g_bar_k, grad_g_bar_k)
 
+    def _add_oa(self, x_sol, nlpdata: MinlpData):
+        x_sol = x_sol[:self.nr_x_orig]
+        g_k = self.g(x_sol, nlpdata.p)
+        jac_g_k = self.jac_g(x_sol, nlpdata.p)
+        if self.idx_g_conv is not None:
+            for i in self.idx_g_conv:
+                colored("Add OA cut.")
+                if not np.isinf(nlpdata.ubg[i]):
+                    self.g_infeasible_oa.add(x_sol, g_k[i] - nlpdata.ubg[i], jac_g_k[i, :].T)
+                else:
+                    self.g_infeasible_oa.add(x_sol, - g_k[i] + nlpdata.lbg[i], -jac_g_k[i, :].T)
+
     def _lowerapprox_oa(self, x, nlpdata):
         """Lower approximation."""
         f_k = self.f(x, nlpdata.p)
@@ -304,7 +318,7 @@ class BendersTRandMaster(BendersMasterMILP):
         # Order seems to be important!
         g_total = self._get_g_linearized(
             self.x_sol_best, dx, nlpdata
-        ) + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa
+        ) + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa + self.g_infeasible_oa
 
         if WITH_DEBUG:
             check_integer_feasible(self.idx_x_bin, self.x_sol_best,
@@ -341,7 +355,7 @@ class BendersTRandMaster(BendersMasterMILP):
         # Adding the following linearization might not be the best idea since
         # They can lead to false results!
         g_cur_lin = self._get_g_linearized(self.x_sol_best, dx, nlpdata)
-        g_total = g_cur_lin + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa
+        g_total = g_cur_lin + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa + self.g_infeasible_oa
 
         # Add extra constraint (one step OA):
         g_total.add(-ca.inf, f - self._nu, 0)
@@ -469,6 +483,7 @@ class BendersTRandMaster(BendersMasterMILP):
                 else:
                     colored(f"Infeasibility Cut - distance {nonzero}", "blue")
                     self._add_infeasibility_cut(sol, nlpdata)
+                self._add_oa(sol['x'], nlpdata)
 
             if needs_trust_region_update:
                 self._gradient_amplification()

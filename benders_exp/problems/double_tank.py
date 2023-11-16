@@ -5,6 +5,8 @@ from benders_exp.problems import MinlpProblem, CASADI_VAR, MinlpData, \
     MetaDataOcp
 from benders_exp.problems.dsc import Description
 from benders_exp.problems.utils import integrate_rk4
+from benders_exp.solvers import inspect_problem, set_constraint_types
+from benders_exp.utils.cache import cache_data
 import numpy as np
 import casadi as ca
 
@@ -81,5 +83,9 @@ def create_double_tank_problem2(p_val=[2, 2.5], single_shooting=False) -> Union[
     )
     problem.meta = meta
     data = dsc.get_data()
+
+    set_constraint_types(problem, *cache_data(
+        f"doubletank{N}", inspect_problem, problem, data
+    ))
 
     return problem, data

@@ -57,6 +57,8 @@ class MinlpProblem:
     gn_hessian: Optional[CASADI_VAR] = None
     idx_g_lin: Optional[List[int]] = None
     idx_g_lin_bin: Optional[List[int]] = None
+    idx_g_eq: Optional[List[int]] = None
+    idx_g_conv: Optional[List[int]] = None
     precompiled_nlp: Optional[str] = None
 
     hessian_not_psd: bool = False
