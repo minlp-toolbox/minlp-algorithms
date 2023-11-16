@@ -2,7 +2,7 @@
 import numpy as np
 import casadi as ca
 from benders_exp.solvers import Stats, MinlpProblem, MinlpData, \
-    get_idx_linear_bounds, get_idx_inverse, extract_bounds
+    extract_bounds
 from benders_exp.utils import colored
 from benders_exp.defines import WITH_JIT, CASADI_VAR, EPS, MIP_SOLVER, \
     WITH_DEBUG
@@ -116,7 +116,7 @@ class BendersTRandMaster(BendersMasterMILP):
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None, with_benders_master=True):
         """Create the benders constraint MILP."""
-        super(BendersTRandMaster, self).__init__(problem, data, stats, options)
+        super(BendersTRandMaster, self).__init__(problem, data, stats, options, with_lin_bounds=False)
         # Settings
         self.nonconvex_strategy = NonconvexStrategy.GRADIENT_BASED
         self.nonconvex_strategy_alpha = 0.2
@@ -456,8 +456,6 @@ class BendersTRandMaster(BendersMasterMILP):
             for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
                 # check if new best solution found
                 nonzero = np.count_nonzero((sol['x'][:self.nr_x_orig] - self.x_sol_best)[self.idx_x_bin])
-                if nonzero == 0:
-                    breakpoint()
                 if prev_feasible:
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
                     self._lowerapprox_oa(sol['x'], nlpdata)
