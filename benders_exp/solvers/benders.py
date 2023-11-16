@@ -37,8 +37,8 @@ class BendersMasterMILP(SolverClass):
         )
         self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
 
-        idx_g_lin = get_idx_linear_bounds_binary_x(problem)
         if with_lin_bounds:
+            idx_g_lin = get_idx_linear_bounds_binary_x(problem)
             self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
                 problem, data, idx_g_lin, self._x, problem.idx_x_bin
             )
