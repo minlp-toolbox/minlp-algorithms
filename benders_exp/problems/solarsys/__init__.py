@@ -13,6 +13,7 @@ from benders_exp.problems.solarsys.simulator import Simulator
 from benders_exp.problems.dsc import Description
 from benders_exp.utils.cache import CachedFunction, cache_data
 from benders_exp.solvers import get_lin_bounds
+from benders_exp.solvers import inspect_problem, set_constraint_types
 from datetime import timedelta
 import logging
 
@@ -204,9 +205,9 @@ def create_stcs_problem(n_steps=4 * 24, with_slack=True):
     data.x0[prob.idx_x_bin] = to_0d(simulator.b_data).flatten().tolist()
 
     # Improve calculation speed by getting indices:
-
-    prob.idx_g_lin, prob.idx_g_lin_bin = cache_data(
-        f"scts{n_steps}", get_lin_bounds, prob)
+    set_constraint_types(prob, *cache_data(
+        f"scts_{n_steps}_{with_slack}", inspect_problem, prob, data
+    ))
 
     return prob, data
 
