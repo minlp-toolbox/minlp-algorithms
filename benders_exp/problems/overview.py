@@ -280,7 +280,7 @@ def counter_example_nonconvexity():
     y = CASADI_VAR.sym('y')
 
     f = ca.atan(x-0.3)**2 + x/10 + x**2/50 + y**2
-    problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=[], p=[], idx_x_bin=[0])
+    problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=ca.MX([]), p=ca.MX([]), idx_x_bin=[0])
     data = MinlpData(x0=np.array([-4, 2]), _lbx=np.array([-5, -5]), _ubx=np.array([5, 5]),
                      _ubg=[], _lbg=[], p=[])
     return problem, data
