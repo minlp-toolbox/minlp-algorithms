@@ -151,6 +151,7 @@ class BendersTRandMaster(BendersMasterMILP):
         self._x = CASADI_VAR.sym("x_benders", problem.x.numel())
         self._x_bin = self._x[problem.idx_x_bin]
         self.g_lowerapprox = LowerApproximation(self._x_bin, self._nu)
+        self.g_lowerapprox_oa = LowerApproximation(self._x, self._nu)
         self.g_infeasible = LowerApproximation(self._x_bin, 0)
 
         self.options.update({"discrete": [
@@ -173,6 +174,36 @@ class BendersTRandMaster(BendersMasterMILP):
         # print(f"Cut valid (lower bound)?: {value} vs real {x_sol_obj}")
         return (value - EPS <= x_sol_obj)  # TODO: check sign EPS
 
+    # Amplifications and corrections
+    def clip_gradient(self, current_value, lower_bound, gradients):
+        # TODO: Who knows the LB doesn't hold, might reclipping!
+        max_gradient = float(current_value - lower_bound)
+        return np.clip(gradients, - max_gradient, max_gradient)
+
+    def _gradient_amplification(self):
+        if self.trust_region_feasibility_strategy == TrustRegionStrategy.GRADIENT_AMPLIFICATION:
+            # Amplify the gradient of every new cut with the chosen rho.
+            for i, m in enumerate(self.g_lowerapprox.multipliers):
+                if m != self.trust_region_feasibility_rho:
+                    self.g_lowerapprox.multipliers[i] = self.trust_region_feasibility_rho
+        else:
+            raise NotImplementedError()
+
+    def _gradient_corrections_old_cuts(self):
+        x_sol_best_bin = self.x_sol_best[self.idx_x_bin]
+        # Check and correct - if necessary - all the points in memory
+        for i in range(self.g_lowerapprox.nr - 1):
+            # New corrections based on previously corrected gradients
+            if not self._check_cut_valid(
+                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg_corrected[i],
+                    x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val
+            ):
+                self.g_lowerapprox.dg_corrected[i] = compute_gradient_correction(
+                    x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val,
+                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg_corrected[i])
+                logger.debug(f"Correcting gradient for lower approx {i}")
+
+    # Infeasibility cuts
     def _add_infeasibility_cut(self, sol, nlpdata):
         """Add infeasibility cut."""
         if 'x_infeasible' in sol:
@@ -214,19 +245,17 @@ class BendersTRandMaster(BendersMasterMILP):
         else:
             self.g_infeasible.add(x_bin_new, g_bar_k, grad_g_bar_k)
 
-    def _gradient_amplification(self):
-        if self.trust_region_feasibility_strategy == TrustRegionStrategy.GRADIENT_AMPLIFICATION:
-            # Amplify the gradient of every new cut with the chosen rho.
-            for i, m in enumerate(self.g_lowerapprox.multipliers):
-                if m != self.trust_region_feasibility_rho:
-                    self.g_lowerapprox.multipliers[i] = self.trust_region_feasibility_rho
-        else:
-            raise NotImplementedError()
+    def _lowerapprox_oa(self, x, nlpdata):
+        """Lower approximation."""
+        f_k = self.f(x, nlpdata.p)
+        f_grad = self.grad_f_x(x, nlpdata.p)
 
-    def clip_gradient(self, current_value, lower_bound, gradients):
-        # TODO: Who knows the LB doesn't hold, might reclipping!
-        max_gradient = float(current_value - lower_bound)
-        return np.clip(gradients, - max_gradient, max_gradient)
+        if not self._check_cut_valid(f_k, f_grad, self.x_sol_best, x, self.y_N_val):
+            grad_corr = compute_gradient_correction(
+                self.x_sol_best, x, self.y_N_val, f_k, f_grad)
+            self.g_lowerapprox_oa.add(x, f_k, f_grad, grad_corr)
+        else:
+            self.g_lowerapprox_oa.add(x, f_k, f_grad)
 
     def _gradient_correction(self, x_sol, lam_x_sol, nlpdata: MinlpData):
         # TODO: (to improve computation speed) if the best point does not change, check only the last point
@@ -244,27 +273,6 @@ class BendersTRandMaster(BendersMasterMILP):
             logger.debug("Correcting new gradient at current best point")
         else:
             self.g_lowerapprox.add(x_bin_new, f_k, lambda_k)
-
-    def _gradient_corrections_old_cuts(self):
-        x_sol_best_bin = self.x_sol_best[self.idx_x_bin]
-        # Check and correct - if necessary - all the points in memory
-        for i in range(self.g_lowerapprox.nr - 1):
-            # New corrections based on previously corrected gradients
-            if not self._check_cut_valid(
-                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg_corrected[i],
-                    x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val
-            ):
-                self.g_lowerapprox.dg_corrected[i] = compute_gradient_correction(
-                    x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val,
-                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg_corrected[i])
-                logger.debug(f"Correcting gradient for lower approx {i}")
-
-    def _trust_region_is_empty(self):
-        if self.g_lowerapprox.nr == 0:
-            return False
-        g_val = self.g_lowerapprox(self.x_sol_best[self.idx_x_bin])
-        if np.max(np.array(g_val) - self.y_N_val) > 0:
-            return True
 
     def _get_g_linearized(self, x, dx, nlpdata):
         g_lin = self.g(x, nlpdata.p)
@@ -296,7 +304,7 @@ class BendersTRandMaster(BendersMasterMILP):
         # Order seems to be important!
         g_total = self._get_g_linearized(
             self.x_sol_best, dx, nlpdata
-        ) + self.g_lowerapprox + self.g_infeasible
+        ) + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa
 
         if WITH_DEBUG:
             check_integer_feasible(self.idx_x_bin, self.x_sol_best,
@@ -333,7 +341,7 @@ class BendersTRandMaster(BendersMasterMILP):
         # Adding the following linearization might not be the best idea since
         # They can lead to false results!
         g_cur_lin = self._get_g_linearized(self.x_sol_best, dx, nlpdata)
-        g_total = g_cur_lin + self.g_lowerapprox + self.g_infeasible
+        g_total = g_cur_lin + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa
 
         # Add extra constraint (one step OA):
         g_total.add(-ca.inf, f - self._nu, 0)
@@ -452,6 +460,7 @@ class BendersTRandMaster(BendersMasterMILP):
                     breakpoint()
                 if prev_feasible:
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
+                    self._lowerapprox_oa(sol['x'], nlpdata)
                     needs_trust_region_update = True
                     if float(sol['f']) + EPS < self.y_N_val:
                         self.x_sol_best = sol['x'][:self.nr_x_orig]

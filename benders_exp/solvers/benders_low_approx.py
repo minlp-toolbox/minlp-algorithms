@@ -117,18 +117,6 @@ class BendersTRLB(BendersTRandMaster):
             nlpdata.prev_solutions[i]['f'] = self.internal_lb
         return nlpdata
 
-    def _lowerapprox_oa(self, x, nlpdata):
-        """Lower approximation."""
-        f_k = self.f(x, nlpdata.p)
-        f_grad = self.grad_f_x(x, nlpdata.p)
-
-        if not self._check_cut_valid(f_k, f_grad, self.x_sol_best, x, self.y_N_val):
-            grad_corr = compute_gradient_correction(
-                self.x_sol_best, x, self.y_N_val, f_k, f_grad)
-            self.g_lowerapprox_oa.add(x, f_k, f_grad, grad_corr)
-        else:
-            self.g_lowerapprox_oa.add(x, f_k, f_grad)
-
     def _solve_miqp(self, nlpdata: MinlpData, correction, constraint) -> MinlpData:
         """Solve QP problem."""
         dx = self._x - self.x_sol_best
