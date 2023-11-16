@@ -21,13 +21,13 @@ from benders_exp.utils import convert_to_flat_list, to_0d
 logger = logging.getLogger(__name__)
 
 
-def create_stcs_problem(with_slack=True):
+def create_stcs_problem(n_steps=40, with_slack=True):
     """Build problem."""
     logger.debug("Start processing")
     system = System()
     ambient = Ambient()
     dsc = Description()
-    n_steps = 40
+    n_steps = int(n_steps)
     dt = timedelta(seconds=900)
 
     # Run simulator and predictor and use those output to warm start
