@@ -169,6 +169,7 @@ class BendersTRandMaster(BendersMasterMILP):
         self.sol_best = None
         self.with_benders_master = with_benders_master
         self.hessian_not_psd = problem.hessian_not_psd
+        self.with_oa_conv_cuts = True
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
@@ -483,7 +484,8 @@ class BendersTRandMaster(BendersMasterMILP):
                 else:
                     colored(f"Infeasibility Cut - distance {nonzero}", "blue")
                     self._add_infeasibility_cut(sol, nlpdata)
-                self._add_oa(sol['x'], nlpdata)
+                if self.with_oa_conv_cuts:
+                    self._add_oa(sol['x'], nlpdata)
 
             if needs_trust_region_update:
                 self._gradient_amplification()

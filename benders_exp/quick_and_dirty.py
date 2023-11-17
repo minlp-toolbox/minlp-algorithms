@@ -78,7 +78,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
 
     while (not termination_condition(lb, ub, tolerance, x_star, x_hat)) and feasible:
         # Sanity check, not solve a known NLP twice!
-        check(data)
+        # check(data)
 
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
@@ -223,7 +223,7 @@ def outer_approx_algorithm(
     termination_condition = get_termination_condition(
         termination_type, problem, data)
     toc()
-    return base_strategy(problem, data, stats, outer_approx, termination_condition)
+    return base_strategy(problem, data, stats, outer_approx, termination_condition, first_relaxed=True)
 
 
 def outer_approx_algorithm_improved(

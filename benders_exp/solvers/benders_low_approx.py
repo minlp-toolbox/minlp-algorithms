@@ -82,8 +82,6 @@ class BendersTRLB(BendersTRandMaster):
                 except TypeError:
                     colored(sol['x'])
                     nonzero = -1
-                if nonzero == 0:
-                    breakpoint()
 
                 if prev_feasible:
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
