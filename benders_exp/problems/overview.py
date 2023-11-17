@@ -315,6 +315,9 @@ def create_from_nl_file(file):
                      _ubx=np.array(nl.x_ub),
                      _lbg=np.array(nl.g_lb),
                      _ubg=np.array(nl.g_ub), p=[])
+
+    from benders_exp.solvers import inspect_problem, set_constraint_types
+    set_constraint_types(problem, *inspect_problem(problem, data))
     return problem, data
 
 
