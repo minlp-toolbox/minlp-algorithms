@@ -120,7 +120,7 @@ def inspect_problem(problem: MinlpProblem, data: MinlpData):
 
     g_lin = []
     g_lin_bin = []
-    g_eq = []
+    g_other = []
     g_conv = []
     for i in range(problem.g.shape[0]):
         hess = ca.hessian(problem.g[i], problem.x)[0]
@@ -129,21 +129,21 @@ def inspect_problem(problem: MinlpProblem, data: MinlpData):
             if sum(sp[i, x_cont_idx]) == 0:
                 g_lin_bin.append(i)
         elif not np.isinf(data.ubg[i]) and not np.isinf(data.lbg[i]):
-            g_eq.append(i)
+            g_other.append(i)
         else:
             # Assume for now...
             # ccs = hess.sparsity().get_ccs()
             # hess[0, ccs[0]].is_numeric()
             g_conv.append(i)
 
-    return g_lin, g_lin_bin, g_eq, g_conv
+    return g_lin, g_lin_bin, g_other, g_conv
 
 
-def set_constraint_types(problem, g_lin, g_lin_bin, g_eq, g_conv):
+def set_constraint_types(problem, g_lin, g_lin_bin, g_other, g_conv):
     """Set problem indices."""
     problem.idx_g_lin = g_lin
     problem.idx_g_lin_bin = g_lin_bin
-    problem.idx_g_eq = g_eq
+    problem.idx_g_other = g_other
     problem.idx_g_conv = g_conv
 
 
