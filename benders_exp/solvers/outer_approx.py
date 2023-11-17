@@ -64,7 +64,7 @@ class OuterApproxMILP(SolverClass):
             "discrete": discrete,
         })
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, relaxed=False) -> MinlpData:
         """Solve the outer approximation MILP."""
         x_sol = nlpdata.x_sol[:self.nr_x]
         if prev_feasible:
@@ -83,8 +83,7 @@ class OuterApproxMILP(SolverClass):
             g_lin + jac_g @ (self._x[:self.nr_x] - x_sol)
         )
         self._lbg = ca.vertcat(self._lbg, nlpdata.lbg)
-        self._ubg = ca.vertcat(self._ubg, ca.inf *
-                               np.ones((self.nr_g_orig, 1)))
+        self._ubg = ca.vertcat(self._ubg, nlpdata.ubg)
 
         self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", MIP_SOLVER, {
             "f": self._alpha, "g": self._g,
@@ -154,7 +153,7 @@ class OuterApproxMILPImproved(SolverClass):
             "discrete": discrete,
         })
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, relaxed=False) -> MinlpData:
         """Solve the outer approximation MILP."""
         x_sol = nlpdata.x_sol[:self.nr_x]
         if prev_feasible:
@@ -173,8 +172,7 @@ class OuterApproxMILPImproved(SolverClass):
             g_lin + jac_g @ (self._x[:self.nr_x] - x_sol)
         )
         self._lbg = ca.vertcat(self._lbg, nlpdata.lbg[self.idx_g_nonlin])
-        self._ubg = ca.vertcat(self._ubg, ca.inf *
-                               np.ones((len(self.idx_g_nonlin), 1)))
+        self._ubg = ca.vertcat(self._ubg, nlpdata.ubg[self.idx_g_nonlin])
 
         self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", MIP_SOLVER, {
             "f": self._alpha, "g": self._g,
