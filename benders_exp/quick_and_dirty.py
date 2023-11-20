@@ -55,7 +55,6 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
                   master_problem: SolverClass, termination_condition: Callable[..., bool],
                   first_relaxed=False) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
-    check = CheckNoDuplicate(problem)
     logger.info("Setup NLP solver...")
     nlp = NlpSolver(problem, stats)
     toc()
@@ -77,9 +76,6 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
         data = master_problem.solve(data, relaxed=True)
 
     while (not termination_condition(lb, ub, tolerance, x_star, x_hat)) and feasible:
-        # Sanity check, not solve a known NLP twice!
-        # check(data)
-
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
@@ -478,54 +474,54 @@ def test(
             print(f"{i}: {lb} - {ub} ({x_sol[i]}) - df {df[i]}")
     return problem, data, data.x_sol
 
+SOLVER_MODES = {
+    "benders": benders_algorithm,
+    "bendersqp": lambda p, d, s: benders_algorithm(p, d, s, with_qp=True),
+    "benders_old_tr": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std',
+                                                               first_relaxed=False),
+    "benders_old_tr_rel": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std',
+                                                                   first_relaxed=True),
+    "benders_tr": lambda p, d, s: benders_tr_master(p, d, s, termination_type='equality',
+                                                    use_feasibility_pump=False, with_benders_master=False),
+    "benders_tr_fp": lambda p, d, s: benders_tr_master(p, d, s, termination_type='equality',
+                                                       use_feasibility_pump=True, with_benders_master=False),
+    "benders_trm": lambda p, d, s: benders_tr_master(p, d, s, use_feasibility_pump=False, with_benders_master=True),
+    "benders_trmi": lambda p, d, s: benders_tr_master(
+        p, d, s, use_feasibility_pump=False, with_benders_master=True, with_new_inf=True
+    ),
+    "benders_trm_fp": lambda p, d, s: benders_tr_master(p, d, s, use_feasibility_pump=True,
+                                                        with_benders_master=True),
+    "benders_trl": benders_trm_lp,
+    "oa": outer_approx_algorithm,
+    "oai": outer_approx_algorithm_improved,
+    "bonmin": bonmin,
+    "benderseq": benders_equality,
+    # B-BB is a NLP-based branch-and-bound algorithm
+    "bonmin-bb": lambda p, d, s: bonmin(p, d, s, "B-BB"),
+    # B-Hyb is a hybrid outer-approximation based branch-and-cut algorithm
+    "bonmin-hyb": lambda p, d, s: bonmin(p, d, s, "B-Hyb"),
+    # B-OA is an outer-approximation decomposition algorithm
+    "bonmin-oa": lambda p, d, s: bonmin(p, d, s, "B-OA"),
+    # B-QG is an implementation of Quesada and Grossmann's branch-and-cut algorithm
+    "bonmin-qg": lambda p, d, s: bonmin(p, d, s, "B-QG"),
+    # B-iFP: an iterated feasibility pump algorithm
+    "bonmin-ifp": lambda p, d, s: bonmin(p, d, s, "B-iFP"),
+    "voronoi_tr": lambda p, d, s: voronoi_tr_algorithm(p, d, s, termination_type='equality'),
+    "relaxed": relaxed,
+    "ampl": export_ampl,
+    "rofp": random_direction_rounding_algorithm,
+    "fp": feasibility_pump,
+    "ofp": objective_feasibility_pump,
+    "cia": cia_decomposition_algorithm,
+    "milp_tr": milp_tr,
+    "test": test
+}
+
 
 def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, MinlpData, ca.DM]:
     """Run a problem and return the results."""
-    MODES = {
-        "benders": benders_algorithm,
-        "bendersqp": lambda p, d, s: benders_algorithm(p, d, s, with_qp=True),
-        "benders_old_tr": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std',
-                                                                   first_relaxed=False),
-        "benders_old_tr_rel": lambda p, d, s: benders_constrained_milp(p, d, s, termination_type='std',
-                                                                       first_relaxed=True),
-        "benders_tr": lambda p, d, s: benders_tr_master(p, d, s, termination_type='equality',
-                                                        use_feasibility_pump=False, with_benders_master=False),
-        "benders_tr_fp": lambda p, d, s: benders_tr_master(p, d, s, termination_type='equality',
-                                                           use_feasibility_pump=True, with_benders_master=False),
-        "benders_trm": lambda p, d, s: benders_tr_master(p, d, s, use_feasibility_pump=False, with_benders_master=True),
-        "benders_trmi": lambda p, d, s: benders_tr_master(
-            p, d, s, use_feasibility_pump=False, with_benders_master=True, with_new_inf=True
-        ),
-        "benders_trm_fp": lambda p, d, s: benders_tr_master(p, d, s, use_feasibility_pump=True,
-                                                            with_benders_master=True),
-        "benders_trl": benders_trm_lp,
-        "oa": outer_approx_algorithm,
-        "oai": outer_approx_algorithm_improved,
-        "bonmin": bonmin,
-        "benderseq": benders_equality,
-        # B-BB is a NLP-based branch-and-bound algorithm
-        "bonmin-bb": lambda p, d, s: bonmin(p, d, s, "B-BB"),
-        # B-Hyb is a hybrid outer-approximation based branch-and-cut algorithm
-        "bonmin-hyb": lambda p, d, s: bonmin(p, d, s, "B-Hyb"),
-        # B-OA is an outer-approximation decomposition algorithm
-        "bonmin-oa": lambda p, d, s: bonmin(p, d, s, "B-OA"),
-        # B-QG is an implementation of Quesada and Grossmann's branch-and-cut algorithm
-        "bonmin-qg": lambda p, d, s: bonmin(p, d, s, "B-QG"),
-        # B-iFP: an iterated feasibility pump algorithm
-        "bonmin-ifp": lambda p, d, s: bonmin(p, d, s, "B-iFP"),
-        "voronoi_tr": lambda p, d, s: voronoi_tr_algorithm(p, d, s, termination_type='equality'),
-        "relaxed": relaxed,
-        "ampl": export_ampl,
-        "rofp": random_direction_rounding_algorithm,
-        "fp": feasibility_pump,
-        "ofp": objective_feasibility_pump,
-        "cia": cia_decomposition_algorithm,
-        "milp_tr": milp_tr,
-        "test": test
-    }
-
-    if mode_name not in MODES:
-        raise Exception(f"No mode {mode_name=}, available {MODES.keys()}")
+    if mode_name not in SOLVER_MODES:
+        raise Exception(f"No mode {mode_name=}, available {SOLVER_MODES.keys()}")
     if problem_name not in PROBLEMS:
         raise Exception(f"No {problem_name=}, available: {PROBLEMS.keys()}")
 
@@ -541,7 +537,7 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
         mode_name = "relaxed"
 
     logger.info(f"Start mode {mode_name}")
-    return MODES[mode_name](problem, data, stats)
+    return SOLVER_MODES[mode_name](problem, data, stats)
 
 
 def batch_nl_runner(mode_name, target, nl_files):
