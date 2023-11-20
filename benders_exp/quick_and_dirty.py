@@ -10,7 +10,7 @@ import numpy as np
 from benders_exp.utils import get_control_vector, plot_trajectory, tic, to_0d, toc, \
     make_bounded, setup_logger, logging, colored
 from benders_exp.json_tools import write_json
-from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, WITH_LOG_DATA, WITH_DEBUG, TIME_LIMIT
+from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, WITH_LOG_DATA, WITH_DEBUG, TIME_LIMIT, MINLP_TOLERANCE
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
 from benders_exp.solvers import Stats
@@ -65,7 +65,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
     # Benders algorithm
     lb = -ca.inf
     ub = ca.inf
-    tolerance = 1e-2
+    tolerance = MINLP_TOLERANCE
     feasible = True
     best_iter = -1
     x_star = np.nan * np.empty(problem.x.shape[0])
@@ -368,7 +368,7 @@ def benders_tr_master(
         fnlp = FeasibilityNlpSolver(problem, data, stats)
     lb = -ca.inf
     ub = ca.inf
-    tolerance = 1e-2
+    tolerance = MINLP_TOLERANCE
     feasible = True
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
