@@ -38,6 +38,7 @@ CASADI_VAR = ca.MX
 MIP_SOLVER = environ.get("MIP_SOLVER", "gurobi")
 WITH_DEBUG = to_bool(environ.get("DEBUG", False))
 WITH_LOG_DATA = to_bool(environ.get("LOG_DATA", False))
+MINLP_TOLERANCE = 0.1
 # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
 
 IPOPT_SETTINGS = {  # TODO: make ipopt setting change according to the problem called

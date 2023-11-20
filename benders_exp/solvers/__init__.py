@@ -88,13 +88,16 @@ class SolverClass(ABC):
         self.stats[f"{algo_name}.time"] += sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
-        self.stats[f"{algo_name}.time_wall"] += sum(
+        t_wall = sum(
             [v for k, v in stats.items() if "t_wall" in k]
         )
+        self.stats[f"{algo_name}.time_wall"] += t_wall
         self.stats[f"{algo_name}.iter"] += max(
             stats.get("n_call_solver", 0), stats["iter_count"]
         )
         self.stats[f"{algo_name}.runs"] += 1
+        self.stats["t_wall_total"] += t_wall
+        self.stats["success"] = stats["success"]
         return stats["success"], stats
 
 
