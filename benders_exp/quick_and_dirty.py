@@ -161,6 +161,9 @@ def get_termination_condition(termination_type, problem: MinlpProblem,  data: Mi
             if ret:
                 logging.info(
                     f"Terminated: {lb} >= {ub} - {tol_abs} ({tol*100}%)")
+            else:
+                logging.info(
+                    f"Not Terminated: {lb} <= {ub} - {tol_abs} ({tol*100}%)")
             return max_time(ret)
     else:
         raise AttributeError(
