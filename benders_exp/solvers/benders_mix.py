@@ -233,8 +233,12 @@ class BendersTRandMaster(BendersMasterMILP):
             (lam_g_sol > 0) * (g_k > nlpdata.ubg) * (g_k - np.where(np.isinf(nlpdata.ubg), 0, nlpdata.ubg))
             + (lam_g_sol < 0) * (g_k < nlpdata.lbg) * (g_k - np.where(np.isinf(nlpdata.lbg), 0, nlpdata.lbg))
         )
-        assert g_bar_k > 0
-        colored(f"Infeasibility cut of {g_bar_k}")
+        # assert g_bar_k > 0
+        if g_bar_k < 0:
+            colored(f"Infeasibility cut of {g_bar_k}")
+        else:
+            colored(f"Infeasibility cut of {g_bar_k}", "blue")
+        g_bar_k = max(g_bar_k, 1)
         # g_bar_k is positive by definition
         grad_g_bar_k = self.clip_gradient(g_bar_k + 10, 0, (lam_g_sol.T @ jac_g_k).T)
 
