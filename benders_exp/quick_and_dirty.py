@@ -435,7 +435,11 @@ def benders_tr_master(
             # Solve master^k and set lower bound:
             data, last_benders = master_problem.solve(data)
             if last_benders:
-                lb = data.obj_val
+                if ub < lb:
+                    # Problems!
+                    lb = data.obj_val
+                else:
+                    lb = max(data.obj_val, lb)
             logger.debug(f"MIP {data.obj_val=}, {ub=}, {lb=}")
 
             x_hat = data.x_sol
