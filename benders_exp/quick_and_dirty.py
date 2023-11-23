@@ -522,6 +522,9 @@ SOLVER_MODES = {
     "benders_trmi": lambda p, d, st, s: benders_tr_master(
         p, d, st, s, use_feasibility_pump=False, with_benders_master=True, with_new_inf=True
     ),
+    "benders_trmi_fp": lambda p, d, st, s: benders_tr_master(
+        p, d, st, s, use_feasibility_pump=True, with_benders_master=True, with_new_inf=True
+    ),
     "benders_trm_fp": lambda p, d, st, s: benders_tr_master(p, d, st, s, use_feasibility_pump=True,
                                                             with_benders_master=True),
     "benders_trl": benders_trm_lp,
