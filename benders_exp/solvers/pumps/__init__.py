@@ -13,7 +13,7 @@ import casadi as ca
 from typing import Tuple
 from copy import deepcopy
 from benders_exp.utils import colored
-from benders_exp.defines import WITH_LOG_DATA
+from benders_exp.defines import Settings
 from benders_exp.solvers.nlp import NlpSolver
 from benders_exp.solvers import Stats, MinlpProblem, MinlpData
 from benders_exp.solvers.pumps.fp import LinearProjection, ObjectiveLinearProjection
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 
 def feasibility_pump(
-    problem: MinlpProblem, data: MinlpData, stats: Stats, nlp=None,
+    problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, nlp=None,
     fp=None
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM, bool]:
     """
@@ -44,10 +44,10 @@ def feasibility_pump(
     is_relaxed = nlp is not None
     if not is_relaxed:
         stats['total_time_calc'] += toc(reset=True)
-        nlp = NlpSolver(problem, stats)
+        nlp = NlpSolver(problem, stats, s)
 
     if fp is None:
-        fp = LinearProjection(problem, stats)
+        fp = LinearProjection(problem, stats, s)
 
     stats['total_time_loading'] = toc(reset=True)
     if not is_relaxed:
@@ -107,7 +107,7 @@ def feasibility_pump(
 
 
 def objective_feasibility_pump(
-    problem: MinlpProblem, data: MinlpData, stats: Stats
+    problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
     Objective Feasibility Pump
@@ -116,13 +116,13 @@ def objective_feasibility_pump(
         objective feasibility pump for convex MINLPs. Computational
         Optimization and Applications, 63, 737-753.
     """
-    ofp = ObjectiveLinearProjection(problem, stats)
-    return feasibility_pump(problem, data, stats, fp=ofp)
+    ofp = ObjectiveLinearProjection(problem, stats, s)
+    return feasibility_pump(problem, data, stats, s, fp=ofp)
 
 
 def random_objective_feasibility_pump(
-    problem: MinlpProblem, data: MinlpData, stats: Stats, relaxed_solution,
-    nlp: NlpSolver, norm=1, recover=True,
+    problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
+    relaxed_solution, nlp: NlpSolver, norm=1, recover=True,
 ) -> Tuple[MinlpData, ca.DM]:
     """
     Random objective FP.
@@ -130,7 +130,7 @@ def random_objective_feasibility_pump(
     returns all feasible integer solutions
     returns problem, data, best_solution, is_last_relaxed, lower_bound
     """
-    rnlp = RandomDirectionNlpSolver(problem, stats, norm=norm)
+    rnlp = RandomDirectionNlpSolver(problem, stats, s, norm=norm)
     logger.info("Solver initialized.")
 
     feasible_solutions = []
@@ -177,7 +177,7 @@ def random_objective_feasibility_pump(
             ub=best_obj, nlp_obj=datarounded.obj_val, last_benders=None,
             lb=int_error, x_sol=to_0d(datarounded.x_sol))
         )
-        if WITH_LOG_DATA:
+        if s.WITH_LOG_DATA:
             stats.save()
 
         stats['iter'] += 1
@@ -214,7 +214,7 @@ def random_objective_feasibility_pump(
 
 
 def random_direction_rounding_algorithm(
-    problem: MinlpProblem, data: MinlpData, stats: Stats,
+    problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
     norm=1
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
@@ -223,11 +223,11 @@ def random_direction_rounding_algorithm(
     parameters:
         - norm: 1 for L1-norm based, 2 for squared L2-norm based penalization
     """
-    nlp = NlpSolver(problem, stats)
+    nlp = NlpSolver(problem, stats, s)
     stats['total_time_loading'] = toc(reset=True)
     data = nlp.solve(data)
     problem, best, x_sol, relaxed, lb = random_objective_feasibility_pump(
-        problem, data, stats, data, nlp)
+        problem, data, stats, s, data, nlp)
     if x_sol is None or relaxed:
         raise Exception("Problem can not be solved")
     stats['total_time_calc'] = toc(reset=True)

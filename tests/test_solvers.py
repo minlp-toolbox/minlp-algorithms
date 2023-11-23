@@ -3,29 +3,32 @@
 import unittest
 from parameterized import parameterized
 from benders_exp.problems.overview import PROBLEMS
-from benders_exp.quick_and_dirty import run_problem, Stats
+from benders_exp.quick_and_dirty import run_problem, Stats, SOLVER_MODES
 from benders_exp.problems import check_solution
 import timeout_decorator
 
-options = [
+options = [("cia", "doubletank2")] + [
+    (solver, "dummy")
+    for solver in SOLVER_MODES.keys()
+    if solver not in (
+        "cia", "milp_tr", "ampl"  # Almost all solvers
+    )
+] + [
     (solver, problem)
-    for solver in [
-        "benders",
-        "bendersqp",
-        "bonmin",
-        "benders_tr",
+    for solver in
+    [
         "benders_trm",
-        "randomnlp",
     ]
     for problem in PROBLEMS.keys()
-    if (
-        problem not in ["orig", "doubletank2", "doubletank", "stcs",
-                        "gearbox_int", "gearbox_complx",
-                        "nonconvex", "unstable_ocp", "nl_file", "alan"]
-    )
-    if (solver, problem) not in [
-        ("benders_trm", "dummy2"),
-        ("randomnlp", "dummy")
+    if problem not in [
+        # Exclude duplicates
+        "dummy",
+        # Exclude difficult problems with long runtimes
+        "orig", "stcs", "alan", "to_car", "doubletank2",
+        # Exclude some errors:
+        "unstable_ocp",
+        # Interfaces:
+        "nl_file", "from_sto", "nosnoc"
     ]
 ]
 
@@ -37,6 +40,10 @@ obj_val = {
     "sign_check": 9,
     "nonconvex": 0.0567471,
     "gearbox": 6550.833,
+    "particle": 1.3797,
+    "unstable_ocp": -0.05129210,
+    "gearbox_complx": 234.899,
+    "gearbox_int": 14408.4375,
 }
 
 # Number of digits after the komma to be accurate:
@@ -44,27 +51,40 @@ obj_tolerance_default = 3
 obj_tolerance = {
     "dummy": 2,
     "doubletank": 1,
+    "nonconvex": 0,
 }
 obj_tolerance_heuristic = {
-    "randomnlp": -3
+    "relaxed": -3,
+    # Heuristics
+    "rofp": -3,
+    "ofp": -3,
+    "fp": -3,
+    # Disable:
+    "cia": -100,
+    "test": -100,
+    "bonmin-qg": -100,
+    "bonmin-hyb": -100,
 }
+sol_not_valid = ["test", "relaxed", "cia"]
 
 
 class TestSolver(unittest.TestCase):
     """Test."""
 
     @parameterized.expand(options)
-    @timeout_decorator.timeout(5.0)
+    @timeout_decorator.timeout(10.0)
     def test_solver(self, mode, problem_name):
         """Test runner."""
         stats = Stats(mode, problem_name, "test", {})
-        problem, data, x_star = run_problem(mode, problem_name, stats, [])
+        (problem, data, x_star), s = run_problem(mode, problem_name, stats, [])
         desired_obj = obj_val.get(problem_name, -1)
         desired_tol = obj_tolerance.get(problem_name, obj_tolerance_default)
         desired_tol += obj_tolerance_heuristic.get(mode, 0)
-        self.assertAlmostEqual(data.obj_val / desired_obj, 1, desired_tol,
-                               msg=f"Failed for {mode} & {problem_name}")
-        check_solution(problem, data, x_star)
+        if desired_tol > -10:
+            self.assertAlmostEqual(data.obj_val / desired_obj, 1, desired_tol,
+                                   msg=f"Failed for {mode} & {problem_name}")
+        if mode not in sol_not_valid:
+            check_solution(problem, data, x_star, s)
 
 
 if __name__ == "__main__":

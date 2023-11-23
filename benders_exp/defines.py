@@ -14,6 +14,7 @@ def to_bool(val):
         return not (val.lower() in ["0", "false", "false", "no"])
 
 
+CASADI_VAR = ca.MX
 SOURCE_FOLDER = path.dirname(path.abspath(__file__))
 _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
@@ -28,7 +29,7 @@ if not path.exists(CACHE_FOLDER):
 
 @dataclass(init=True)
 class Settings:
-    TIME_LIMIT: float = ca.inf  # 600.0
+    TIME_LIMIT: float = 60.0
     WITH_JIT: bool = False
     WITH_PLOT: bool = False
     EPS: float = 1e-5
@@ -36,7 +37,6 @@ class Settings:
     CONSTRAINT_INT_TOL: float = 1e-2
     CONSTRAINT_TOL: float = 1e-3
     BENDERS_LB: float = -1e16
-    CASADI_VAR: Any = ca.MX
     _MIP_SOLVER: str = "gurobi"
 
     WITH_DEBUG: bool = to_bool(environ.get("DEBUG", False))
@@ -44,6 +44,7 @@ class Settings:
     MINLP_TOLERANCE: float = 0.1
     # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
 
+    AMPL_EXPORT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})
     IPOPT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {
         "ipopt.linear_solver": "ma57",
         "ipopt.mumps_mem_percent": 10000,
@@ -81,10 +82,10 @@ class Settings:
             self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSearchMode"] = 1
             self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSolutions"] = 5
         if self.WITH_DEBUG:
+            self.IPOPT_SETTINGS.update({"ipopt.print_level": 5})
+        else:
             self.IPOPT_SETTINGS.update({"ipopt.print_level": 0})
             self.MIP_SETTINGS_ALL['gurobi'].update({"gurobi.output_flag": 0})
-        else:
-            self.IPOPT_SETTINGS.update({"ipopt.print_level": 5})
         self.MIP_SOLVER = environ.get("MIP_SOLVER", "gurobi")
 
     @property

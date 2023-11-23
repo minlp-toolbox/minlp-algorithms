@@ -2,7 +2,6 @@ import numpy as np
 from random import randint, random
 from benders_exp.solvers import MinlpData
 from benders_exp.utils import to_0d, logging
-from benders_exp.defines import EPS
 from copy import deepcopy
 
 logger = logging.getLogger(__name__)
@@ -31,8 +30,8 @@ def create_rounded_data(data: MinlpData, idx_x_bin):
 
 def any_equal(x_current, x_best, idx_x_bin):
     for x in x_best:
-        if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=EPS):
-            logging.info(f"Terminated - all close within {EPS}")
+        if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=1e-2):
+            logging.info("Terminated - all close within 1e-2")
             return True
     return False
 

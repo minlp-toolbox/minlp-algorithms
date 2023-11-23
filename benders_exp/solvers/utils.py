@@ -1,9 +1,9 @@
 import numpy as np
 import casadi as ca
-from benders_exp.defines import EPS, USE_SOLUTION_POOL
+from benders_exp.defines import Settings
 
 
-def almost_equal(a, b):
+def almost_equal(a, b, EPS=1e-5):
     """Check if almost equal."""
     return a + EPS > b and a - EPS < b
 
@@ -79,7 +79,7 @@ class Constraints:
 
 def bin_equal(sol1, sol2, idx_x_bin):
     """Binary variables equal."""
-    return np.allclose(sol1[idx_x_bin], sol2[idx_x_bin], equal_nan=False, atol=EPS)
+    return np.allclose(sol1[idx_x_bin], sol2[idx_x_bin], equal_nan=False, atol=1e-2)
 
 
 def any_equal(sol, refs, idx_x_bin):
@@ -90,9 +90,9 @@ def any_equal(sol, refs, idx_x_bin):
     return False
 
 
-def get_solutions_pool(nlpdata, success, stats, solution, idx_x_bin):
+def get_solutions_pool(nlpdata, success, stats, s: Settings, solution, idx_x_bin):
     """Get pool of solutions if exists."""
-    if USE_SOLUTION_POOL and stats and "pool_sol_nr" in stats:
+    if s.USE_SOLUTION_POOL and stats and "pool_sol_nr" in stats:
         sols = [solution]
         x_sols = [solution['x']]
 

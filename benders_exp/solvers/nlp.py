@@ -3,8 +3,8 @@
 import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-        regularize_options
-from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR
+    regularize_options
+from benders_exp.defines import CASADI_VAR, Settings
 from benders_exp.utils import to_0d
 
 
@@ -16,30 +16,29 @@ class NlpSolver(SolverClass):
     the binaries are fixed.
     """
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create NLP problem."""
-        super(NlpSolver, self).__init___(problem, stats)
-        options = regularize_options(options, IPOPT_SETTINGS)
+        super(NlpSolver, self).__init___(problem, stats, s)
+        options = regularize_options(s.IPOPT_SETTINGS, {
+            "calc_multipliers": True,
+            "ipopt.expect_infeasible_problem": "yes",
+            "error_on_fail": False
+        }, s)
 
         self.idx_x_bin = problem.idx_x_bin
-        options["calc_multipliers"] = True
         # self.callback = DebugCallBack(
         #     'mycallback', problem.x.shape[0],
         #     problem.g.shape[0], problem.p.shape[0]
         # )
         # self.callback.add_to_solver_opts(options, 50)
 
-        options.update({
-            "ipopt.expect_infeasible_problem": "yes",
-            "error_on_fail": False
-        })
         if problem.precompiled_nlp is not None:
             self.solver = ca.nlpsol(
                 "nlp", "ipopt", problem.precompiled_nlp, options
             )
         else:
             options.update({
-                "jit": WITH_JIT,
+                "jit": s.WITH_JIT,
             })
             self.solver = ca.nlpsol("nlpsol", "ipopt", {
                 "f": problem.f, "g": problem.g, "x": problem.x, "p": problem.p
@@ -81,10 +80,10 @@ class NlpSolver(SolverClass):
 class FeasibilityNlpSolver(SolverClass):
     """Create benders master problem."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
         """Create benders master MILP."""
-        super(FeasibilityNlpSolver, self).__init___(problem, stats)
-        options = regularize_options(options, IPOPT_SETTINGS)
+        super(FeasibilityNlpSolver, self).__init___(problem, stats, s)
+        options = regularize_options(s.IPOPT_SETTINGS, {}, s)
 
         g = []
         self.g_idx = []
@@ -116,7 +115,7 @@ class FeasibilityNlpSolver(SolverClass):
         x = ca.vertcat(*[problem.x, beta])
         p = ca.vertcat(*[problem.p])
         self.idx_x_bin = problem.idx_x_bin
-        options.update({"jit": WITH_JIT})
+        options.update({"jit": s.WITH_JIT})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": f, "g": g, "x": x, "p": p
         }, options)
@@ -126,8 +125,10 @@ class FeasibilityNlpSolver(SolverClass):
         print("FEASIBILITY")
         success_out = []
         sols_out = []
-        lbx = ca.vcat([nlpdata.lbx, np.zeros(1)])  # add lower bound for the slacks
-        ubx = ca.vcat([nlpdata.ubx, np.inf * np.ones(1)])  # add upper bound for the slacks
+        # add lower bound for the slacks
+        lbx = ca.vcat([nlpdata.lbx, np.zeros(1)])
+        # add upper bound for the slacks
+        ubx = ca.vcat([nlpdata.ubx, np.inf * np.ones(1)])
 
         for success_prev, sol in zip(nlpdata.solved_all, nlpdata.solutions_all):
             if success_prev:
@@ -173,17 +174,16 @@ class FeasibilityNlpSolver(SolverClass):
 class FindClosestNlpSolver(SolverClass):
     """Find closest feasible."""
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create NLP problem."""
-        super(FindClosestNlpSolver, self).__init___(problem, stats)
-        options = regularize_options(options, IPOPT_SETTINGS)
+        super(FindClosestNlpSolver, self).__init___(problem, stats, s)
+        options = regularize_options(
+            s.IPOPT_SETTINGS, {
+                "calc_multipliers":  True,
+                "jit": s.WITH_JIT
+            }, s)
 
         self.idx_x_bin = problem.idx_x_bin
-        options["calc_multipliers"] = True
-        options.update({
-            "jit": WITH_JIT,
-        })
-
         x_hat = CASADI_VAR.sym("x_hat", len(self.idx_x_bin))
 
         f = ca.norm_2(problem.x[self.idx_x_bin] - x_hat)

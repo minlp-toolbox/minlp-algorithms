@@ -1,18 +1,19 @@
 import casadi as ca
-from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-        regularize_options
+from benders_exp.defines import Settings
+from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData
 
 
 class AmplSolver(SolverClass):
     """Create MINLP solver (using bonmin)."""
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None, algo_type="B-BB"):
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings, algo_type="B-BB"):
         """Create MINLP problem.
 
         :param algo_type: Algorithm type, options: B-BB, B-OA, B-QG, or B-Hyb
         """
-        super(AmplSolver, self).__init___(problem, stats)
-        options = regularize_options(options, {
+        super(AmplSolver, self).__init___(problem, stats, s)
+        options = s.AMPL_EXPORT_SETTINGS.copy()
+        options.update({
             "solver": "python3 -m benders_exp copy /tmp/out.nl"
         })
 

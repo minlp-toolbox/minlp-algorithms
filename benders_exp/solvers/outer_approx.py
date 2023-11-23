@@ -4,8 +4,7 @@ import casadi as ca
 import numpy as np
 from benders_exp.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
-from benders_exp.defines import MIP_SETTINGS, WITH_JIT, CASADI_VAR, \
-        MIP_SOLVER
+from benders_exp.defines import Settings, CASADI_VAR
 
 
 class OuterApproxMILP(MiSolverClass):
@@ -23,29 +22,29 @@ class OuterApproxMILP(MiSolverClass):
             lb \leq g(x) + \nabla  g(x) (x-x^i)
     """
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
         """Create benders master MILP."""
-        super(OuterApproxMILP, self).__init___(problem, stats)
-        self.options = regularize_options(options, MIP_SETTINGS)
+        super(OuterApproxMILP, self).__init___(problem, stats, s)
+        self.options = regularize_options(s.MIP_SETTINGS, {}, s)
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.grad_f = ca.Function(
             "gradient_f_x",
             [problem.x, problem.p], [ca.gradient(
                 problem.f, problem.x
-            )], {"jit": WITH_JIT}
+            )], {"jit": s.WITH_JIT}
         )
         self.g = ca.Function(
             "g", [problem.x, problem.p], [problem.g],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.jac_g = ca.Function(
             "gradient_g_x",
             [problem.x, problem.p], [ca.jacobian(
                 problem.g, problem.x
-            )], {"jit": WITH_JIT}
+            )], {"jit": s.WITH_JIT}
         )
 
         self.nr_x = problem.x.shape[0]
@@ -85,7 +84,7 @@ class OuterApproxMILP(MiSolverClass):
         self._lbg = ca.vertcat(self._lbg, nlpdata.lbg)
         self._ubg = ca.vertcat(self._ubg, nlpdata.ubg)
 
-        self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", MIP_SOLVER, {
+        self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", self.settings.MIP_SOLVER, {
             "f": self._alpha, "g": self._g,
             "x": self._x,
         }, self.options)
@@ -106,36 +105,36 @@ class OuterApproxMILP(MiSolverClass):
 class OuterApproxMILPImproved(MiSolverClass):
     """Improvements over regular OA."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
         """Improved outer approximation."""
-        super(OuterApproxMILPImproved, self).__init___(problem, stats)
-        self.options = regularize_options(options, MIP_SETTINGS)
+        super(OuterApproxMILPImproved, self).__init___(problem, stats, s)
+        self.options = regularize_options(s.MIP_SETTINGS, {}, s)
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.grad_f = ca.Function(
             "gradient_f_x",
             [problem.x, problem.p], [ca.gradient(
                 problem.f, problem.x
-            )], {"jit": WITH_JIT}
+            )], {"jit": s.WITH_JIT}
         )
 
         self.idx_g_lin = get_idx_linear_bounds(problem)
         self.idx_g_nonlin = get_idx_inverse(self.idx_g_lin, problem.g.shape[0])
         self.g_lin = ca.Function(
             "g", [problem.x, problem.p], [problem.g[self.idx_g_lin]],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.g_nonlin = ca.Function(
             "g", [problem.x, problem.p], [problem.g[self.idx_g_nonlin]],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.jac_g_nonlin = ca.Function(
             "gradient_g_x",
             [problem.x, problem.p], [ca.jacobian(
                 problem.g[self.idx_g_nonlin], problem.x
-            )], {"jit": WITH_JIT}
+            )], {"jit": s.WITH_JIT}
         )
 
         self.nr_x = problem.x.shape[0]
@@ -174,7 +173,7 @@ class OuterApproxMILPImproved(MiSolverClass):
         self._lbg = ca.vertcat(self._lbg, nlpdata.lbg[self.idx_g_nonlin])
         self._ubg = ca.vertcat(self._ubg, nlpdata.ubg[self.idx_g_nonlin])
 
-        self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", MIP_SOLVER, {
+        self.solver = ca.qpsol(f"oa_with_{self._g.shape[0]}_cut", self.settings.MIP_SOLVER, {
             "f": self._alpha, "g": self._g,
             "x": self._x,
         }, self.options)

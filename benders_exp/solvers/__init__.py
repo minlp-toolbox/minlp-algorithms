@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import os
 from typing import Dict, List, Optional
 from benders_exp.problems import MinlpProblem, MinlpData
-from benders_exp.defines import OUT_DIR, WITH_DEBUG, EPS
+from benders_exp.defines import OUT_DIR, Settings
 from benders_exp.utils import toc
 import casadi as ca
 import numpy as np
@@ -68,8 +68,9 @@ class Stats:
 class SolverClass(ABC):
     """Create solver class."""
 
-    def __init___(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init___(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create a solver class."""
+        self.settings = s
         self.stats = stats
         self.solver = None
 
@@ -108,11 +109,11 @@ class MiSolverClass(SolverClass):
         """Solve the problem."""
 
 
-def regularize_options(options, default):
+def regularize_options(options, default, s: Settings):
     """Regularize options."""
     ret = {} if options is None else options.copy()
 
-    if not WITH_DEBUG:
+    if not s.WITH_DEBUG:
         ret.update({"verbose": False, "print_time": 0})
 
     ret.update(default)

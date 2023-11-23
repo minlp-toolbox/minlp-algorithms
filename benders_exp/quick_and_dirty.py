@@ -56,10 +56,10 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
                   first_relaxed=False) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
     logger.info("Setup NLP solver...")
-    nlp = NlpSolver(problem, stats)
+    nlp = NlpSolver(problem, stats, s)
     toc()
     logger.info("Setup FNLP solver...")
-    fnlp = FeasibilityNlpSolver(problem, data, stats)
+    fnlp = FeasibilityNlpSolver(problem, data, stats, s)
     stats['total_time_loading'] = toc(reset=True)
     logger.info("Solver initialized.")
     # Benders algorithm
@@ -188,11 +188,11 @@ def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats, s: S
         # be guaranteed, so care should be taken with this approach as it
         # might only work in some circumstances!
         logger.info("Setup Benders MIQP solver...")
-        benders_master = BendersMasterMIQP(problem, data, stats)
+        benders_master = BendersMasterMIQP(problem, data, stats, s)
     else:
         logger.info("Setup Benders MILP solver...")
         # This class implements the original benders decomposition
-        benders_master = BendersMasterMILP(problem, data, stats)
+        benders_master = BendersMasterMILP(problem, data, stats, s)
 
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
@@ -201,11 +201,11 @@ def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats, s: S
     return base_strategy(problem, data, stats, s, benders_master, termination_condition)
 
 
-def export_ampl(problem: MinlpProblem, data: MinlpData, stats: Stats) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+def export_ampl(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Export AMPL."""
     from benders_exp.solvers.ampl import AmplSolver
-    AmplSolver(problem, stats).solve(data)
-    raise Exception("DONE")
+    AmplSolver(problem, stats, s).solve(data)
+    return problem, data, data.x0
 
 
 def outer_approx_algorithm(
@@ -220,7 +220,7 @@ def outer_approx_algorithm(
             - std: based on lower and upper bound
     """
     logger.info("Setup OA MILP solver...")
-    outer_approx = OuterApproxMILP(problem, data, stats)
+    outer_approx = OuterApproxMILP(problem, data, stats, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
@@ -240,12 +240,12 @@ def outer_approx_algorithm_improved(
             - std: based on lower and upper bound
     """
     logger.info("Setup OAI MILP solver...")
-    outer_approx = OuterApproxMILPImproved(problem, data, stats)
+    outer_approx = OuterApproxMILPImproved(problem, data, stats, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
     toc()
-    return base_strategy(problem, data, stats, outer_approx, termination_condition)
+    return base_strategy(problem, data, stats, s, outer_approx, termination_condition)
 
 
 def benders_constrained_milp(
@@ -262,7 +262,7 @@ def benders_constrained_milp(
             - std: based on lower and upper bound
     """
     logger.info("Setup Idea MIQP solver...")
-    benders_tr_master = BendersTrustRegionMIP(problem, data, stats)
+    benders_tr_master = BendersTrustRegionMIP(problem, data, stats, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
@@ -284,7 +284,7 @@ def benders_equality(
             - std: based on lower and upper bound
     """
     logger.info("Setup Idea MIQP solver...")
-    benders_tr_master = BendersEquality(problem, data, stats)
+    benders_tr_master = BendersEquality(problem, data, stats, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
@@ -306,7 +306,7 @@ def benders_trm_lp(
             - std: based on lower and upper bound
     """
     logger.info("Setup Idea MIQP solver...")
-    benders_tr_master = BendersTRLB(problem, data, stats)
+    benders_tr_master = BendersTRLB(problem, data, stats, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
@@ -318,7 +318,7 @@ def relaxed(
     problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Create and the relaxed problem."""
-    nlp = NlpSolver(problem, stats)
+    nlp = NlpSolver(problem, stats, s)
     stats['total_time_loading'] = toc(reset=True)
     data = nlp.solve(data)
     stats['total_time_calc'] = toc(reset=True)
@@ -331,7 +331,7 @@ def bonmin(
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Create benders algorithm."""
     logger.info("Create bonmin.")
-    minlp = BonminSolver(problem, stats, algo_type=algo_type)
+    minlp = BonminSolver(problem, stats, s, algo_type=algo_type)
     stats['total_time_loading'] = toc(reset=True)
     data = minlp.solve(data)
     stats['total_time_calc'] = toc(reset=True)
@@ -352,12 +352,12 @@ def voronoi_tr_algorithm(
             - std: based on lower and upper bound
     """
     logger.info("Setup Voronoi trust region MILP solver...")
-    voronoi_tr_master = VoronoiTrustRegionMILP(problem, data, stats)
+    voronoi_tr_master = VoronoiTrustRegionMILP(problem, data, stats, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
     toc()
-    return base_strategy(problem, data, stats, voronoi_tr_master, termination_condition)
+    return base_strategy(problem, data, stats, s, voronoi_tr_master, termination_condition)
 
 
 def benders_tr_master(
@@ -366,22 +366,24 @@ def benders_tr_master(
     with_new_inf=False
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
-    check = CheckNoDuplicate(problem)
+    check = CheckNoDuplicate(problem, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
     logger.info("Setup Mixed Benders TR/Master")
     master_problem = BendersTRandMaster(
-        problem, data, stats, with_benders_master=with_benders_master)
+        problem, data, stats, s,
+        with_benders_master=with_benders_master
+    )
     toc()
     logger.info("Setup NLP solver...")
-    nlp = NlpSolver(problem, stats)
+    nlp = NlpSolver(problem, stats, s)
     toc()
     logger.info("Setup FNLP solver...")
     if with_new_inf:
-        fnlp = FindClosestNlpSolver(problem, stats)
+        fnlp = FindClosestNlpSolver(problem, stats, s)
     else:
-        fnlp = FeasibilityNlpSolver(problem, data, stats)
+        fnlp = FeasibilityNlpSolver(problem, data, stats, s)
     lb = -ca.inf
     ub = ca.inf
     tolerance = s.MINLP_TOLERANCE
@@ -398,7 +400,7 @@ def benders_tr_master(
         data = nlp.solve(data)
         master_problem.update_relaxed_solution(data)
         problem, data, _, is_relaxed, lb = random_objective_feasibility_pump(
-            problem, data, stats, data, nlp)
+            problem, data, stats, s, data, nlp)
         if not is_relaxed:
             ub, x_star, best_iter = update_best_solutions(
                 data, 0, ub, x_star, best_iter, s
@@ -476,7 +478,7 @@ def benders_tr_master(
 def test(
     problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
-    nlp = NlpSolver(problem, stats)
+    nlp = NlpSolver(problem, stats, s)
     x_sol = nlp.solve(data).x_sol
     f = ca.Function("f", [problem.x, problem.p], [problem.f])
     df = ca.Function("df", [problem.x, problem.p], [ca.gradient(
@@ -520,7 +522,7 @@ SOLVER_MODES = {
     "benders_trmi": lambda p, d, st, s: benders_tr_master(
         p, d, st, s, use_feasibility_pump=False, with_benders_master=True, with_new_inf=True
     ),
-    "benders_trm_fp": lambda p, d, st, s: benders_tr_master(p, d, st, s, suse_feasibility_pump=True,
+    "benders_trm_fp": lambda p, d, st, s: benders_tr_master(p, d, st, s, use_feasibility_pump=True,
                                                             with_benders_master=True),
     "benders_trl": benders_trm_lp,
     "oa": outer_approx_algorithm,
@@ -692,6 +694,6 @@ if __name__ == "__main__":
     elif isinstance(problem.meta, MetaDataMpc):
         problem.meta.plot(data, x_star)
 
-    check_solution(problem, data, x_star)
+    check_solution(problem, data, x_star, s)
     if s.WITH_PLOT:
         plt.show()

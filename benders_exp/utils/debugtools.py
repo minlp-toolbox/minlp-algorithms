@@ -1,14 +1,15 @@
 import numpy as np
 from benders_exp.solvers import MinlpProblem, MinlpData
-from benders_exp.defines import EPS
+from benders_exp.defines import Settings
 
 
 class CheckNoDuplicate:
     """Check duplicates."""
 
-    def __init__(self, problem: MinlpProblem):
+    def __init__(self, problem: MinlpProblem, s: Settings):
         """Check if no duplicates pass through."""
         self.idx_x_bin = problem.idx_x_bin
+        self.s = s
         self.old = []
 
     def __call__(self, nlpdata: MinlpData):
@@ -16,6 +17,6 @@ class CheckNoDuplicate:
         for sol in nlpdata.prev_solutions:
             new = sol['x'][self.idx_x_bin]
             for el in self.old:
-                if np.allclose(el, new, equal_nan=False, atol=EPS):
+                if np.allclose(el, new, equal_nan=False, atol=self.s.EPS):
                     print("Duplicate!")
             self.old.append(new)

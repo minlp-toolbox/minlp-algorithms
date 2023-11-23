@@ -85,13 +85,15 @@ if __name__ == "__main__":
     from benders_exp.solvers import Stats
     from benders_exp.solvers.nlp import NlpSolver
     from benders_exp.problems import check_solution
+    from benders_exp.defines import Settings
     import pickle
 
     setup_logger(logging.DEBUG)
     prob, data = extract()
 
     stats = Stats({})
-    nlp = NlpSolver(prob, stats)
+    s = Settings()
+    nlp = NlpSolver(prob, stats, s)
 
     with open("data/nlpargs_adrian.pickle", 'rb') as f:
         nlpargs_adrian = pickle.load(f)
@@ -106,5 +108,5 @@ if __name__ == "__main__":
     with open("results/x_star_rel_orig.pickle", "wb") as f:
         pickle.dump(data.x_sol, f)
     breakpoint()
-    check_solution(prob, data, data.prev_solution['x'])
+    check_solution(prob, data, data.prev_solution['x'], s)
     breakpoint()

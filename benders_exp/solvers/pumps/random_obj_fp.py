@@ -4,7 +4,7 @@ import casadi as ca
 import numpy as np
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     regularize_options
-from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR
+from benders_exp.defines import CASADI_VAR, Settings
 from benders_exp.utils import to_0d, logging
 
 logger = logging.getLogger(__name__)
@@ -24,10 +24,10 @@ class RandomDirectionNlpSolver(SolverClass):
     is random.
     """
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None, norm=2, penalty_scaling=0.5):
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings, norm=2, penalty_scaling=0.5):
         """Create NLP problem."""
-        super(RandomDirectionNlpSolver, self).__init___(problem, stats)
-        options = regularize_options(options, IPOPT_SETTINGS)
+        super(RandomDirectionNlpSolver, self).__init___(problem, stats, s)
+        options = regularize_options(s.IPOPT_SETTINGS, {"jit": s.WITH_JIT, "ipopt.max_iter": 5000}, s)
         self.penalty_scaling = penalty_scaling
 
         self.idx_x_bin = problem.idx_x_bin
@@ -50,7 +50,6 @@ class RandomDirectionNlpSolver(SolverClass):
             penalty_term = ca.norm_2(
                 (x_bin_var - rounded_value) * penalty) ** 2
 
-        options.update({"jit": WITH_JIT, "ipopt.max_iter": 5000})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": alpha / obj_val * problem.f + (1 - alpha) / int_error * penalty_term,
             "g": problem.g, "x": problem.x,

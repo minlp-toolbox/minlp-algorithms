@@ -1,11 +1,9 @@
 """A mix of solvers."""
 import numpy as np
 import casadi as ca
-from benders_exp.solvers import Stats, MinlpProblem, MinlpData, \
-    extract_bounds
+from benders_exp.solvers import Stats, MinlpProblem, MinlpData
 from benders_exp.utils import colored
-from benders_exp.defines import WITH_JIT, CASADI_VAR, EPS, MIP_SOLVER, \
-    WITH_DEBUG
+from benders_exp.defines import Settings, CASADI_VAR
 from benders_exp.solvers.benders import BendersMasterMILP
 from benders_exp.problems import check_integer_feasible, check_solution
 from benders_exp.solvers.utils import Constraints, get_solutions_pool, any_equal
@@ -86,7 +84,7 @@ class LowerApproximation:
         return self.to_generic() + other
 
 
-def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad):
+def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad, s: Settings):
     """Compute gradient correction, based on L2 norm."""
 
     with_ipopt = False
@@ -97,7 +95,7 @@ def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad):
         nr_x = x_best.numel()
         grad_corr = CASADI_VAR.sym("gradient_correction", nr_x)
         obj = ca.norm_2(grad_corr) ** 2
-        g = (obj_new - obj_best - EPS) + \
+        g = (obj_new - obj_best - s.EPS) + \
             (grad + grad_corr).T @ (x_best - x_new)
         solver = ca.nlpsol("solver", "ipopt", {
             "f": obj, "g": g, "x": grad_corr}, {})
@@ -114,32 +112,32 @@ def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad):
 class BendersTRandMaster(BendersMasterMILP):
     """Mixing the idea from Moritz with a slightly altered version of benders masters."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None, with_benders_master=True):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, with_benders_master=True):
         """Create the benders constraint MILP."""
-        super(BendersTRandMaster, self).__init__(problem, data, stats, options, with_lin_bounds=False)
+        super(BendersTRandMaster, self).__init__(problem, data, stats, s, with_lin_bounds=False)
         # Settings
         self.nonconvex_strategy = NonconvexStrategy.GRADIENT_BASED
         self.nonconvex_strategy_alpha = 0.2
         self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
         self.trust_region_feasibility_rho = 1.5
 
-        if WITH_DEBUG:
+        if s.WITH_DEBUG:
             self.problem = problem
 
         # Setups
-        self.setup_common(problem, options)
+        self.setup_common(problem, s)
 
         self.grad_f_x = ca.Function(
             "gradient_f_x",
             [problem.x, problem.p], [ca.gradient(
                 problem.f, problem.x
             )],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.jac_g = ca.Function(
             "jac_g", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         if problem.gn_hessian is None:
             self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
@@ -175,7 +173,7 @@ class BendersTRandMaster(BendersMasterMILP):
         """Check if the cut is valid."""
         value = g + grad_g.T @ (x_best - x_sol)
         # print(f"Cut valid (lower bound)?: {value} vs real {x_sol_obj}")
-        return (value - EPS <= x_sol_obj)  # TODO: check sign EPS
+        return (value - self.settings.EPS <= x_sol_obj)  # TODO: check sign EPS
 
     # Amplifications and corrections
     def clip_gradient(self, current_value, lower_bound, gradients):
@@ -203,7 +201,9 @@ class BendersTRandMaster(BendersMasterMILP):
             ):
                 self.g_lowerapprox.dg_corrected[i] = compute_gradient_correction(
                     x_sol_best_bin, self.g_lowerapprox.x_lin[i], self.y_N_val,
-                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg_corrected[i])
+                    self.g_lowerapprox.g[i], self.g_lowerapprox.dg_corrected[i],
+                    self.settings
+                )
                 logger.debug(f"Correcting gradient for lower approx {i}")
 
     # Infeasibility cuts
@@ -247,7 +247,9 @@ class BendersTRandMaster(BendersMasterMILP):
         if not self._check_cut_valid(g_bar_k, grad_g_bar_k, x_sol_best_bin, x_bin_new, 0.0):
             # need gradient correction because we cut out best point
             grad_corr = compute_gradient_correction(
-                x_sol_best_bin, x_bin_new, 0, g_bar_k, grad_g_bar_k)
+                x_sol_best_bin, x_bin_new, 0, g_bar_k, grad_g_bar_k,
+                self.settings
+            )
             self.g_infeasible.add(x_bin_new, g_bar_k, grad_g_bar_k, grad_corr)
         else:
             self.g_infeasible.add(x_bin_new, g_bar_k, grad_g_bar_k)
@@ -271,7 +273,9 @@ class BendersTRandMaster(BendersMasterMILP):
 
         if not self._check_cut_valid(f_k, f_grad, self.x_sol_best, x, self.y_N_val):
             grad_corr = compute_gradient_correction(
-                self.x_sol_best, x, self.y_N_val, f_k, f_grad)
+                self.x_sol_best, x, self.y_N_val, f_k, f_grad,
+                self.settings
+            )
             self.g_lowerapprox_oa.add(x, f_k, f_grad, grad_corr)
         else:
             self.g_lowerapprox_oa.add(x, f_k, f_grad)
@@ -287,7 +291,9 @@ class BendersTRandMaster(BendersMasterMILP):
 
         if not self._check_cut_valid(f_k, lambda_k, x_sol_best_bin, x_bin_new, self.y_N_val):
             grad_corr = compute_gradient_correction(
-                x_sol_best_bin, x_bin_new, self.y_N_val, f_k, lambda_k)
+                x_sol_best_bin, x_bin_new, self.y_N_val, f_k, lambda_k,
+                self.settings
+            )
             self.g_lowerapprox.add(x_bin_new, f_k, lambda_k, grad_corr)
             logger.debug("Correcting new gradient at current best point")
         else:
@@ -300,8 +306,8 @@ class BendersTRandMaster(BendersMasterMILP):
         return Constraints(
             g_lin.numel(),
             (g_lin + jac_g @ dx),
-            nlpdata.lbg - EPS,
-            nlpdata.ubg + EPS,
+            nlpdata.lbg - self.settings.EPS,
+            nlpdata.ubg + self.settings.EPS,
         )
 
     def _solve_trust_region_problem(self, nlpdata: MinlpData, constraint) -> MinlpData:
@@ -325,14 +331,12 @@ class BendersTRandMaster(BendersMasterMILP):
             self.x_sol_best, dx, nlpdata
         ) + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa + self.g_infeasible_oa
 
-        if WITH_DEBUG:
-            check_integer_feasible(self.idx_x_bin, self.x_sol_best,
-                                   eps=1e-3, throws=False)
-            check_solution(self.problem, nlpdata, self.x_sol_best,
-                           eps=1e-3, throws=False)
+        if self.settings.WITH_DEBUG:
+            check_integer_feasible(self.idx_x_bin, self.x_sol_best, self.settings, throws=False)
+            check_solution(self.problem, nlpdata, self.x_sol_best, self.settings, throws=False)
 
         self.solver = ca.qpsol(
-            f"benders_constraint_{self.g_lowerapprox.nr}", MIP_SOLVER, {
+            f"benders_constraint_{self.g_lowerapprox.nr}", self.settings.MIP_SOLVER, {
                 "f": f, "g": g_total.eq,
                 "x": self._x, "p": self._nu
             }, self.options  # + {"error_on_fail": False}
@@ -367,7 +371,7 @@ class BendersTRandMaster(BendersMasterMILP):
         g, ubg, lbg = g_total.eq, g_total.ub, g_total.lb
 
         self.solver = ca.qpsol(
-            f"benders_with_{self.g_lowerapprox.nr}_cut", MIP_SOLVER, {
+            f"benders_with_{self.g_lowerapprox.nr}_cut", self.settings.MIP_SOLVER, {
                 "f": self._nu, "g": g,
                 "x": ca.vertcat(self._x, self._nu),
             }, self.options_master
@@ -443,7 +447,8 @@ class BendersTRandMaster(BendersMasterMILP):
             solution, success, stats = self._solve_benders_problem(nlpdata)
             self.internal_lb = float(solution['f'])
 
-        nlpdata = get_solutions_pool(nlpdata, success, stats, solution, self.idx_x_bin)
+        nlpdata = get_solutions_pool(nlpdata, success, stats, self.settings,
+                                     solution, self.idx_x_bin)
         return nlpdata, True
 
     def _solve_tr_only(self, nlpdata: MinlpData):
@@ -459,7 +464,8 @@ class BendersTRandMaster(BendersMasterMILP):
             nlpdata.prev_solutions = [self.sol_best]
             nlpdata.solved_all = [True]
         else:
-            nlpdata = get_solutions_pool(nlpdata, success, stats, solution, self.idx_x_bin)
+            nlpdata = get_solutions_pool(nlpdata, success, stats, self.settings,
+                                         solution, self.idx_x_bin)
         return nlpdata, False
 
     def compute_lb(self, x_sol):
@@ -479,7 +485,7 @@ class BendersTRandMaster(BendersMasterMILP):
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
                     self._lowerapprox_oa(sol['x'], nlpdata)
                     needs_trust_region_update = True
-                    if float(sol['f']) + EPS < self.y_N_val:
+                    if float(sol['f']) + self.settings.EPS < self.y_N_val:
                         self.x_sol_best = sol['x'][:self.nr_x_orig]
                         self.sol_best = sol
                         self.y_N_val = float(sol['f'])  # update best objective
