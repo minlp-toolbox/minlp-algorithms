@@ -212,8 +212,10 @@ class Description:
 
     def get_gauss_newton_hessian(self) -> CASADI_VAR:
         x = vertcat(*self.w)
-        r = vertcat(*self.r)
-        dr = jacobian(r, x)
+        if isinstance(self.r, list):
+            self.r = vertcat(*self.r)
+
+        dr = jacobian(self.r, x)
         return dr.T @ dr
 
     def create_f(self):
@@ -224,10 +226,13 @@ class Description:
         """Create function f."""
         return Function("g", [vcat(self.w), vcat(self.p)], [vcat(self.g)])
 
+    def _r_exist(self):
+        return not (isinstance(self.r, list) and len(self.r) == 0)
+
     def get_problem(self, with_gn=True) -> MinlpProblem:
         """Extract problem."""
         idx_x_bin = [i for i, v in enumerate(self.discrete) if v == 1]
-        if self.r and with_gn:
+        if self._r_exist() and with_gn:
             gn_hessian = self.get_gauss_newton_hessian()
         else:
             gn_hessian = None

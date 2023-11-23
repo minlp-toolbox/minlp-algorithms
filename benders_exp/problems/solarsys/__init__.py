@@ -21,13 +21,13 @@ from benders_exp.utils import convert_to_flat_list, to_0d
 logger = logging.getLogger(__name__)
 
 
-def create_stcs_problem(with_slack=True):
+def create_stcs_problem(n_steps=4 * 24, with_slack=True):
     """Build problem."""
     logger.debug("Start processing")
     system = System()
     ambient = Ambient()
     dsc = Description()
-    n_steps = 40
+    n_steps = int(n_steps)
     dt = timedelta(seconds=900)
 
     # Run simulator and predictor and use those output to warm start
@@ -178,12 +178,12 @@ def create_stcs_problem(with_slack=True):
         x_k_0 = x_k_next_0
         u_k_prev = u_k
 
-    # Specify residual for GN Hessian computation
-    dsc.r = F1
-
     # Concatenate objects
     F1 = 0.1 * ca.veccat(*F1)
     F2 = 0.01 * ca.sum1(ca.veccat(*F2))
+
+    # Specify residual for GN Hessian computation
+    dsc.r = F1
 
     # Setup objective
     dsc.f = 0.5 * ca.mtimes(F1.T, F1) + F2
