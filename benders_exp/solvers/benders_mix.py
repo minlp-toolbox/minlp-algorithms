@@ -335,9 +335,9 @@ class BendersTRandMaster(BendersMasterMILP):
 
         g_total = g_cur_lin + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa + self.g_infeasible_oa
 
-        if self.settings.WITH_DEBUG:
+        if self.settings.WITH_DEBUG and self.sol_best is not None:
             check_integer_feasible(self.idx_x_bin, self.x_sol_best, self.settings, throws=False)
-            check_solution(self.problem, nlpdata, self.x_sol_best, self.settings, throws=False)
+            check_solution(self.problem, self.sol_best, self.x_sol_best, self.settings, throws=False)
 
         self.solver = ca.qpsol(
             f"benders_constraint_{self.g_lowerapprox.nr}", self.settings.MIP_SOLVER, {
