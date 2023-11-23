@@ -157,6 +157,7 @@ class BendersTRandMaster(BendersMasterMILP):
         self.options.update({"discrete": [
             1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]})
         self.options_master = self.options.copy()
+        self.options_master['gurobi.MIPGap'] = s.MINLP_TOLERANCE
         self.options_master["discrete"] = self.options["discrete"] + [0]
         self.options_master['error_on_fail'] = False
         self.options['error_on_fail'] = False

@@ -29,7 +29,7 @@ if not path.exists(CACHE_FOLDER):
 
 @dataclass(init=True)
 class Settings:
-    TIME_LIMIT: float = 60.0
+    TIME_LIMIT: float = ca.inf  # 60.0
     WITH_JIT: bool = False
     WITH_PLOT: bool = False
     EPS: float = 1e-5
@@ -41,7 +41,7 @@ class Settings:
 
     WITH_DEBUG: bool = to_bool(environ.get("DEBUG", False))
     WITH_LOG_DATA: bool = to_bool(environ.get("LOG_DATA", False))
-    MINLP_TOLERANCE: float = 0.1
+    MINLP_TOLERANCE: float = 0.01
     # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
 
     AMPL_EXPORT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})
