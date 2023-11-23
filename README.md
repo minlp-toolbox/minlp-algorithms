@@ -62,7 +62,9 @@ There is a wide list of solvers included:
 | benders_tr | Sequential-MIQP with Benders Region including gradient correction | x |
 | benders_tr_fp | **benders_tr**, warm-started with a feasibility pump | x |
 | benders_trm | Alternating Sequential-MIQP with Benders Region together with a LB-MILP including gradient correction. | x |
+| benders_trmi | Alternating Sequential-MIQP with Benders Region together with a LB-MILP including gradient correction and improved infeasibility cuts | x |
 | benders_trm_fp | **benders_trm**, warm-started with a feasibility pump | x |
+| benders_trl | Alternative for benders_trm where we use the MIQP with a corrected hessian as a lower bound function | x |
 | benderseq | *Experimental version based on GBD where a solution with a cost equal to the relaxed solution cost is searched* | x |
 | oa | Outer approximation$^{2}$ |  |
 | oai | Improved version of outer approximation | x |
@@ -78,8 +80,10 @@ There is a wide list of solvers included:
 | ofp | Objective Feasibility Pump for MINLP $^{4}$ |  |
 | rofp | Random Objective Feasibility Pump | x |
 | cia | Combinatorial Integral Approximation using pycombina [[Burger A. et al., 2020]](https://link.springer.com/article/10.1007/s00186-011-0355-4) |  |
+| milp_tr | MILP-based trust region approach [[De Marchi, 2023]](https://doi.org/10.48550/arXiv.2310.17285) | |
 |  | **Other 'solver'-like options:** |  |
 |ampl | Export to ampl format (experimental) |  |
+|test | Test a problem by listing all objective values around the relaxed solution for every turbation of 1 variables (making it integer) together with the gradient value | |
 
 
 
