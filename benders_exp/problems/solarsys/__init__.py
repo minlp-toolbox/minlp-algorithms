@@ -205,9 +205,9 @@ def create_stcs_problem(n_steps=40, with_slack=True):
     data.x0[prob.idx_x_bin] = to_0d(simulator.b_data).flatten().tolist()
 
     # Improve calculation speed by getting indices:
-    set_constraint_types(prob, *cache_data(
-        f"scts_{n_steps}_{with_slack}", inspect_problem, prob, data
-    ))
+    # set_constraint_types(prob, *cache_data(
+    #     f"scts_{n_steps}_{with_slack}", inspect_problem, prob, data
+    # ))
 
     return prob, data
 
