@@ -11,7 +11,7 @@ def almost_equal(a, b, EPS=1e-5):
 class Constraints:
     """Store bounds."""
 
-    def __init__(self, nr, eq=None, lb=None, ub=None):
+    def __init__(self, nr=0, eq=None, lb=None, ub=None):
         """Store bounds."""
         if nr == 0:
             eq, lb, ub = [], [], []

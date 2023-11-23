@@ -327,9 +327,12 @@ class BendersTRandMaster(BendersMasterMILP):
 
         f = f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx
         # Order seems to be important!
-        g_total = self._get_g_linearized(
-            self.x_sol_best, dx, nlpdata
-        ) + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa + self.g_infeasible_oa
+        if self.sol_best is None:
+            g_cur_lin = Constraints()
+        else:
+            g_cur_lin = self._get_g_linearized(self.x_sol_best, dx, nlpdata)
+
+        g_total = g_cur_lin + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa + self.g_infeasible_oa
 
         if self.settings.WITH_DEBUG:
             check_integer_feasible(self.idx_x_bin, self.x_sol_best, self.settings, throws=False)
@@ -363,7 +366,10 @@ class BendersTRandMaster(BendersMasterMILP):
 
         # Adding the following linearization might not be the best idea since
         # They can lead to false results!
-        g_cur_lin = self._get_g_linearized(self.x_sol_best, dx, nlpdata)
+        if self.sol_best is None:
+            g_cur_lin = Constraints()
+        else:
+            g_cur_lin = self._get_g_linearized(self.x_sol_best, dx, nlpdata)
         g_total = g_cur_lin + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa + self.g_infeasible_oa
 
         # Add extra constraint (one step OA):
