@@ -101,6 +101,13 @@ class SolverClass(ABC):
         return stats["success"], stats
 
 
+class MiSolverClass(SolverClass):
+
+    @abstractmethod
+    def solve(self, nlpdata: MinlpData, relaxed: bool = False) -> MinlpData:
+        """Solve the problem."""
+
+
 def regularize_options(options, default):
     """Regularize options."""
     ret = {} if options is None else options.copy()

@@ -13,8 +13,8 @@ from benders_exp.json_tools import write_json
 from benders_exp.defines import EPS, IMG_DIR, WITH_JIT, WITH_PLOT, WITH_LOG_DATA, WITH_DEBUG, TIME_LIMIT, MINLP_TOLERANCE
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
-from benders_exp.solvers import Stats
-from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, SolverClass, FindClosestNlpSolver
+from benders_exp.solvers import MiSolverClass, Stats
+from benders_exp.solvers.nlp import NlpSolver, FeasibilityNlpSolver, FindClosestNlpSolver
 from benders_exp.solvers.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
 from benders_exp.solvers.benders_mix import BendersTRandMaster
 from benders_exp.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
@@ -52,7 +52,7 @@ def update_best_solutions(data, itr, ub, x_star, best_iter):
 
 
 def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats,
-                  master_problem: SolverClass, termination_condition: Callable[..., bool],
+                  master_problem: MiSolverClass, termination_condition: Callable[..., bool],
                   first_relaxed=False) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
     logger.info("Setup NLP solver...")
