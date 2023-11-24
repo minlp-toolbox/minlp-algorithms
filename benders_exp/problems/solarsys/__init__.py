@@ -22,7 +22,7 @@ from benders_exp.utils import convert_to_flat_list, to_0d
 logger = logging.getLogger(__name__)
 
 
-def create_stcs_problem(n_steps=4 * 24, with_slack=True):
+def create_stcs_problem(n_steps=40, with_slack=True):
     """Build problem."""
     logger.debug("Start processing")
     system = System()
