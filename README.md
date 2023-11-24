@@ -83,7 +83,7 @@ There is a wide list of solvers included:
 | milp_tr | MILP-based trust region approach [[De Marchi, 2023]](https://doi.org/10.48550/arXiv.2310.17285) | |
 |  | **Other 'solver'-like options:** |  |
 |ampl | Export to ampl format (experimental) |  |
-|test | Test a problem by listing all objective values around the relaxed solution for every turbation of 1 variables (making it integer) together with the gradient value | |
+|test | Test a problem by listing all objective values around the relaxed solution for every perturbation of 1 variables (making it integer) together with the gradient value | |
 
 
 
