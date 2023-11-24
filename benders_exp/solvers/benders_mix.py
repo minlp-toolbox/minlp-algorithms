@@ -239,7 +239,7 @@ class BendersTRandMaster(BendersMasterMILP):
             colored(f"Infeasibility cut of {g_bar_k}")
         else:
             colored(f"Infeasibility cut of {g_bar_k}", "blue")
-        g_bar_k = max(g_bar_k, EPS)
+        g_bar_k = max(g_bar_k, self.settings.EPS)
         # g_bar_k is positive by definition
         grad_g_bar_k = self.clip_gradient(g_bar_k + 10, 0, (lam_g_sol.T @ jac_g_k).T)  # + 10 is an extra tolerance.
 
