@@ -184,7 +184,7 @@ def to_float(val):
     return val
 
 
-def check_solution(problem: MinlpProblem, data: MinlpData, x_star, s: Settings, throws=True):
+def check_solution(problem: MinlpProblem, data: MinlpData, x_star, s: Settings, throws=True, check_objval=True):
     """Check a solution."""
     f = ca.Function("f", [problem.x, problem.p], [problem.f])
     g = ca.Function("g", [problem.x, problem.p], [problem.g])
@@ -193,7 +193,7 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, s: Settings, 
     lbg, ubg = data.lbg.squeeze(), data.ubg.squeeze()
     print(f"Objective value {f_val} (real) vs {data.obj_val}")
     msg = []
-    if abs(to_float(data.obj_val) - f_val) > s.OBJECTIVE_TOL:
+    if check_objval and abs(to_float(data.obj_val) - f_val) > s.OBJECTIVE_TOL:
         msg.append("Objective value wrong!")
     if np.any(data.lbx > x_star + s.CONSTRAINT_TOL):
         msg.append(f"Lbx > x* for indices:\n{np.nonzero(data.lbx > x_star).T}")
