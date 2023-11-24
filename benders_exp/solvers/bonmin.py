@@ -3,19 +3,19 @@
 import casadi as ca
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
         regularize_options
-from benders_exp.defines import BONMIN_SETTINGS
+from benders_exp.defines import Settings
 
 
 class BonminSolver(SolverClass):
     """Create MINLP solver (using bonmin)."""
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None, algo_type="B-BB"):
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings, algo_type="B-BB"):
         """Create MINLP problem.
 
         :param algo_type: Algorithm type, options: B-BB, B-OA, B-QG, or B-Hyb
         """
-        super(BonminSolver, self).__init___(problem, stats)
-        options = regularize_options(options, BONMIN_SETTINGS)
+        super(BonminSolver, self).__init___(problem, stats, s)
+        options = regularize_options(s.BONMIN_SETTINGS, {}, s)
 
         self.nr_x = problem.x.shape[0]
         discrete = [0] * self.nr_x

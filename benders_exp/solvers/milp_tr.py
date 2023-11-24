@@ -16,7 +16,7 @@ import casadi as ca
 import numpy as np
 from typing import Tuple
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, regularize_options
-from benders_exp.defines import WITH_JIT, CASADI_VAR, MIP_SETTINGS, MIP_SOLVER
+from benders_exp.defines import CASADI_VAR, Settings
 from benders_exp.solvers import get_idx_inverse
 from benders_exp.solvers.nlp import NlpSolver
 from benders_exp.utils import colored
@@ -26,12 +26,12 @@ logger = logging.getLogger(__name__)
 
 
 def milp_tr(
-    problem: MinlpProblem, data: MinlpData, stats: Stats,
+    problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
     with_nlp_improvement=False
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     logger.info("START")
-    tr = MILPTrustRegion(problem, data, stats)
-    nlp = NlpSolver(problem, stats)
+    tr = MILPTrustRegion(problem, data, stats, s)
+    nlp = NlpSolver(problem, stats, s)
 
     delta = 1.0  # Initial radius
     delta_max = 64  # Max delta
@@ -92,36 +92,37 @@ def milp_tr(
 class MILPTrustRegion(SolverClass):
     """Create benders master problem."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats,
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
                  options=None, with_lin_bounds=True):
         """Create benders master MILP."""
-        super(MILPTrustRegion, self).__init___(problem, stats)
+        super(MILPTrustRegion, self).__init___(problem, stats, s)
 
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.g = ca.Function(
             "g", [problem.x, problem.p], [problem.g],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
 
         self.jac_g = ca.Function(
             "jac_g", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.jac_f = ca.Function(
             "jac_f", [problem.x, problem.p],
             [ca.jacobian(problem.f, problem.x)],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
 
         self.nr_x = problem.x.numel()
         self.idx_x_c = get_idx_inverse(problem.idx_x_bin, self.nr_x)
         self.nr_x_c = len(self.idx_x_c)
         self.x = CASADI_VAR.sym("x", self.nr_x)
-        self.options = regularize_options(options, MIP_SETTINGS)
+        self.options = regularize_options(options, s.MIP_SETTINGS, s)
+        self.settings = s
         discrete = [0] * (self.nr_x)
         for i in problem.idx_x_bin:
             discrete[i] = 1
@@ -141,7 +142,7 @@ class MILPTrustRegion(SolverClass):
         g_extra_lb = -delta * np.ones((self.nr_x_c,))
         g_extra_ub = delta * np.ones((self.nr_x_c,))
 
-        self.solver = ca.qpsol("milp_tr", MIP_SOLVER, {
+        self.solver = ca.qpsol("milp_tr", self.settings.MIP_SOLVER, {
             "f": f_lin, "g": ca.vertcat(g_lin, g_extra), "x": self.x,
         }, self.options)
         solution = self.solver(

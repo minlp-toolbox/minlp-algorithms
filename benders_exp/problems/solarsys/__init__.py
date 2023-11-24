@@ -205,9 +205,9 @@ def create_stcs_problem(n_steps=40, with_slack=True):
     data.x0[prob.idx_x_bin] = to_0d(simulator.b_data).flatten().tolist()
 
     # Improve calculation speed by getting indices:
-    set_constraint_types(prob, *cache_data(
-        f"scts_{n_steps}_{with_slack}", inspect_problem, prob, data
-    ))
+    # set_constraint_types(prob, *cache_data(
+    #     f"scts_{n_steps}_{with_slack}", inspect_problem, prob, data
+    # ))
 
     return prob, data
 
@@ -217,6 +217,7 @@ if __name__ == "__main__":
     from benders_exp.problems import check_solution
     from benders_exp.solvers import Stats
     from benders_exp.solvers.nlp import NlpSolver
+    from benders_exp.defines import Settings
     import pickle
 
     setup_logger(logging.DEBUG)
@@ -238,4 +239,5 @@ if __name__ == "__main__":
     with open("results/x_star_rel_test.pickle", "wb") as f:
         pickle.dump(data.x_sol, f)
     breakpoint()
-    check_solution(prob, data, data.prev_solution['x'])
+    s = Settings()
+    check_solution(prob, data, data.prev_solution['x'], s)

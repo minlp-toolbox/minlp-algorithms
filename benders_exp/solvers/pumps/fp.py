@@ -4,7 +4,7 @@ import numpy as np
 import casadi as ca
 from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     regularize_options
-from benders_exp.defines import WITH_JIT, IPOPT_SETTINGS, CASADI_VAR
+from benders_exp.defines import CASADI_VAR, Settings
 from benders_exp.utils import to_0d, logging
 
 logger = logging.getLogger(__name__)
@@ -21,10 +21,10 @@ class LinearProjection(SolverClass):
     L1-norm. The rounding procedure follows a rule.
     """
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create NLP problem."""
-        super(LinearProjection, self).__init___(problem, stats)
-        options = regularize_options(options, IPOPT_SETTINGS)
+        super(LinearProjection, self).__init___(problem, stats, s)
+        options = regularize_options(s.IPOPT_SETTINGS, {"jit": s.WITH_JIT, "ipopt.max_iter": 5000}, s)
 
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
@@ -40,7 +40,6 @@ class LinearProjection(SolverClass):
             slack_variables - (x_bin_var - rounded_value),
             slack_variables + (x_bin_var - rounded_value),
         )
-        options.update({"jit": WITH_JIT, "ipopt.max_iter": 5000})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": penalty_term,
             "g": g,
@@ -90,10 +89,10 @@ class ObjectiveLinearProjection(SolverClass):
     the L1-norm term in the objective is increased during iterations.
     """
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create NLP problem."""
-        super(ObjectiveLinearProjection, self).__init___(problem, stats)
-        options = regularize_options(options, IPOPT_SETTINGS)
+        super(ObjectiveLinearProjection, self).__init___(problem, stats, s)
+        options = regularize_options(s.IPOPT_SETTINGS, {}, s)
 
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
@@ -114,7 +113,7 @@ class ObjectiveLinearProjection(SolverClass):
             slack_variables - (x_bin_var - rounded_value),
             slack_variables + (x_bin_var - rounded_value),
         )
-        options.update({"jit": WITH_JIT, "ipopt.max_iter": 5000})
+        options.update({"jit": s.WITH_JIT, "ipopt.max_iter": 5000})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": alpha / obj_val * problem.f + (1 - alpha) / int_error * penalty_term,
             "g": g,

@@ -1,12 +1,12 @@
 import numpy as np
 import casadi as ca
 from benders_exp.solvers.utils import get_solutions_pool
-from benders_exp.solvers.benders_mix import BendersTRandMaster, LowerApproximation, \
-        compute_gradient_correction
+from benders_exp.solvers.benders_mix import BendersTRandMaster, LowerApproximation
 from benders_exp.solvers import Stats, MinlpProblem, MinlpData, regularize_options
-from benders_exp.defines import EPS, WITH_DEBUG, MIP_SOLVER, CASADI_VAR, IPOPT_SETTINGS
+from benders_exp.defines import CASADI_VAR
 from benders_exp.utils import colored
 from benders_exp.problems import check_integer_feasible, check_solution
+from benders_exp.defines import Settings
 from benders_exp.utils.debugtools import CheckNoDuplicate
 import logging
 
@@ -21,17 +21,17 @@ class BendersTRLB(BendersTRandMaster):
     This hessian is corrected s.t. the largest SVD < min(largest SVD up to now) / 2
     """
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None, with_benders_master=True):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, with_benders_master=True):
         """Create the benders constraint MILP."""
-        super(BendersTRLB, self).__init__(problem, data, stats, options)
+        super(BendersTRLB, self).__init__(problem, data, stats, s)
         self.values = []
         self.hess_correction = 2.0
         self.prev_val_miqp = -ca.inf
         self.hess_trust_points_setting = 3
 
         self.g_lowerapprox_oa = LowerApproximation(self._x, self._nu)
-        self.ipopt_settings = regularize_options(options, IPOPT_SETTINGS)
-        self.check = CheckNoDuplicate(problem)
+        self.ipopt_settings = regularize_options(s.IPOPT_SETTINGS, {}, s)
+        self.check = CheckNoDuplicate(problem, s)
 
     def trust_hessian(self):
         """Trust hessian."""
@@ -87,7 +87,7 @@ class BendersTRLB(BendersTRandMaster):
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
                     self._lowerapprox_oa(sol['x'], nlpdata)
                     needs_trust_region_update = True
-                    if float(sol['f']) + EPS < self.y_N_val:
+                    if float(sol['f']) + self.settings.EPS < self.y_N_val:
                         self.x_sol_best = sol['x'][:self.nr_x_orig]
                         self.sol_best = sol
                         self.y_N_val = float(sol['f'])  # update best objective
@@ -135,14 +135,12 @@ class BendersTRLB(BendersTRandMaster):
             self.x_sol_best, dx, nlpdata
         ) + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa
 
-        if WITH_DEBUG:
-            check_integer_feasible(self.idx_x_bin, self.x_sol_best,
-                                   eps=1e-3, throws=False)
-            check_solution(self.problem, nlpdata, self.x_sol_best,
-                           eps=1e-3, throws=False)
+        if self.settings.WITH_DEBUG and self.sol_best is not None:
+            check_integer_feasible(self.idx_x_bin, self.x_sol_best, self.settings, throws=False)
+            check_solution(self.problem, self.sol_best, self.x_sol_best, self.settings, throws=False)
 
         self.solver = ca.qpsol(
-            f"benders_constraint_{self.g_lowerapprox.nr}", MIP_SOLVER, {
+            f"benders_constraint_{self.g_lowerapprox.nr}", self.settings.MIP_SOLVER, {
                 "f": f, "g": g_total.eq,
                 "x": self._x, "p": self._nu
             }, self.options  # + {"error_on_fail": False}
@@ -180,7 +178,8 @@ class BendersTRLB(BendersTRandMaster):
                 self.internal_lb = self.y_N_val
 
         if success:
-            nlpdata = get_solutions_pool(nlpdata, success, stats, solution, self.idx_x_bin)
+            nlpdata = get_solutions_pool(nlpdata, success, stats, self.settings,
+                                         solution, self.idx_x_bin)
         else:
             nlpdata.prev_solutions = [{"x": self.x_sol_best, "f": self.y_N_val}]
 

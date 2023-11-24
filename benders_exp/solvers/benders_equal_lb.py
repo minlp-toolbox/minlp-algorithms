@@ -21,16 +21,16 @@ import numpy as np
 import casadi as ca
 from benders_exp.solvers.utils import Constraints
 from benders_exp.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, regularize_options
-from benders_exp.defines import IPOPT_SETTINGS, CASADI_VAR, WITH_JIT, MIP_SOLVER, MIP_SETTINGS
+from benders_exp.defines import CASADI_VAR, Settings
 from benders_exp.solvers.tighten import tighten_bounds_x
 
 
 class BendersEquality(MiSolverClass):
     """Benders equality solver."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
         """Create benders equality problem."""
-        super(BendersEquality, self).__init___(problem, stats)
+        super(BendersEquality, self).__init___(problem, stats, s)
 
         self.nlp_lb = None
         self.nlp_lb_x = None
@@ -39,8 +39,8 @@ class BendersEquality(MiSolverClass):
         self.cuts_benders = []
         self.nr_cuts_benders = 0
 
-        self.nlp_options = regularize_options(options, IPOPT_SETTINGS)
-        self.mip_options = regularize_options(options, MIP_SETTINGS)
+        self.nlp_options = regularize_options(s.IPOPT_SETTINGS, {}, s)
+        self.mip_options = regularize_options(s.MIP_SETTINGS, {}, s)
         self.ub = ca.inf
         self.nu_min = -ca.inf
         self._setup_func(problem, data)
@@ -71,17 +71,17 @@ class BendersEquality(MiSolverClass):
 
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
-            {"jit": WITH_JIT}
+            {"jit": self.settings.WITH_JIT}
         )
         self.g = ca.Function(
             "g", [problem.x, problem.p], [problem.g],
-            {"jit": WITH_JIT}
+            {"jit": self.settings.WITH_JIT}
         )
         self.nr_g = problem.g.shape[0]
         self.jac_g_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
-            {"jit": WITH_JIT}
+            {"jit": self.settings.WITH_JIT}
         )
         self.g_nlp = Constraints(self.nr_g, self.g(
             self._x, data.p), data.lbg, data.ubg)
@@ -193,7 +193,7 @@ class BendersEquality(MiSolverClass):
             "discrete": [1] * self.nr_x_bin + [0],
             "gurobi.NonConvex": 2
         })
-        solver = ca.qpsol("benders_eq", MIP_SOLVER, {
+        solver = ca.qpsol("benders_eq", self.settings.MIP_SOLVER, {
             "f": f, "g": g.eq, "x": ca.vertcat(
                 self._x_bin, nu  # , slack, weight
             )

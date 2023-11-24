@@ -12,7 +12,7 @@ import numpy as np
 from benders_exp.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, get_idx_linear_bounds_binary_x, regularize_options, \
     get_idx_inverse, extract_bounds
-from benders_exp.defines import MIP_SETTINGS, WITH_JIT, CASADI_VAR, WITH_PLOT, MIP_SOLVER
+from benders_exp.defines import Settings, CASADI_VAR
 from benders_exp.utils import to_0d
 import logging
 
@@ -23,17 +23,17 @@ class BendersMasterMILP(MiSolverClass):
     """Create benders master problem."""
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats,
-                 options=None, with_lin_bounds=True):
+                 s: Settings, with_lin_bounds=True):
         """Create benders master MILP."""
-        super(BendersMasterMILP, self).__init___(problem, stats)
-        self.setup_common(problem, options)
-        if WITH_PLOT:
+        super(BendersMasterMILP, self).__init___(problem, stats, s)
+        self.setup_common(problem, s)
+        if s.WITH_PLOT:
             self.setup_plot()
 
         self.jac_g_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
 
@@ -48,17 +48,18 @@ class BendersMasterMILP(MiSolverClass):
         self.cut_id = 0
         self.visualized_cuts = []
 
-    def setup_common(self, problem: MinlpProblem, options=None):
+    def setup_common(self, problem: MinlpProblem, s):
         """Set up common data."""
-        self.options = regularize_options(options, MIP_SETTINGS)
+        self.settings = s
+        self.options = regularize_options(s.MIP_SETTINGS, {}, s)
 
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.g = ca.Function(
             "g", [problem.x, problem.p], [problem.g],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
 
         self.idx_x_bin = problem.idx_x_bin
@@ -128,12 +129,12 @@ class BendersMasterMILP(MiSolverClass):
         self._lbg.append(-ca.inf)
         self.nr_g += 1
 
-        if WITH_PLOT:
+        if self.settings.WITH_PLOT:
             self.visualize_trust_region(self._x[self.idx_x_bin], self._nu,
                                         x_sol_current=x_bin_star,
                                         x_sol_best=x_bin_star)
 
-        self.solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", MIP_SOLVER, {
+        self.solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", self.settings.MIP_SOLVER, {
             "f": self._nu, "g": self._g,
             "x": ca.vertcat(self._x, self._nu),
         }, self.options)
@@ -245,15 +246,15 @@ class BendersMasterMILP(MiSolverClass):
 class BendersMasterMIQP(BendersMasterMILP):
     """MIQP implementation."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
         """Create the benders constraint MILP."""
-        super(BendersMasterMIQP, self).__init__(problem, data, stats, options)
+        super(BendersMasterMIQP, self).__init__(problem, data, stats, s)
         self.f_hess_bin = ca.Function(
             "hess_f_x_bin",
             [problem.x, problem.p], [ca.hessian(
                 problem.f, problem.x
             )[0][problem.idx_x_bin, :][:, problem.idx_x_bin]],
-            {"jit": WITH_JIT}
+            {"jit": self.settings.WITH_JIT}
         )
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
@@ -272,13 +273,13 @@ class BendersMasterMIQP(BendersMasterMILP):
         self._lbg.append(-ca.inf)
         self.nr_g += 1
 
-        if WITH_PLOT:
+        if self.settings.WITH_PLOT:
             self.visualize_trust_region(self._x[self.idx_x_bin], self._nu,
                                         x_sol_best=x_bin_star,
                                         x_sol_current=x_bin_star)
 
         dx = self._x - x_bin_star
-        self.solver = ca.qpsol(f"benders_qp{self.nr_g}", MIP_SOLVER, {
+        self.solver = ca.qpsol(f"benders_qp{self.nr_g}", self.settings.MIP_SOLVER, {
             "f": self._nu + 0.5 * dx.T @ f_hess @ dx,
             "g": self._g,
             "x": ca.vertcat(self._x, self._nu),
@@ -327,11 +328,10 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         meaning: nu == J(y_N)
     """
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
         """Create the benders constraint MILP."""
-        super(BendersTrustRegionMIP, self).__init__(
-            problem, data, stats, options)
-        self.setup_common(problem, options)
+        super(BendersTrustRegionMIP, self).__init__(problem, data, stats, s)
+        self.setup_common(problem, s)
 
         self.idx_g_lin = get_idx_linear_bounds(problem)
         self.idx_g_nonlin = get_idx_inverse(self.idx_g_lin, problem.g.shape[0])
@@ -341,12 +341,12 @@ class BendersTrustRegionMIP(BendersMasterMILP):
             [problem.x, problem.p], [ca.gradient(
                 problem.f, problem.x
             )],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.jac_g_sub = ca.Function(
             "jac_g", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
                                   ca.hessian(problem.f, problem.x)[0]])
@@ -392,7 +392,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         self._ubg = ca.vertcat(self._ubg, 0)  # -1e-4)
         self.nr_g += 1
 
-        if WITH_PLOT:
+        if self.settings.WITH_PLOT:
             self.visualize_trust_region(self._x[self.idx_x_bin], self._nu, nu_val=self.y_N_val,
                                         x_sol_best=self.x_sol_best[self.idx_x_bin],
                                         x_sol_current=x_sol_prev[self.idx_x_bin])
@@ -426,7 +426,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
         f = f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess @ dx
 
-        self.solver = ca.qpsol(f"benders_constraint_{self.nr_g}", MIP_SOLVER, {
+        self.solver = ca.qpsol(f"benders_constraint_{self.nr_g}", self.settings.MIP_SOLVER, {
             "f": f, "g": g, "x": self._x, "p": self._nu
         }, self.options)
 

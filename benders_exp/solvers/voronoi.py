@@ -5,8 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from benders_exp.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
-from benders_exp.defines import MIP_SETTINGS, MIP_SOLVER, WITH_JIT, \
-        CASADI_VAR, WITH_PLOT
+from benders_exp.defines import CASADI_VAR, Settings
 from benders_exp.utils import to_0d
 
 
@@ -26,54 +25,54 @@ class VoronoiTrustRegionMILP(MiSolverClass):
             Voronoi trust region
     """
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
         """Improved outer approximation."""
-        super(VoronoiTrustRegionMILP, self).__init___(problem, stats)
-        if WITH_PLOT:
+        super(VoronoiTrustRegionMILP, self).__init___(problem, stats, s)
+        if s.WITH_PLOT:
             self.setup_plot()
-        self.options = regularize_options(options, MIP_SETTINGS)
+        self.options = regularize_options(s.MIP_SETTINGS, {}, s)
 
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.grad_f = ca.Function(
             "gradient_f_x",
             [problem.x, problem.p], [ca.gradient(
                 problem.f, problem.x
-            )], {"jit": WITH_JIT}
+            )], {"jit": s.WITH_JIT}
         )
         if problem.gn_hessian is not None:
             self.f_hess = ca.Function("gn_hess_f_x", [problem.x, problem.p], [
-                                ca.hessian(problem.f, problem.x)[0]])
+                ca.hessian(problem.f, problem.x)[0]])
         else:
             self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
-                                  ca.hessian(problem.f, problem.x)[0]])
+                ca.hessian(problem.f, problem.x)[0]])
 
         self.g = ca.Function(
             "g", [problem.x, problem.p], [problem.g],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.jac_g_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.idx_g_lin = get_idx_linear_bounds(problem)
         self.idx_g_nonlin = get_idx_inverse(self.idx_g_lin, problem.g.shape[0])
         self.g_lin = ca.Function(
             "g", [problem.x, problem.p], [problem.g[self.idx_g_lin]],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.g_nonlin = ca.Function(
             "g", [problem.x, problem.p], [problem.g[self.idx_g_nonlin]],
-            {"jit": WITH_JIT}
+            {"jit": s.WITH_JIT}
         )
         self.jac_g_nonlin = ca.Function(
             "gradient_g_x",
             [problem.x, problem.p], [ca.jacobian(
                 problem.g[self.idx_g_nonlin], problem.x
-            )], {"jit": WITH_JIT}
+            )], {"jit": s.WITH_JIT}
         )
 
         self._x = CASADI_VAR.sym("x_voronoi", problem.x.numel())
@@ -117,7 +116,8 @@ class VoronoiTrustRegionMILP(MiSolverClass):
                 self.idx_best_x_sol = len(self.x_sol_list) - 1
                 print(f"NEW BOUND {self.ub}")
         else:
-            g_k, lbg_k, ubg_k = self._generate_infeasible_cut(self._x, x_sol, nlpdata.lam_g_sol, nlpdata.p)
+            g_k, lbg_k, ubg_k = self._generate_infeasible_cut(
+                self._x, x_sol, nlpdata.lam_g_sol, nlpdata.p)
             self._g = ca.vertcat(self._g, g_k)
             self._lbg = ca.vertcat(self._lbg, lbg_k)
             self._ubg = ca.vertcat(self._ubg, ubg_k)
@@ -125,9 +125,10 @@ class VoronoiTrustRegionMILP(MiSolverClass):
         x_sol_best = self.x_sol_list[self.idx_best_x_sol]
 
         # Create a new voronoi cut
-        g_voronoi, lbg_voronoi, ubg_voronoi = self._generate_voronoi_tr(self._x[self.idx_x_bin], nlpdata.p)
+        g_voronoi, lbg_voronoi, ubg_voronoi = self._generate_voronoi_tr(
+            self._x[self.idx_x_bin], nlpdata.p)
 
-        if WITH_PLOT:
+        if self.settings.WITH_PLOT:
             self.visualize_trust_region(g_voronoi, self._x[self.idx_x_bin])
 
         dx = self._x - x_sol_best
@@ -165,9 +166,9 @@ class VoronoiTrustRegionMILP(MiSolverClass):
         self.nr_g = ubg.numel()
 
         self.solver = ca.qpsol(
-            f"voronoi_tr_milp_with_{self.nr_g}_constraints", MIP_SOLVER, {
-            "f": f, "g": g, "x": self._x,
-        }, self.options)
+            f"voronoi_tr_milp_with_{self.nr_g}_constraints", self.settings.MIP_SOLVER, {
+                "f": f, "g": g, "x": self._x,
+            }, self.options)
 
         nlpdata.prev_solution = self.solver(
             x0=x_sol_best,
@@ -182,7 +183,8 @@ class VoronoiTrustRegionMILP(MiSolverClass):
         """Generate infeasibility cut."""
         h_k = self.g(x_sol, p)
         jac_h_k = self.jac_g_bin(x_sol, p)
-        g_k = lam_g.T @ (h_k + jac_h_k @ (x[self.idx_x_bin] - x_sol[self.idx_x_bin]))
+        g_k = lam_g.T @ (h_k + jac_h_k @
+                         (x[self.idx_x_bin] - x_sol[self.idx_x_bin]))
         return g_k, -ca.inf, 0.0
 
     def _generate_voronoi_tr(self, x_bin, p):
@@ -201,7 +203,8 @@ class VoronoiTrustRegionMILP(MiSolverClass):
             x_sol_bin = x_sol[self.idx_x_bin]
             if is_feas and not np.allclose(x_sol_bin, x_sol_bin_best):
                 a = ca.DM(2 * (x_sol_bin - x_sol_bin_best))
-                b = ca.DM(x_sol_bin.T @ x_sol_bin - x_sol_bin_best_norm2_squared)
+                b = ca.DM(x_sol_bin.T @ x_sol_bin -
+                          x_sol_bin_best_norm2_squared)
                 g_k.append(a.T @ x_bin - b)
                 lbg_k.append(-np.inf)
                 ubg_k.append(0)
@@ -234,7 +237,8 @@ class VoronoiTrustRegionMILP(MiSolverClass):
                 feasible_c = np.ones(xx.shape, dtype=bool)
                 for i in range(points.shape[0]):
                     for j in range(points.shape[0]):
-                        feasible_c[i, j] = cut(ca.vertcat(xx[i, j], yy[i, j])).full()[0, 0] < 0
+                        feasible_c[i, j] = cut(ca.vertcat(
+                            xx[i, j], yy[i, j])).full()[0, 0] < 0
                 feasible = feasible & feasible_c
             self.ax.imshow(~feasible, cmap=plt.cm.binary, alpha=0.5,
                            origin="lower",
