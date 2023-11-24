@@ -141,7 +141,8 @@ def inspect_problem(problem: MinlpProblem, data: MinlpData):
         elif not np.isinf(data.ubg[i]) and not np.isinf(data.lbg[i]):
             g_other.append(i)
         else:
-            # Assume for now...
+            # NOTE: strong assumption! Works only for problems coming from the MINLPlib
+            # A possible implementation is:
             # ccs = hess.sparsity().get_ccs()
             # hess[0, ccs[0]].is_numeric()
             g_conv.append(i)
