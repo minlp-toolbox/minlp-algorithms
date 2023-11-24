@@ -2,13 +2,13 @@
 
 import casadi as ca
 import numpy as np
-from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
+from benders_exp.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
 from benders_exp.defines import MIP_SETTINGS, WITH_JIT, CASADI_VAR, \
         MIP_SOLVER
 
 
-class OuterApproxMILP(SolverClass):
+class OuterApproxMILP(MiSolverClass):
     r"""
     Outer approximation.
 
@@ -16,7 +16,7 @@ class OuterApproxMILP(SolverClass):
         min f(x)
         s.t. lb < g(x)
 
-    It constructs the followign problem:
+    It constructs the following problem:
         min \alpha
         s.t.
             \alpha \geq f(x) + \nabla (x) (x-x^i)
@@ -103,7 +103,7 @@ class OuterApproxMILP(SolverClass):
         return nlpdata
 
 
-class OuterApproxMILPImproved(SolverClass):
+class OuterApproxMILPImproved(MiSolverClass):
     """Improvements over regular OA."""
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):

@@ -9,7 +9,7 @@ from copy import deepcopy
 import matplotlib.pyplot as plt
 import casadi as ca
 import numpy as np
-from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
+from benders_exp.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, get_idx_linear_bounds_binary_x, regularize_options, \
     get_idx_inverse, extract_bounds
 from benders_exp.defines import MIP_SETTINGS, WITH_JIT, CASADI_VAR, WITH_PLOT, MIP_SOLVER
@@ -19,7 +19,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class BendersMasterMILP(SolverClass):
+class BendersMasterMILP(MiSolverClass):
     """Create benders master problem."""
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats,

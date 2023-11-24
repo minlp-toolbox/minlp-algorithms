@@ -3,14 +3,14 @@
 import casadi as ca
 import matplotlib.pyplot as plt
 import numpy as np
-from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
+from benders_exp.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
 from benders_exp.defines import MIP_SETTINGS, MIP_SOLVER, WITH_JIT, \
         CASADI_VAR, WITH_PLOT
 from benders_exp.utils import to_0d
 
 
-class VoronoiTrustRegionMILP(SolverClass):
+class VoronoiTrustRegionMILP(MiSolverClass):
     r"""
     Voronoi trust region problem.
 
@@ -99,8 +99,10 @@ class VoronoiTrustRegionMILP(SolverClass):
 
         self.cut_id = 0
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False, relaxed=False) -> MinlpData:
         """Solve."""
+        if relaxed:
+            raise NotImplementedError()
         # Update with the lowest upperbound and the corresponding best solution:
         if nlpdata.x_sol.shape[0] == 1:
             x_sol = to_0d(nlpdata.x_sol)[np.newaxis]
