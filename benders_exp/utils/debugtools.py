@@ -7,7 +7,7 @@ class CheckNoDuplicate:
     """Check duplicates."""
 
     def __init__(self, problem: MinlpProblem):
-        """Check if no duplicates passes through."""
+        """Check if no duplicates pass through."""
         self.idx_x_bin = problem.idx_x_bin
         self.old = []
 
