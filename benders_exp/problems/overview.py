@@ -280,7 +280,7 @@ def counter_example_nonconvexity():
     y = CASADI_VAR.sym('y')
 
     f = ca.atan(x-0.3)**2 + x/10 + x**2/50 + y**2
-    problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=[], p=[], idx_x_bin=[0])
+    problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=ca.MX([]), p=ca.MX([]), idx_x_bin=[0])
     data = MinlpData(x0=np.array([-4, 2]), _lbx=np.array([-5, -5]), _ubx=np.array([5, 5]),
                      _ubg=[], _lbg=[], p=[])
     return problem, data
@@ -315,6 +315,9 @@ def create_from_nl_file(file):
                      _ubx=np.array(nl.x_ub),
                      _lbg=np.array(nl.g_lb),
                      _ubg=np.array(nl.g_ub), p=[])
+
+    from benders_exp.solvers import inspect_problem, set_constraint_types
+    set_constraint_types(problem, *inspect_problem(problem, data))
     return problem, data
 
 

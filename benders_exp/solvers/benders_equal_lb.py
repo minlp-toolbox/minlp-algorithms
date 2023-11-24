@@ -20,12 +20,12 @@ $$
 import numpy as np
 import casadi as ca
 from benders_exp.solvers.utils import Constraints
-from benders_exp.solvers import SolverClass, Stats, MinlpProblem, MinlpData, regularize_options
+from benders_exp.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, regularize_options
 from benders_exp.defines import IPOPT_SETTINGS, CASADI_VAR, WITH_JIT, MIP_SOLVER, MIP_SETTINGS
 from benders_exp.solvers.tighten import tighten_bounds_x
 
 
-class BendersEquality(SolverClass):
+class BendersEquality(MiSolverClass):
     """Benders equality solver."""
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, options=None):
@@ -228,8 +228,10 @@ class BendersEquality(SolverClass):
         nlpdata.solved, _ = self.collect_stats("MILP-LB", solver)
         return nlpdata
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, relaxed=False) -> MinlpData:
         """solve."""
+        if relaxed:
+            raise NotImplementedError()
         if prev_feasible:
             if self.ub > nlpdata.obj_val:
                 self.ub = nlpdata.obj_val

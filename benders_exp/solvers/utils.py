@@ -14,7 +14,7 @@ class Constraints:
     def __init__(self, nr, eq=None, lb=None, ub=None):
         """Store bounds."""
         if nr == 0:
-            eq, lb, ub = None, None, None
+            eq, lb, ub = [], [], []
 
         self.nr = nr
         self.eq = eq

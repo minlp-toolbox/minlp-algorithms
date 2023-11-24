@@ -18,7 +18,7 @@ _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
 OUT_DIR = path.join(SOURCE_FOLDER, "../results")
 CACHE_FOLDER = path.join(SOURCE_FOLDER, "../data/cache")
-USE_SOLUTION_POOL = False
+USE_SOLUTION_POOL = True
 
 if not path.exists(IMG_DIR):
     makedirs(IMG_DIR)
@@ -38,6 +38,7 @@ CASADI_VAR = ca.MX
 MIP_SOLVER = environ.get("MIP_SOLVER", "gurobi")
 WITH_DEBUG = to_bool(environ.get("DEBUG", False))
 WITH_LOG_DATA = to_bool(environ.get("LOG_DATA", False))
+MINLP_TOLERANCE = 0.1
 # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
 
 IPOPT_SETTINGS = {  # TODO: make ipopt setting change according to the problem called
