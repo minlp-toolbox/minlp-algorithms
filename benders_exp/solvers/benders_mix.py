@@ -179,7 +179,7 @@ class BendersTRandMaster(BendersMasterMILP):
 
     # Amplifications and corrections
     def clip_gradient(self, current_value, lower_bound, gradients):
-        # TODO: Who knows the LB doesn't hold, might reclipping!
+        # TODO: lower bound might be wrong when clipping Benders cut
         max_gradient = float(current_value - lower_bound)
         return np.clip(gradients, - max_gradient, max_gradient)
 
@@ -238,9 +238,9 @@ class BendersTRandMaster(BendersMasterMILP):
             colored(f"Infeasibility cut of {g_bar_k}")
         else:
             colored(f"Infeasibility cut of {g_bar_k}", "blue")
-        g_bar_k = max(g_bar_k, 1)
+        g_bar_k = max(g_bar_k, EPS)
         # g_bar_k is positive by definition
-        grad_g_bar_k = self.clip_gradient(g_bar_k + 10, 0, (lam_g_sol.T @ jac_g_k).T)
+        grad_g_bar_k = self.clip_gradient(g_bar_k + 10, 0, (lam_g_sol.T @ jac_g_k).T)  # + 10 is an extra tolerance.
 
         x_sol_best_bin = self.x_sol_best[self.idx_x_bin]
         x_bin_new = x_sol[self.idx_x_bin]
