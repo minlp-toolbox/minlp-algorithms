@@ -9,7 +9,7 @@ import casadi as ca
 import numpy as np
 from benders_exp.utils import get_control_vector, plot_trajectory, tic, to_0d, toc, \
     make_bounded, setup_logger, logging, colored
-from benders_exp.json_tools import write_json
+from benders_exp.json_tools import write_json, read_json
 from benders_exp.defines import Settings, IMG_DIR
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
@@ -583,16 +583,45 @@ def batch_nl_runner(mode_name, target, nl_files):
     """Run a batch of problems."""
     from os import makedirs
     from time import time
-    overview_target = path.join(target, "overview.json")
-    if path.exists(overview_target):
-        raise Exception(f"Overview is already existing: {overview_target}")
 
-    makedirs(target, exist_ok=True)
-    total_stats = [["id", "path", "obj",
-                    "load_time", "calctime", "solvertime", "iter", "nr_int"]]
+    def do_write(overview_target, start, i, mode_name, total_stats):
+        time_now = time() - start
+        total_time = time_now / (i + 1) * total_to_compute
+        write_json({
+            "time": time_now,
+            "total": total_to_compute,
+            "done": (i+1),
+            "progress": (i+1) / total_to_compute,
+            "time_remaining_est": total_time - time_now,
+            "time_total_est": total_time,
+            "mode": mode_name,
+            "data": total_stats
+        }, overview_target)
+
+    overview_target = path.join(target, "overview.json")
     start = time()
     total_to_compute = len(nl_files)
-    for i, nl_file in enumerate(nl_files):
+    if path.exists(overview_target):
+        data = read_json(overview_target)
+        total_stats = data['data']
+        mode_name = data["mode"]
+        i_start = data['done']
+        start -= data["time"]
+        total_stats.append([
+            i_start,
+            nl_files[i_start],
+            -ca.inf, "FAILED", "CRASH"
+        ])
+        do_write(overview_target, start, i_start, mode_name, total_stats)
+        i_start += 1
+    else:
+        makedirs(target, exist_ok=True)
+        total_stats = [["id", "path", "obj",
+                        "load_time", "calctime", "solvertime", "iter", "nr_int"]]
+        i_start = 0
+
+    for i in range(i_start, len(nl_files)):
+        nl_file = nl_files[i]
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
             tic()
@@ -616,18 +645,7 @@ def batch_nl_runner(mode_name, target, nl_files):
             )
         stats.print()
         stats.save(path.join(target, f"stats_{i}.pkl"))
-        time_now = time() - start
-        total_time = time_now / (i + 1) * total_to_compute
-        write_json({
-            "time": time_now,
-            "total": total_to_compute,
-            "done": (i+1),
-            "progress": (i+1) / total_to_compute,
-            "time_remaining_est": total_time - time_now,
-            "time_total_est": total_time,
-            "mode": mode_name,
-            "data": total_stats
-        }, overview_target)
+        do_write(overview_target, start, i, mode_name, total_stats)
 
 
 if __name__ == "__main__":
