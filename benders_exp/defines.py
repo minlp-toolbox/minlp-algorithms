@@ -29,47 +29,53 @@ if not path.exists(CACHE_FOLDER):
 
 @dataclass(init=True)
 class Settings:
-    TIME_LIMIT: float = 600.0  # ca.inf  # 60.0
+    TIME_LIMIT: float = 300.0  # ca.inf  # 60.0
     WITH_JIT: bool = False
     WITH_PLOT: bool = False
     EPS: float = 1e-5
-    OBJECTIVE_TOL: float = 1e-2
-    CONSTRAINT_INT_TOL: float = 1e-2
-    CONSTRAINT_TOL: float = 1e-3
+    OBJECTIVE_TOL: float = 1e-5
+    CONSTRAINT_INT_TOL: float = 1e-2  # Due to rounding, this will be almost EPS
+    CONSTRAINT_TOL: float = 1e-5
     BENDERS_LB: float = -1e16
     _MIP_SOLVER: str = "gurobi"
 
     WITH_DEBUG: bool = to_bool(environ.get("DEBUG", False))
     WITH_LOG_DATA: bool = to_bool(environ.get("LOG_DATA", False))
-    MINLP_TOLERANCE: float = 0.001
+    MINLP_TOLERANCE: float = 0.01
+    MINLP_TOLERANCE_ABS: float = 0.01
     # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
 
     AMPL_EXPORT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})
     IPOPT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {
-        "ipopt.linear_solver": "ma57",
+        "ipopt.linear_solver": "ma27",
         # "ipopt.mumps_mem_percent": 10000,
         # "ipopt.mumps_pivtol": 0.001,
         # "ipopt.max_cpu_time": 3600.0,
         # "ipopt.max_iter": 600000,
-        "ipopt.acceptable_tol": 1e-2,
+        "ipopt.acceptable_tol": 0.1,
         "ipopt.acceptable_iter": 8,
-        "ipopt.acceptable_constr_viol_tol": 10.0,
-        "ipopt.acceptable_dual_inf_tol": 10.0,
-        "ipopt.acceptable_compl_inf_tol": 10.0,
-        "ipopt.acceptable_obj_change_tol": 1e-1,
+        # "ipopt.acceptable_constr_viol_tol": 10.0,
+        # "ipopt.acceptable_dual_inf_tol": 10.0,
+        # "ipopt.acceptable_compl_inf_tol": 10.0,
+        # "ipopt.acceptable_obj_change_tol": 1e-1,
         "ipopt.mu_strategy": "adaptive",
         "ipopt.mu_target": 1e-5,
     })
-    BONMIN_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})
+    BONMIN_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {
+        "bonmin.time_limit": Settings.TIME_LIMIT,
+        "bonmin.allowable_fraction_gap": Settings.MINLP_TOLERANCE,
+    })
     MIP_SETTINGS_ALL: Dict[str, Dict[str, Any]] = field(default_factory=lambda: {
         "highs": {},
         "cbc": {},
         "gurobi": {
             "gurobi.MIPGap": 0.05,
             "gurobi.NumericFocus": 1,
-            "gurobi.FeasibilityTol": Settings.CONSTRAINT_TOL,
-            "gurobi.IntFeasTol": Settings.OBJECTIVE_TOL,
-            "gurobi.PoolSearchMode": 1,
+            # Note since this is only the dual, and since rounding occurs,
+            # this low tolerance does not affect the solution!
+            "gurobi.FeasibilityTol": Settings.CONSTRAINT_INT_TOL,
+            "gurobi.IntFeasTol": Settings.CONSTRAINT_INT_TOL,
+            "gurobi.PoolSearchMode": 0,
             "gurobi.PoolSolutions": 5,
         }
     })

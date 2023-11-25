@@ -26,7 +26,7 @@ from benders_exp.solvers.cia import cia_decomposition_algorithm
 from benders_exp.solvers.benders_equal_lb import BendersEquality
 from benders_exp.solvers.milp_tr import milp_tr
 from benders_exp.solvers.benders_low_approx import BendersTRLB
-from benders_exp.utils.debugtools import CheckNoDuplicate
+# from benders_exp.utils.debugtools import CheckNoDuplicate
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +65,6 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
     # Benders algorithm
     lb = -ca.inf
     ub = ca.inf
-    tolerance = s.MINLP_TOLERANCE
     feasible = True
     best_iter = -1
     x_star = np.nan * np.empty(problem.x.shape[0])
@@ -75,7 +74,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
         data = nlp.solve(data)
         data = master_problem.solve(data, relaxed=True)
 
-    while (not termination_condition(lb, ub, tolerance, x_star, x_hat)) and feasible:
+    while (not termination_condition(s, lb, ub, x_star, x_hat)) and feasible:
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
@@ -127,7 +126,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
         grad_f_fn = ca.Function("gradient_f_x", [problem.x, problem.p], [ca.gradient(problem.f, problem.x)],
                                 {"jit": s.WITH_JIT})
 
-        def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
+        def func(s: Settings, lb=None, ub=None, x_best=None, x_current=None):
             ret = to_0d(
                 f_fn(x_current, data.p)
                 + grad_f_fn(x_current, data.p)[idx_x_bin].T @ (
@@ -140,7 +139,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
     elif termination_type == 'equality':
         idx_x_bin = problem.idx_x_bin
 
-        def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
+        def func(s: Settings, lb=None, ub=None, x_best=None, x_current=None):
             if isinstance(x_best, list):
                 for x in x_best:
                     if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS):
@@ -155,15 +154,15 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
                 return max_time(ret)
 
     elif termination_type == 'std':
-        def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
-            tol_abs = (abs(lb) + abs(ub)) * tol / 2
+        def func(s: Settings, lb=None, ub=None, x_best=None, x_current=None):
+            tol_abs = max((abs(lb) + abs(ub)) * s.MINLP_TOLERANCE / 2, s.MINLP_TOLERANCE_ABS)
             ret = (lb + tol_abs - ub) >= 0
             if ret:
                 logging.info(
-                    f"Terminated: {lb} >= {ub} - {tol_abs} ({tol*100}%)")
+                    f"Terminated: {lb} >= {ub} - {tol_abs} ({tol_abs})")
             else:
                 logging.info(
-                    f"Not Terminated: {lb} <= {ub} - {tol_abs} ({tol*100}%)")
+                    f"Not Terminated: {lb} <= {ub} - {tol_abs} ({tol_abs})")
             return max_time(ret)
     else:
         raise AttributeError(
@@ -201,7 +200,9 @@ def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats, s: S
     return base_strategy(problem, data, stats, s, benders_master, termination_condition)
 
 
-def export_ampl(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+def export_ampl(
+    problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Export AMPL."""
     from benders_exp.solvers.ampl import AmplSolver
     AmplSolver(problem, stats, s).solve(data)
@@ -459,7 +460,7 @@ def benders_tr_master(
 
             feasible = data.solved
             termination_met = termination_condition(
-                stats["lb"], stats["ub"], tolerance, data.best_solutions, x_hat)
+                s, stats["lb"], stats["ub"], data.best_solutions, x_hat)
 
         stats['total_time_calc'] = toc(reset=True)
 
@@ -588,7 +589,7 @@ def batch_nl_runner(mode_name, target, nl_files):
 
     makedirs(target, exist_ok=True)
     total_stats = [["id", "path", "obj",
-                    "load_time", "calctime", "iter", "nr_int"]]
+                    "load_time", "calctime", "solvertime", "iter", "nr_int"]]
     start = time()
     total_to_compute = len(nl_files)
     for i, nl_file in enumerate(nl_files):
@@ -604,7 +605,9 @@ def batch_nl_runner(mode_name, target, nl_files):
             stats["f_star"] = data.obj_val
             total_stats.append(
                 [i, nl_file, data.obj_val, stats["total_time_calc"],
-                    stats["iter"], len(problem.idx_x_bin)]
+                 stats['t_wall_total'],
+                 stats["iter"],
+                 len(problem.idx_x_bin)]
             )
         except Exception as e:
             print(f"{e}")

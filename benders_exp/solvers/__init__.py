@@ -95,12 +95,13 @@ class SolverClass(ABC):
         else:
             stats = solver.stats()
 
-        self.stats[f"{algo_name}.time"] += sum(
+        t_proc = sum(
             [v for k, v in stats.items() if "t_proc" in k]
         )
         t_wall = sum(
             [v for k, v in stats.items() if "t_wall" in k]
         )
+        self.stats[f"{algo_name}.time"] += t_proc
         self.stats[f"{algo_name}.time_wall"] += t_wall
         self.stats[f"{algo_name}.iter"] += max(
             stats.get("n_call_solver", 0), stats["iter_count"]
