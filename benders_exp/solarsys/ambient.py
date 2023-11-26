@@ -134,17 +134,26 @@ if __name__ == "__main__":
     ambient.update()
 
     plt.figure()
-    ax1 = plt.gca()
+    plt.plot(range(ambient.c_data.shape[0]), ambient.c_data[:, 0])
+    plt.plot(range(ambient.c_data.shape[0]), ambient.c_data[:, 1])
+    plt.plot(range(ambient.c_data.shape[0]), ambient.c_data[:, 2])
+    plt.plot(range(ambient.c_data.shape[0]), ambient.c_data[:, 3])
+    plt.plot(range(ambient.c_data.shape[0]), ambient.c_data[:, 4])
+    plt.plot(range(ambient.c_data.shape[0]), ambient.c_data[:, 5])
+    plt.yscale("log")
 
-    for c in ["I_vtsc", "I_fpsc"]:
-        ax1.plot(ambient.time_grid, ambient.c_data[:, ambient.c_index[c]], label=c)
+    # plt.figure()
+    # ax1 = plt.gca()
 
-    ax1.legend(loc="upper left")
+    # for c in ["I_vtsc", "I_fpsc"]:
+    #     ax1.plot(ambient.time_grid, ambient.c_data[:, ambient.c_index[c]], label=c)
 
-    ax2 = ax1.twinx()
-    ax2.plot(
-        ambient.time_grid, ambient.c_data[:, ambient.c_index["T_amb"]], label="T_amb"
-    )
-    ax2.legend(loc="upper right")
+    # ax1.legend(loc="upper left")
+
+    # ax2 = ax1.twinx()
+    # ax2.plot(
+    #     ambient.time_grid, ambient.c_data[:, ambient.c_index["T_amb"]], label="T_amb"
+    # )
+    # ax2.legend(loc="upper right")
 
     plt.show()

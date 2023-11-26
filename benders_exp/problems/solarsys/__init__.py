@@ -5,16 +5,16 @@ Solar Thermal Climate System (STCS) at Karsruhe University of Applied Sciences.
 # Adapted by Wim Van Roy, 2023
 """
 
+from datetime import timedelta
 import numpy as np
 from benders_exp.problems import MetaDataOcp
 from benders_exp.problems.solarsys.system import System, ca
-from benders_exp.problems.solarsys.ambient import Ambient
+from benders_exp.problems.solarsys.ambient import Ambient, Timing
 from benders_exp.problems.solarsys.simulator import Simulator
 from benders_exp.problems.dsc import Description
 from benders_exp.utils.cache import CachedFunction, cache_data
 from benders_exp.solvers import get_lin_bounds
 from benders_exp.solvers import inspect_problem, set_constraint_types
-from datetime import timedelta
 import logging
 
 from benders_exp.utils import convert_to_flat_list, to_0d
@@ -22,17 +22,20 @@ from benders_exp.utils import convert_to_flat_list, to_0d
 logger = logging.getLogger(__name__)
 
 
-def create_stcs_problem(n_steps=40, with_slack=True):
+def create_stcs_problem(n_steps=None, with_slack=True):
     """Build problem."""
     logger.debug("Start processing")
     system = System()
-    ambient = Ambient()
+    timing = Timing()
+    ambient = Ambient(timing)
     dsc = Description()
-    n_steps = int(n_steps)
-    dt = timedelta(seconds=900)
+    if n_steps is None:
+        n_steps = int(n_steps)
+    else:
+        n_steps = timing.N
 
     # Run simulator and predictor and use those output to warm start
-    simulator = Simulator(ambient=ambient, N=n_steps, dt=dt)
+    simulator = Simulator(ambient=ambient, N=n_steps)
     simulator.solve()
     x_hat = simulator.predict()
 
@@ -80,13 +83,15 @@ def create_stcs_problem(n_steps=40, with_slack=True):
     F2_fcn = CachedFunction("stcs", system.get_F2_fcn)
 
     logger.debug("Create NLP problem")
-    x_k_0 = dsc.add_parameters("x0", system.nx, to_0d(x_hat).tolist())
+    x_k_0 = dsc.add_parameters("x0", system.nx, to_0d(simulator.x_data[0, :]).tolist())
     u_k_prev = None
     tk = ambient.get_t0()
     F1 = []
     F2 = []
+
     for k in range(n_steps):
         logger.debug(f"Create NLP step {k}")
+        dt = ambient.time_steps[k]
         tk += dt
 
         x_k_full = [x_k_0] + [
@@ -107,7 +112,7 @@ def create_stcs_problem(n_steps=40, with_slack=True):
 
         # Add new parametric controls
         params = convert_to_flat_list(system.nc, system.c_index,
-                                      ambient.interpolate(tk))
+                                      ambient.interpolate(tk-dt))
         c_k = dsc.add_parameters("c", system.nc, params)
         dt_k = dsc.add_parameters("dt", 1, dt.total_seconds())
 
@@ -179,12 +184,12 @@ def create_stcs_problem(n_steps=40, with_slack=True):
         x_k_0 = x_k_next_0
         u_k_prev = u_k
 
+    # Specify residual for GN Hessian computation
+    dsc.r = F1
     # Concatenate objects
     F1 = 0.1 * ca.veccat(*F1)
     F2 = 0.01 * ca.sum1(ca.veccat(*F2))
 
-    # Specify residual for GN Hessian computation
-    dsc.r = F1
 
     # Setup objective
     dsc.f = 0.5 * ca.mtimes(F1.T, F1) + F2
@@ -196,7 +201,7 @@ def create_stcs_problem(n_steps=40, with_slack=True):
         idx_state=np.hstack(dsc.indices['x']).tolist(),
         idx_control=np.hstack(dsc.indices['u']).tolist(),
         idx_bin_control=np.hstack(dsc.indices['b']).tolist(),
-        initial_state=to_0d(x_hat).tolist(),
+        initial_state=to_0d(simulator.x_data[0, :]).tolist(),
         dt=dt.total_seconds(),
         min_uptime=1,
         )
@@ -218,13 +223,15 @@ if __name__ == "__main__":
     from benders_exp.solvers import Stats
     from benders_exp.solvers.nlp import NlpSolver
     from benders_exp.defines import Settings
+    from datetime import datetime
     import pickle
 
     setup_logger(logging.DEBUG)
     prob, data = create_stcs_problem()
-
-    stats = Stats({})
-    nlp = NlpSolver(prob, stats)
+    s = Settings()
+    s.IPOPT_SETTINGS
+    stats = Stats(mode='custom', problem_name='stcs', datetime=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"), data={})
+    nlp = NlpSolver(prob, stats, s)
 
     # with open("data/nlpargs_adrian.pickle", 'rb') as f:
     #     nlpargs_adrian = pickle.load(f)
@@ -239,5 +246,4 @@ if __name__ == "__main__":
     with open("results/x_star_rel_test.pickle", "wb") as f:
         pickle.dump(data.x_sol, f)
     breakpoint()
-    s = Settings()
     check_solution(prob, data, data.prev_solution['x'], s)
