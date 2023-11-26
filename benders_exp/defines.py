@@ -32,7 +32,7 @@ class Settings:
     TIME_LIMIT: float = 300.0  # ca.inf  # 60.0
     WITH_JIT: bool = False
     WITH_PLOT: bool = False
-    EPS: float = 1e-5
+    EPS: float = 1e-6
     OBJECTIVE_TOL: float = 1e-5
     CONSTRAINT_INT_TOL: float = 1e-2  # Due to rounding, this will be almost EPS
     CONSTRAINT_TOL: float = 1e-5

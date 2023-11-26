@@ -14,6 +14,8 @@ class CheckNoDuplicate:
 
     def __call__(self, nlpdata: MinlpData):
         """Check if no old solutions pass through."""
+        if nlpdata.prev_solutions is None:
+            return
         for sol in nlpdata.prev_solutions:
             new = sol['x'][self.idx_x_bin]
             for el in self.old:

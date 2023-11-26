@@ -218,8 +218,14 @@ class BendersTRandMaster(BendersMasterMILP):
     def _add_infeasible_cut_closest_point(self, sol):
         """Add infeasible cut closest point."""
         # Rotate currently around x, but preferrably around x_infeasible
-        dx = sol['x_infeasible'] - sol['x']
-        self.g_infeasible.add(sol['x'][self.idx_x_bin], 0, dx[self.idx_x_bin])
+        dx = (sol['x_infeasible'] - sol['x'])[self.idx_x_bin]
+        dx_min = abs(min(dx.full()))
+        dx_max = abs(min(dx.full()))
+        multiplier = 1 / max(dx_min, dx_max)
+        if multiplier > 1000:
+            sol['x'][self.idx_x_bin] -= 10 * dx
+            multiplier = 1000
+        self.g_infeasible.add(sol['x'][self.idx_x_bin], 0, multiplier * dx)
         colored("New cut type", "blue")
 
     def _add_infeasible_cut(self, x_sol, lam_g_sol, nlpdata: MinlpData):
