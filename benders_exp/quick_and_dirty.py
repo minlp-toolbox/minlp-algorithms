@@ -366,7 +366,6 @@ def benders_tr_master(
     with_new_inf=False
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
-    check = CheckNoDuplicate(problem, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
@@ -418,8 +417,6 @@ def benders_tr_master(
 
     try:
         while feasible and not termination_met:
-            check(data)
-
             # Solve NLP(y^k)
             data = nlp.solve(data, set_x_bin=True)
             logger.info("SOLVED NLP")
@@ -625,6 +622,7 @@ def batch_nl_runner(mode_name, target, nl_files):
             "progress": (i+1) / total_to_compute,
             "time_remaining_est": total_time - time_now,
             "time_total_est": total_time,
+            "mode": mode_name,
             "data": total_stats
         }, overview_target)
 

@@ -34,7 +34,7 @@ def compile(input_file, output_file, options=None):
     """Compile a c file to an so file."""
     compiler = get_compiler()
 
-    _CXX_FLAGS = ["-fPIC", "-v", "-shared", "-fno-omit-frame-pointer", "-O1"]
+    _CXX_FLAGS = ["-fPIC", "-v", "-shared", "-fno-omit-frame-pointer", "-O2"]
     call([compiler] + _CXX_FLAGS + ["-o", output_file, input_file])
 
 

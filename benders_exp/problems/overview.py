@@ -287,9 +287,10 @@ def counter_example_nonconvexity():
     return problem, data
 
 
-def create_from_nl_file(file):
+def create_from_nl_file(file, compiled=True):
     """Load from NL file."""
-    global CASADI_VAR
+    from benders_exp.utils.cache import CachedFunction, cache_data, return_func
+    import hashlib
     # Create an NLP instance
     nl = ca.NlpBuilder()
 
@@ -302,12 +303,23 @@ def create_from_nl_file(file):
 
     idx = np.where(np.array(nl.discrete))
 
-    problem = MinlpProblem(
-        x=ca.vcat(nl.x),
-        f=nl.f, g=ca.vcat(nl.g),
-        idx_x_bin=idx[0].tolist(),
-        p=[]
-    )
+    if compiled:
+        key = str(hashlib.md5(file.encode()).hexdigest())[:64]
+        x = ca.vcat(nl.x)
+        problem = MinlpProblem(
+            x=x,
+            f=CachedFunction(f"f_{key}", return_func(ca.Function("f", [x], [nl.f])))(x),
+            g=CachedFunction(f"g_{key}", return_func(ca.Function("g", [x], [ca.vcat(nl.g)])))(x),
+            idx_x_bin=idx[0].tolist(),
+            p=[]
+        )
+    else:
+        problem = MinlpProblem(
+            x=ca.vcat(nl.x),
+            f=nl.f, g=ca.vcat(nl.g),
+            idx_x_bin=idx[0].tolist(),
+            p=[]
+        )
     if nl.f.is_constant():
         raise Exception("No objective!")
 

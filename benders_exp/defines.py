@@ -29,7 +29,7 @@ if not path.exists(CACHE_FOLDER):
 
 @dataclass(init=True)
 class Settings:
-    TIME_LIMIT: float = ca.inf  # 60.0
+    TIME_LIMIT: float = 600.0  # ca.inf  # 60.0
     WITH_JIT: bool = False
     WITH_PLOT: bool = False
     EPS: float = 1e-5
@@ -41,18 +41,17 @@ class Settings:
 
     WITH_DEBUG: bool = to_bool(environ.get("DEBUG", False))
     WITH_LOG_DATA: bool = to_bool(environ.get("LOG_DATA", False))
-    MINLP_TOLERANCE: float = 0.01
+    MINLP_TOLERANCE: float = 0.001
     # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
 
     AMPL_EXPORT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})
     IPOPT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {
         "ipopt.linear_solver": "ma57",
-        "ipopt.mumps_mem_percent": 10000,
-        "ipopt.mumps_pivtol": 0.001,
-        "ipopt.print_level": 5,
-        "ipopt.max_cpu_time": 3600.0,
-        "ipopt.max_iter": 600000,
-        "ipopt.acceptable_tol": 1e-1,
+        # "ipopt.mumps_mem_percent": 10000,
+        # "ipopt.mumps_pivtol": 0.001,
+        # "ipopt.max_cpu_time": 3600.0,
+        # "ipopt.max_iter": 600000,
+        "ipopt.acceptable_tol": 1e-2,
         "ipopt.acceptable_iter": 8,
         "ipopt.acceptable_constr_viol_tol": 10.0,
         "ipopt.acceptable_dual_inf_tol": 10.0,
