@@ -30,9 +30,9 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     ambient = Ambient(timing)
     dsc = Description()
     if n_steps is None:
-        n_steps = int(n_steps)
-    else:
         n_steps = timing.N
+    else:
+        n_steps = int(n_steps)
 
     # Run simulator and predictor and use those output to warm start
     simulator = Simulator(ambient=ambient, N=n_steps)
