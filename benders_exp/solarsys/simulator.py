@@ -252,7 +252,6 @@ class Simulator(System):
         self._set_mdot_i_hts_b()
 
     def _run_step(self, pos, step):
-
         try:
             self._x_data.append(
                 np.squeeze(
@@ -273,7 +272,6 @@ class Simulator(System):
                 )
             )
 
-        self._x_data.append(self._x_data[-1])
 
     def _finalize_simulation_results(self):
 
@@ -323,3 +321,18 @@ if __name__ == "__main__":
 
     simulator = Simulator(timing=timing, ambient=ambient, state=state)
     simulator.solve()
+
+    plt.figure()
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 0])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 1])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 2])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 3])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 4])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 5])
+    plt.yscale("log")
+
+
+    plt.figure()
+    plt.plot(range(simulator.x_data.shape[0]), simulator.x_data[:, 0])
+    plt.plot(range(simulator.x_data.shape[0]), simulator.x_data[:, 4])
+    plt.show()

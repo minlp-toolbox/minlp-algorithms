@@ -6,7 +6,7 @@ from datetime import timedelta
 
 import logging
 from benders_exp.problems.solarsys.system import System, ca
-from benders_exp.problems.solarsys.ambient import Ambient
+from benders_exp.problems.solarsys.ambient import Ambient, Timing
 from benders_exp.utils.cache import CachedFunction
 from benders_exp.utils import convert_to_flat_list
 
@@ -20,9 +20,6 @@ class Simulator(System):
     def time_grid(self):
         return self._timing.time_grid
 
-    @property
-    def time_steps(self):
-        return [self._dt.total_seconds() for _ in range(self._N)] # NOTE Uniform grid
 
     @property
     def x_data(self):
@@ -62,21 +59,25 @@ class Simulator(System):
 
     def _get_ambient_paramaters(self):
 
-        self._c_data = []
-        for i in range(self._N):
+        self._c_data = [convert_to_flat_list(
+                            self.nc,
+                            self.c_index,
+                            self._ambient.interpolate(self._ambient.get_t0()))]
+        tk = timedelta(seconds=0)
+        for i in range(self._N-1):
+            tk += self._ambient.time_steps[i]
             self._c_data.append(convert_to_flat_list(
                 self.nc,
                 self.c_index,
-                self._ambient.interpolate(self._ambient.get_t0() + i * self._dt)))
+                self._ambient.interpolate(self._ambient.get_t0() + tk)))
         self._c_data = ca.DM(self._c_data)
 
-    def __init__(self, ambient: Ambient, N: int, dt: timedelta):
+    def __init__(self, ambient: Ambient, N: int):
 
         logger.debug("Initializing simulator ...")
         super().__init__()
         self._ambient = ambient
         self._N = N
-        self._dt = dt
         self._integrator = self.get_integrator()
         self._get_ambient_paramaters()
         logger.debug("Simulator initialized.")
@@ -110,7 +111,7 @@ class Simulator(System):
             ]
 
             if self._b_data[-1][self.b_index["b_ac"]] == 1:
-                self._remaining_min_up_time -= self.time_steps[pos]
+                self._remaining_min_up_time -= self._ambient.time_steps[pos].total_seconds()
 
         elif (T_hts < self.p["T_ac_ht_min"]) or (T_lts < self.p["T_ac_lt_min"]):
 
@@ -130,7 +131,7 @@ class Simulator(System):
                 ):
                     self._remaining_min_up_time = (
                         self.p_op["acm"]["min_up_time"][self.b_index["b_ac"]]
-                        - self.time_steps[pos]
+                        - self._ambient.time_steps[pos].total_seconds()
                     )
             except IndexError:
                 self._remaining_min_up_time = 0
@@ -251,14 +252,13 @@ class Simulator(System):
         self._set_mdot_i_hts_b()
 
     def _run_step(self, pos, step):
-
         try:
             self._x_data.append(
                 np.squeeze(
                     self._integrator(
-                        x0=self.x_data[-1],
+                        x0=self.x_data[-1, :],
                         p=ca.veccat(
-                            step, self.c_data[pos, :], self.u_data[-1], self.b_data[-1]
+                            step.total_seconds(), self.c_data[pos, :], self.u_data[-1], self.b_data[-1]
                         ),
                     )["xf"]
                 )
@@ -285,8 +285,7 @@ class Simulator(System):
         self._set_initial_state()
         self._setup_controls()
 
-        for pos, step in enumerate(self.time_steps):
-
+        for _, (pos, step) in zip(range(self._N), enumerate(self._ambient.time_steps)):
             self._set_controls(pos)
             self._run_step(pos, step)
 
@@ -311,7 +310,7 @@ class Simulator(System):
             x_hat = self._integrator(
                 x0=x_hat,
                 p=ca.veccat(
-                    self._dt.total_seconds(), self.c_data[k,:], self.u_data[k,:], self.b_data[k,:]
+                    self._ambient.time_steps[k].total_seconds(), self.c_data[k,:], self.u_data[k,:], self.b_data[k,:]
                     ))["xf"]
 
         return x_hat
@@ -321,12 +320,26 @@ if __name__ == "__main__":
     from datetime import timedelta
     from ambient import Ambient
     from benders_exp.utils import setup_logger, logging
+    import matplotlib.pyplot as plt
 
     setup_logger(logging.DEBUG)
 
-    ambient = Ambient()
-    dt = timedelta(seconds=900)
-
-    simulator = Simulator(ambient=ambient, N=10, dt=dt)
+    timing = Timing()
+    ambient = Ambient(timing)
+    simulator = Simulator(ambient=ambient, N=timing.N)
     simulator.solve()
-    x_hat = simulator.predict()
+    # x_hat = simulator.predict()
+
+    plt.figure()
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 0])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 1])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 2])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 3])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 4])
+    plt.plot(range(simulator.c_data.shape[0]), simulator.c_data[:, 5])
+    plt.yscale("log")
+
+    plt.figure()
+    plt.plot(range(simulator.x_data.shape[0]), simulator.x_data[:, 0])
+    plt.plot(range(simulator.x_data.shape[0]), simulator.x_data[:, 4])
+    plt.show()

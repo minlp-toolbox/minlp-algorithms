@@ -59,7 +59,7 @@ class Settings:
         "ipopt.acceptable_compl_inf_tol": 10.0,
         "ipopt.acceptable_obj_change_tol": 1e-1,
         "ipopt.mu_strategy": "adaptive",
-        "ipopt.mu_target": 1e-3,
+        "ipopt.mu_target": 1e-5,
     })
     BONMIN_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})
     MIP_SETTINGS_ALL: Dict[str, Dict[str, Any]] = field(default_factory=lambda: {
