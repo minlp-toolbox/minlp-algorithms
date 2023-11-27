@@ -256,7 +256,7 @@ class DebugCallBack(ca.Callback):
         self.nx = nx
         self.ng = ng
         self.np = np
-        self.iter = 0
+        self.iter_nr = 0
         self.name = name
         # Initialize internal objects
         self.construct(name, opts)
@@ -296,7 +296,7 @@ class DebugCallBack(ca.Callback):
 
     def save(self, x):
         """Save the x variable."""
-        self.iter += 1
+        self.iter_nr += 1
         np.save(_DATA_FOLDER + f"/x_{self.name}_{self.iter}", x.full())
 
     def eval(self, arg):

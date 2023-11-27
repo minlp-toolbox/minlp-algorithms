@@ -83,7 +83,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
 
         # Is there a feasible success?
         ub, x_star, best_iter = update_best_solutions(
-            data, stats['iter'], ub, x_star, best_iter, s
+            data, stats['iter_nr'], ub, x_star, best_iter, s
         )
 
         # Is there any infeasible?
@@ -99,7 +99,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
         x_hat = data.x_sol
         logger.debug(f"\n{x_hat=}")
         logger.debug(f"{ub=}, {lb=}\n")
-        stats['iter'] += 1
+        stats['iter_nr'] += 1
 
     stats['total_time_calc'] = toc(reset=True)
     data.prev_solution = {'x': x_star, 'f': ub}
@@ -396,7 +396,6 @@ def benders_tr_master(
     stats['iter_nr'] = 0
     stats["lb"] = -ca.inf
     stats["ub"] = ca.inf
-    tolerance = s.MINLP_TOLERANCE
     feasible = True
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
@@ -630,7 +629,7 @@ def batch_nl_runner(mode_name, target, nl_files):
         makedirs(target, exist_ok=True)
         total_stats = [["id", "path", "obj",
                         "load_time", "calctime",
-                        "solvertime", "iter", "nr_int"]]
+                        "solvertime", "iter_nr", "nr_int"]]
         i_start = 0
 
     for i in range(i_start, len(nl_files)):
@@ -648,7 +647,7 @@ def batch_nl_runner(mode_name, target, nl_files):
             total_stats.append([
                 i, nl_file, data.obj_val,
                 stats["total_time_loading"], stats["total_time_calc"],
-                stats['t_solver_total'], stats["iter"], len(problem.idx_x_bin)
+                stats['t_solver_total'], stats["iter_nr"], len(problem.idx_x_bin)
             ])
         except Exception as e:
             print(f"{e}")
