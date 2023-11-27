@@ -229,6 +229,8 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         "gurobi.PoolSearchMode": 0,
         "gurobi.PoolSolutions": 3,
     })
+    # 7 days...
+    s.TIME_LIMIT = 7 * 24 * 3600
 
     # Improve calculation speed by getting indices:
     # set_constraint_types(prob, *cache_data(
