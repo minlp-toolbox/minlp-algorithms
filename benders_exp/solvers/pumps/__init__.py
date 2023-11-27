@@ -60,7 +60,7 @@ def feasibility_pump(
     KK = 5  # Need an integer improvement in 5 steps
     prev_x = []
     distances = [integer_error(data.x_sol[problem.idx_x_bin])]
-    while distances[-1] > TOLERANCE and stats['iter'] < MAX_ITER:
+    while distances[-1] > TOLERANCE and stats["iter_nr"] < MAX_ITER:
         datarounded = create_rounded_data(data, problem.idx_x_bin)
         require_restart = False
         for i, sol in enumerate(datarounded.solutions_all):
@@ -98,8 +98,8 @@ def feasibility_pump(
                 stats['total_time_calc'] += toc(reset=True)
                 return problem, datarounded, datarounded.x_sol
 
-        stats['iter'] += 1
-        logger.info(f"Iteration {stats['iter']} finished")
+        stats["iter_nr"] += 1
+        logger.info(f"Iteration {stats['iter_nr']} finished")
 
     stats['total_time_calc'] += toc(reset=True)
     data = nlp.solve(data, True)
@@ -141,13 +141,13 @@ def random_objective_feasibility_pump(
     MAX_TRY_ITER = 10
     last_restart = 0
     stats['iterate_data'] = []
-    stats['best_itr'] = -1
+    stats['best_iter'] = -1
     done = False
     best_obj = ca.inf
     lb = data.obj_val
     prev_int_error = ca.inf
     while not done:
-        logger.info(f"Starting iteration: {stats['iter']}")
+        logger.info(f"Starting iteration: {stats['iter_nr']}")
         data = rnlp.solve(data)
         random_obj_f = float(rnlp.f(data.x_sol, data.p))
         lb = min(random_obj_f, lb)
@@ -157,14 +157,14 @@ def random_objective_feasibility_pump(
             datarounded = nlp.solve(create_rounded_data(
                 data, problem.idx_x_bin), set_x_bin=True)
             if datarounded.solved:
-                logger.debug(f"NLP f={datarounded.obj_val:.3e} (iter {stats['iter']}) "
-                             f"vs old f={best_obj:.3e} (itr {stats['best_itr']})")
+                logger.debug(f"NLP f={datarounded.obj_val:.3e} (iter {stats['iter_nr']}) "
+                             f"vs old f={best_obj:.3e} (itr {stats['best_iter']})")
                 feasible_solutions.append(datarounded._sol)
                 if best_obj > datarounded.obj_val:
                     best_obj = datarounded.obj_val
                     colored(
-                        f"New best f={best_obj:.3e} found in iter={stats['iter']}", "green")
-                    stats['best_itr'] = stats['iter']
+                        f"New best f={best_obj:.3e} found in iter={stats['iter_nr']}", "green")
+                    stats['best_iter'] = stats["iter_nr"]
                     best_solution = datarounded._sol
             else:
                 colored("Infeasible")
@@ -172,22 +172,24 @@ def random_objective_feasibility_pump(
             colored("Not better than best found yet")
 
         int_error = integer_error(data.x_sol[problem.idx_x_bin])
-        stats['iterate_data'].append(stats.create_iter_dict(
-            stats['iter'], stats['best_itr'], datarounded.solved,
-            ub=best_obj, nlp_obj=datarounded.obj_val, last_benders=None,
-            lb=int_error, x_sol=to_0d(datarounded.x_sol))
-        )
+
+        stats["solver_success"] = datarounded.solved
+        stats["nlp_obj"] = datarounded.obj_val
+        stats["ub"] = best_obj
+        stats["lb"] = int_error
+        stats["x_sol"] = to_0d(datarounded.x_sol)
+        stats['total_time_calc'] = toc(reset=True)
         if s.WITH_LOG_DATA:
             stats.save()
 
-        stats['iter'] += 1
+        stats["iter_nr"] += 1
         done = (
             int_error < TOLERANCE or (not np.isinf(best_obj) and (
-                (stats['iter'] > MAX_ACCEPT_ITER and best_obj < random_obj_f)
-                or stats['iter'] > MAX_ACCEPT_ITER + stats['best_itr']
+                (stats["iter_nr"] > MAX_ACCEPT_ITER and best_obj < random_obj_f)
+                or stats["iter_nr"] > MAX_ACCEPT_ITER + stats['best_iter']
             ))
         )
-        retry = (stats['iter'] - last_restart > MAX_TRY_ITER and prev_int_error < int_error)
+        retry = (stats["iter_nr"] - last_restart > MAX_TRY_ITER and prev_int_error < int_error)
         prev_int_error = int_error
         if not data.solved or retry:
             if len(feasible_solutions) > 0:
@@ -195,13 +197,13 @@ def random_objective_feasibility_pump(
             elif not recover:
                 return problem, relaxed_solution, relaxed_solution.x_sol, True, lb
             else:
-                last_restart = stats['iter']
+                last_restart = stats["iter_nr"]
                 rnlp.alpha = 1.0
                 # If progress is frozen (unsolvable), try to fix it!
                 data = rnlp.solve(deepcopy(relaxed_solution))
                 logger.info(
                     f"Current random NLP (restoration): f={random_obj_f:.3e}")
-        if stats['iter'] > MAX_ITER:
+        if stats["iter_nr"] > MAX_ITER:
             if len(feasible_solutions) > 0:
                 done = True
             else:

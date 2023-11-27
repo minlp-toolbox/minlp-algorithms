@@ -17,6 +17,7 @@ setup(
         "parameterized",
         "timeout-decorator",
         "tox",
-        "colored"
+        "colored",
+        "seaborn"
     ]
 )

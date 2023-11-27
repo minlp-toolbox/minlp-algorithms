@@ -6,7 +6,7 @@ import os
 from typing import Dict, List, Optional
 from benders_exp.problems import MinlpProblem, MinlpData
 from benders_exp.defines import OUT_DIR, Settings
-from benders_exp.utils import toc
+from benders_exp.utils import to_0d, toc
 import casadi as ca
 import numpy as np
 import logging
@@ -23,6 +23,7 @@ class Stats:
     problem_name: str
     datetime: str
     data: Dict[str, float]
+    full_stats_to_pickle = []
 
     def __getitem__(self, key):
         """Get attribute."""
@@ -41,28 +42,36 @@ class Stats:
             if k not in ["iterate_data"]:
                 print(f"\t{k}: {v}")
 
-    @staticmethod
-    def create_iter_dict(iter_nr, best_iter, prev_feasible, ub, nlp_obj, last_benders, lb, x_sol):
-        """Create dictionary with useful data of this iteration."""
-        return {
-            "iter_nr": iter_nr,
-            "best_iter": best_iter,
-            "prev_feasible": prev_feasible,
-            "ub": ub,
-            "nlp_obj": nlp_obj,
-            "last_benders": last_benders,
-            "lb": lb,
-            "x_sol": x_sol,
-            "time": toc()
-        }
-
     def save(self, dest=None):
         """Save statistics."""
+        time = toc()  # TODO add time
         if dest is None:
             dest = os.path.join(
                 OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl')
         print(f"Saving to {dest}")
-        save_pickle(self.data, dest)
+        data = self.data.copy()
+        to_pickle = []
+        general_stats = {}
+        for key, value in data.items():
+            if key not in ["solutions_all", "solved_all"]:
+                general_stats[key] = value
+        general_stats["time"] = time
+        try:
+            for idx, elm in enumerate(data["solutions_all"]):
+                tmp_dict = {}
+                tmp_dict.update(general_stats)
+                tmp_dict["sol_pool_idx"] = idx
+                tmp_dict["sol_pool_success"] = data["solved_all"][idx]
+                tmp_dict["sol_pool_objective"] = float(elm["f"])
+                tmp_dict["sol_pool_x"] = to_0d(elm["x"])
+                to_pickle.append(tmp_dict)
+        except:
+            tmp_dict = {}
+            tmp_dict.update(general_stats)
+            to_pickle.append(tmp_dict)
+
+        self.full_stats_to_pickle += to_pickle
+        save_pickle(self.full_stats_to_pickle, dest)
 
 
 class SolverClass(ABC):
