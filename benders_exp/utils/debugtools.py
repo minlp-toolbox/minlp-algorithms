@@ -11,6 +11,7 @@ class CheckNoDuplicate:
         self.idx_x_bin = problem.idx_x_bin
         self.s = s
         self.old = []
+        self.count = 0
 
     def __call__(self, nlpdata: MinlpData):
         """Check if no old solutions pass through."""
@@ -21,4 +22,8 @@ class CheckNoDuplicate:
             for el in self.old:
                 if np.allclose(el, new, equal_nan=False, atol=self.s.EPS):
                     print("Duplicate!")
+                    self.count += 1
             self.old.append(new)
+
+        if self.count > 10:
+            raise Exception()

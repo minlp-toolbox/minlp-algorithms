@@ -95,19 +95,27 @@ class SolverClass(ABC):
         else:
             stats = solver.stats()
 
-        t_proc = sum(
-            [v for k, v in stats.items() if "t_proc" in k]
-        )
-        t_wall = sum(
-            [v for k, v in stats.items() if "t_wall" in k]
-        )
+        if "t_proc_total" in stats:
+            t_proc = stats["t_proc_total"]
+        else:
+            logger.info(f"t_proc_total not found for {algo_name}")
+            t_proc = sum(
+                [v for k, v in stats.items() if "t_proc" in k]
+            )
+        if "t_wall_total" in stats:
+            t_wall = stats["t_wall_total"]
+        else:
+            logger.info(f"t_wall_total not found for {algo_name}")
+            t_wall = sum(
+                [v for k, v in stats.items() if "t_wall" in k]
+            )
         self.stats[f"{algo_name}.time"] += t_proc
         self.stats[f"{algo_name}.time_wall"] += t_wall
         self.stats[f"{algo_name}.iter"] += max(
             stats.get("n_call_solver", 0), stats["iter_count"]
         )
         self.stats[f"{algo_name}.runs"] += 1
-        self.stats["t_wall_total"] += t_wall
+        self.stats["t_solver_total"] += max(t_wall, t_proc)
         self.stats["success"] = stats["success"]
         return stats["success"], stats
 
@@ -124,7 +132,7 @@ def regularize_options(options, default, s: Settings):
     ret = {} if options is None else options.copy()
 
     if not s.WITH_DEBUG:
-        ret.update({"verbose": False, "print_time": 0})
+        ret.update({"verbose": False, "print_time": 1})
 
     ret.update(default)
 

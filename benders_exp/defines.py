@@ -30,6 +30,7 @@ if not path.exists(CACHE_FOLDER):
 @dataclass(init=True)
 class Settings:
     TIME_LIMIT: float = ca.inf  # 60.0
+    TIME_LIMIT_SOLVER_ONLY: bool = False
     WITH_JIT: bool = False
     WITH_PLOT: bool = False
     EPS: float = 1e-6

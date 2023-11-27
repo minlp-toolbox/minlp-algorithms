@@ -26,7 +26,7 @@ from benders_exp.solvers.cia import cia_decomposition_algorithm
 from benders_exp.solvers.benders_equal_lb import BendersEquality
 from benders_exp.solvers.milp_tr import milp_tr
 from benders_exp.solvers.benders_low_approx import BendersTRLB
-# from benders_exp.utils.debugtools import CheckNoDuplicate
+from benders_exp.utils.debugtools import CheckNoDuplicate
 
 logger = logging.getLogger(__name__)
 
@@ -69,12 +69,14 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
     best_iter = -1
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
+    check = CheckNoDuplicate(problem, s)
 
     if first_relaxed:
         data = nlp.solve(data)
         data = master_problem.solve(data, relaxed=True)
 
-    while (not termination_condition(s, lb, ub, x_star, x_hat)) and feasible:
+    while (not termination_condition(stats, s, lb, ub, x_star, x_hat)) and feasible:
+        check(data)
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
@@ -113,8 +115,14 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
     :param data: data
     :return: callable that returns true if the termination condition holds
     """
-    def max_time(ret):
-        if toc() > s.TIME_LIMIT:
+    def max_time(ret, s, stats):
+        done = False
+        if s.TIME_LIMIT_SOLVER_ONLY:
+            done = (stats["t_solver_total"] > s.TIME_LIMIT)
+        else:
+            done = (toc() > s.TIME_LIMIT)
+
+        if done:
             logging.info("Terminated - TIME LIMIT")
             return True
         return ret
@@ -126,7 +134,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
         grad_f_fn = ca.Function("gradient_f_x", [problem.x, problem.p], [ca.gradient(problem.f, problem.x)],
                                 {"jit": s.WITH_JIT})
 
-        def func(s: Settings, lb=None, ub=None, x_best=None, x_current=None):
+        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
             ret = to_0d(
                 f_fn(x_current, data.p)
                 + grad_f_fn(x_current, data.p)[idx_x_bin].T @ (
@@ -135,27 +143,28 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
             ) >= 0
             if ret:
                 logging.info("Terminated - gradient ok")
-            return max_time(ret)
+            return max_time(ret, s, stats)
     elif termination_type == 'equality':
         idx_x_bin = problem.idx_x_bin
 
-        def func(s: Settings, lb=None, ub=None, x_best=None, x_current=None):
+        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
             if isinstance(x_best, list):
                 for x in x_best:
                     if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS):
                         logging.info(f"Terminated - all close within {s.EPS}")
-                        return max_time(True)
-                return max_time(False)
+                        return True
+                return max_time(False, s, stats)
             else:
                 ret = np.allclose(
                     x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS)
                 if ret:
                     logging.info(f"Terminated - all close within {s.EPS}")
-                return max_time(ret)
+                return max_time(ret, s, stats)
 
     elif termination_type == 'std':
-        def func(s: Settings, lb=None, ub=None, x_best=None, x_current=None):
-            tol_abs = max((abs(lb) + abs(ub)) * s.MINLP_TOLERANCE / 2, s.MINLP_TOLERANCE_ABS)
+        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
+            tol_abs = max((abs(lb) + abs(ub)) *
+                          s.MINLP_TOLERANCE / 2, s.MINLP_TOLERANCE_ABS)
             ret = (lb + tol_abs - ub) >= 0
             if ret:
                 logging.info(
@@ -163,7 +172,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
             else:
                 logging.info(
                     f"Not Terminated: {lb} <= {ub} - {tol_abs} ({tol_abs})")
-            return max_time(ret)
+            return max_time(ret, s, stats)
     else:
         raise AttributeError(
             f"Invalid type of termination condition, you set '{termination_type}' but the only option is 'std'!")
@@ -460,7 +469,8 @@ def benders_tr_master(
 
             feasible = data.solved
             termination_met = termination_condition(
-                s, stats["lb"], stats["ub"], data.best_solutions, x_hat)
+                stats, s, stats["lb"], stats["ub"], data.best_solutions, x_hat
+            )
 
         stats['total_time_calc'] = toc(reset=True)
 
@@ -619,7 +629,8 @@ def batch_nl_runner(mode_name, target, nl_files):
     else:
         makedirs(target, exist_ok=True)
         total_stats = [["id", "path", "obj",
-                        "load_time", "calctime", "solvertime", "iter", "nr_int"]]
+                        "load_time", "calctime",
+                        "solvertime", "iter", "nr_int"]]
         i_start = 0
 
     for i in range(i_start, len(nl_files)):
@@ -634,12 +645,11 @@ def batch_nl_runner(mode_name, target, nl_files):
             )
             stats["x_star"] = x_star
             stats["f_star"] = data.obj_val
-            total_stats.append(
-                [i, nl_file, data.obj_val, stats["total_time_calc"],
-                 stats['t_wall_total'],
-                 stats["iter"],
-                 len(problem.idx_x_bin)]
-            )
+            total_stats.append([
+                i, nl_file, data.obj_val,
+                stats["total_time_loading"], stats["total_time_calc"],
+                stats['t_solver_total'], stats["iter"], len(problem.idx_x_bin)
+            ])
         except Exception as e:
             print(f"{e}")
             total_stats.append(
@@ -678,7 +688,8 @@ if __name__ == "__main__":
         target_file = extra_args[-1]
         extra_args = extra_args[:-2]
 
-    (problem, data, x_star), s = run_problem(mode, problem_name, stats, extra_args)
+    (problem, data, x_star), s = run_problem(
+        mode, problem_name, stats, extra_args)
     stats.print()
     if s.WITH_LOG_DATA:
         stats.save()

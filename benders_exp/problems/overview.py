@@ -340,6 +340,7 @@ def create_from_nl_file(file, compiled=True):
     s.MINLP_TOLERANCE = 0.01
     s.MINLP_TOLERANCE_ABS = 0.01
     s.TIME_LIMIT = 300
+    s.TIME_LIMIT_SOLVER_ONLY = True
     s.IPOPT_SETTINGS = {
         "ipopt.linear_solver": "ma27",
         "ipopt.max_cpu_time": s.TIME_LIMIT / 4,
@@ -355,7 +356,6 @@ def create_from_nl_file(file, compiled=True):
         "gurobi.TimeLimit": s.TIME_LIMIT / 2
     }
     s.BONMIN_SETTINGS["bonmin.time_limit"] = s.TIME_LIMIT
-
     return problem, data, s
 
 
