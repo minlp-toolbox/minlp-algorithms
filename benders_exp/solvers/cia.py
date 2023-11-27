@@ -37,17 +37,19 @@ def cia_decomposition_algorithm(problem: MinlpProblem, data: MinlpData,
     nlp = NlpSolver(problem, stats, s)
     combina_solver = PycombinaSolver(problem, stats, s)
     logger.info("Solver initialized.")
-    stats['iterate_data'] = []
 
     toc()
     # Solve relaxed NLP(y^k)
     data = nlp.solve(data, set_x_bin=False)
     # TODO add check if ipopt succeeded
-    stats['iterate_data'].append(
-        stats.create_iter_dict(
-            iter_nr=0, best_iter=None, prev_feasible=False, ub=None,
-            nlp_obj=data.obj_val, last_benders=None, lb=data.obj_val, x_sol=to_0d(data.x_sol)
-        ))
+
+    stats["iter_nr"] = 0
+    stats["best_iter"] = 0
+    stats["nlp_obj"] = data.obj_val
+    stats["lb"] = data.obj_val
+    stats["x_sol"] = to_0d(data.x_sol)
+    stats['nlp_rel_time'] = toc()
+    # stats["success"] = ...
 
     if s.WITH_LOG_DATA:
         stats.save()
@@ -57,13 +59,13 @@ def cia_decomposition_algorithm(problem: MinlpProblem, data: MinlpData,
 
     # Solve NLP with fixed integers
     data = nlp.solve(data, set_x_bin=True)
-
-    stats['iterate_data'].append(
-        stats.create_iter_dict(
-            iter_nr=1, best_iter=1, prev_feasible=False, ub=None,
-            nlp_obj=data.obj_val, last_benders=None, lb=data.obj_val, x_sol=to_0d(data.x_sol)
-        ))
+    stats["iter_nr"] = 1
+    stats["best_iter"] = 1
+    stats["nlp_obj"] = data.obj_val
+    stats["lb"] = data.obj_val
+    stats["x_sol"] = to_0d(data.x_sol)
     stats['total_time_calc'] = toc(reset=True)
+
     return problem, data, data.x_sol
 
 

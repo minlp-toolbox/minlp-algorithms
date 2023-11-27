@@ -384,35 +384,34 @@ def benders_tr_master(
         fnlp = FindClosestNlpSolver(problem, stats, s)
     else:
         fnlp = FeasibilityNlpSolver(problem, data, stats, s)
-    lb = -ca.inf
-    ub = ca.inf
+    stats['iter_nr'] = 0
+    stats["lb"] = -ca.inf
+    stats["ub"] = ca.inf
     tolerance = s.MINLP_TOLERANCE
     feasible = True
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
-    last_benders = True  # only for doing at least one iteration of the while-loop
+    stats["last_benders"] = True  # only for doing at least one iteration of the while-loop
     termination_met = False
-    stats['iterate_data'] = []
-    best_iter = None
     old_sol = x_star[problem.idx_x_bin]
 
     if use_feasibility_pump:
         data = nlp.solve(data)
         master_problem.update_relaxed_solution(data)
-        problem, data, _, is_relaxed, lb = random_objective_feasibility_pump(
+        problem, data, _, is_relaxed, stats["lb"] = random_objective_feasibility_pump(
             problem, data, stats, s, data, nlp)
         if not is_relaxed:
-            ub, x_star, best_iter = update_best_solutions(
-                data, 0, ub, x_star, best_iter, s
+            stats["ub"], x_star, stats["best_iter"] = update_best_solutions(
+                data, 0, stats["ub"], x_star, stats["best_iter"], s
             )
 
-        data, last_benders = master_problem.solve(data, relaxed=is_relaxed)
+        data, stats["last_benders"] = master_problem.solve(data, relaxed=is_relaxed)
     elif first_relaxed:
         stats['total_time_loading'] = toc(reset=True)
         logger.info("Solver initialized.")
         data = nlp.solve(data)
-        lb = data.obj_val
-        data, last_benders = master_problem.solve(data, relaxed=True)
+        stats["lb"] = data.obj_val
+        data, stats["last_benders"] = master_problem.solve(data, relaxed=True)
     else:
         stats['total_time_loading'] = toc(reset=True)
         logger.info("Solver initialized.")
@@ -425,8 +424,8 @@ def benders_tr_master(
             data = nlp.solve(data, set_x_bin=True)
             logger.info("SOLVED NLP")
 
-            ub, x_star, best_iter = update_best_solutions(
-                data, stats['iter_nr'], ub, x_star, best_iter, s
+            stats["ub"], x_star, stats["best_iter"] = update_best_solutions(
+                data, stats['iter_nr'], stats["ub"], x_star, stats["best_iter"], s
             )
 
             if not np.all(data.solved_all):
@@ -442,36 +441,35 @@ def benders_tr_master(
 
             old_sol = to_0d(data.x_sol)[problem.idx_x_bin]
             logger.debug(f"Adding {data.nr_sols} solutions")
-            logger.debug(f"NLP {data.obj_val=}, {ub=}, {lb=}")
-            stats['iterate_data'].append((stats.create_iter_dict(
-                stats['iter_nr'], best_iter, data.solved,
-                ub, data.obj_val, last_benders, lb, to_0d(data.x_sol))
-            ))
-            # Solve master^k and set lower bound:
-            data, last_benders = master_problem.solve(data)
-            if last_benders:
-                if ub < lb:
-                    # Problems!
-                    lb = data.obj_val
-                else:
-                    lb = max(data.obj_val, lb)
-            logger.debug(f"MIP {data.obj_val=}, {ub=}, {lb=}")
-
-            x_hat = data.x_sol
-            stats['iter_nr'] += 1
+            logger.debug(f"NLP {data.obj_val=}, {stats['ub']=}, {stats['lb']=}")
+            stats["solutions_all"] = data.solutions_all
+            stats["solved_all"] = data.solved_all
             if s.WITH_LOG_DATA:
                 stats.save()
 
+            # Solve master^k and set lower bound:
+            data, stats["last_benders"] = master_problem.solve(data)
+            if stats["last_benders"]:
+                if stats["ub"] < stats["lb"]:
+                    # Problems!
+                    stats["lb"] = data.obj_val
+                else:
+                    stats["lb"] = max(data.obj_val, stats["lb"])
+            logger.debug(f"MIP {data.obj_val=}, {stats['ub']=}, {stats['lb']=}")
+
+            x_hat = data.x_sol
+            stats['iter_nr'] += 1
+
             feasible = data.solved
             termination_met = termination_condition(
-                lb, ub, tolerance, data.best_solutions, x_hat)
+                stats["lb"], stats["ub"], tolerance, data.best_solutions, x_hat)
 
         stats['total_time_calc'] = toc(reset=True)
 
     except KeyboardInterrupt:
         exit(0)
 
-    data.prev_solution = {'x': x_star, 'f': ub}
+    data.prev_solution = {'x': x_star, 'f': stats["ub"]}
     return problem, data, x_star
 
 
