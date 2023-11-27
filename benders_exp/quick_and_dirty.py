@@ -9,7 +9,7 @@ import casadi as ca
 import numpy as np
 from benders_exp.utils import get_control_vector, plot_trajectory, tic, to_0d, toc, \
     make_bounded, setup_logger, logging, colored
-from benders_exp.json_tools import write_json
+from benders_exp.json_tools import write_json, read_json
 from benders_exp.defines import Settings, IMG_DIR
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
@@ -65,24 +65,25 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
     # Benders algorithm
     lb = -ca.inf
     ub = ca.inf
-    tolerance = s.MINLP_TOLERANCE
     feasible = True
     best_iter = -1
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
+    check = CheckNoDuplicate(problem, s)
 
     if first_relaxed:
         data = nlp.solve(data)
         data = master_problem.solve(data, relaxed=True)
 
-    while (not termination_condition(lb, ub, tolerance, x_star, x_hat)) and feasible:
+    while (not termination_condition(stats, s, lb, ub, x_star, x_hat)) and feasible:
+        check(data)
         # Solve NLP(y^k)
         data = nlp.solve(data, set_x_bin=True)
         prev_feasible = data.solved
 
         # Is there a feasible success?
         ub, x_star, best_iter = update_best_solutions(
-            data, stats['iter'], ub, x_star, best_iter, s
+            data, stats['iter_nr'], ub, x_star, best_iter, s
         )
 
         # Is there any infeasible?
@@ -98,7 +99,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
         x_hat = data.x_sol
         logger.debug(f"\n{x_hat=}")
         logger.debug(f"{ub=}, {lb=}\n")
-        stats['iter'] += 1
+        stats['iter_nr'] += 1
 
     stats['total_time_calc'] = toc(reset=True)
     data.prev_solution = {'x': x_star, 'f': ub}
@@ -114,8 +115,14 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
     :param data: data
     :return: callable that returns true if the termination condition holds
     """
-    def max_time(ret):
-        if toc() > s.TIME_LIMIT:
+    def max_time(ret, s, stats):
+        done = False
+        if s.TIME_LIMIT_SOLVER_ONLY:
+            done = (stats["t_solver_total"] > s.TIME_LIMIT)
+        else:
+            done = (toc() > s.TIME_LIMIT)
+
+        if done:
             logging.info("Terminated - TIME LIMIT")
             return True
         return ret
@@ -127,7 +134,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
         grad_f_fn = ca.Function("gradient_f_x", [problem.x, problem.p], [ca.gradient(problem.f, problem.x)],
                                 {"jit": s.WITH_JIT})
 
-        def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
+        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
             ret = to_0d(
                 f_fn(x_current, data.p)
                 + grad_f_fn(x_current, data.p)[idx_x_bin].T @ (
@@ -136,35 +143,36 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
             ) >= 0
             if ret:
                 logging.info("Terminated - gradient ok")
-            return max_time(ret)
+            return max_time(ret, s, stats)
     elif termination_type == 'equality':
         idx_x_bin = problem.idx_x_bin
 
-        def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
+        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
             if isinstance(x_best, list):
                 for x in x_best:
                     if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS):
                         logging.info(f"Terminated - all close within {s.EPS}")
-                        return max_time(True)
-                return max_time(False)
+                        return True
+                return max_time(False, s, stats)
             else:
                 ret = np.allclose(
                     x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS)
                 if ret:
                     logging.info(f"Terminated - all close within {s.EPS}")
-                return max_time(ret)
+                return max_time(ret, s, stats)
 
     elif termination_type == 'std':
-        def func(lb=None, ub=None, tol=None, x_best=None, x_current=None):
-            tol_abs = (abs(lb) + abs(ub)) * tol / 2
+        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
+            tol_abs = max((abs(lb) + abs(ub)) *
+                          s.MINLP_TOLERANCE / 2, s.MINLP_TOLERANCE_ABS)
             ret = (lb + tol_abs - ub) >= 0
             if ret:
                 logging.info(
-                    f"Terminated: {lb} >= {ub} - {tol_abs} ({tol*100}%)")
+                    f"Terminated: {lb} >= {ub} - {tol_abs} ({tol_abs})")
             else:
                 logging.info(
-                    f"Not Terminated: {lb} <= {ub} - {tol_abs} ({tol*100}%)")
-            return max_time(ret)
+                    f"Not Terminated: {lb} <= {ub} - {tol_abs} ({tol_abs})")
+            return max_time(ret, s, stats)
     else:
         raise AttributeError(
             f"Invalid type of termination condition, you set '{termination_type}' but the only option is 'std'!")
@@ -201,7 +209,9 @@ def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats, s: S
     return base_strategy(problem, data, stats, s, benders_master, termination_condition)
 
 
-def export_ampl(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
+def export_ampl(
+    problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings
+) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Export AMPL."""
     from benders_exp.solvers.ampl import AmplSolver
     AmplSolver(problem, stats, s).solve(data)
@@ -366,7 +376,6 @@ def benders_tr_master(
     with_new_inf=False
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
-    check = CheckNoDuplicate(problem, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
@@ -387,7 +396,6 @@ def benders_tr_master(
     stats['iter_nr'] = 0
     stats["lb"] = -ca.inf
     stats["ub"] = ca.inf
-    tolerance = s.MINLP_TOLERANCE
     feasible = True
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
@@ -418,8 +426,6 @@ def benders_tr_master(
 
     try:
         while feasible and not termination_met:
-            check(data)
-
             # Solve NLP(y^k)
             data = nlp.solve(data, set_x_bin=True)
             logger.info("SOLVED NLP")
@@ -462,7 +468,8 @@ def benders_tr_master(
 
             feasible = data.solved
             termination_met = termination_condition(
-                stats["lb"], stats["ub"], tolerance, data.best_solutions, x_hat)
+                stats, s, stats["lb"], stats["ub"], data.best_solutions, x_hat
+            )
 
         stats['total_time_calc'] = toc(reset=True)
 
@@ -565,7 +572,9 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
     if len(output) == 2:
         problem, data = output
         s = Settings()
+        logger.info("Using default settings")
     else:
+        logger.info("Using custom settings")
         problem, data, s = output
 
     if problem == "orig":
@@ -585,16 +594,46 @@ def batch_nl_runner(mode_name, target, nl_files):
     """Run a batch of problems."""
     from os import makedirs
     from time import time
-    overview_target = path.join(target, "overview.json")
-    if path.exists(overview_target):
-        raise Exception(f"Overview is already existing: {overview_target}")
 
-    makedirs(target, exist_ok=True)
-    total_stats = [["id", "path", "obj",
-                    "load_time", "calctime", "iter", "nr_int"]]
+    def do_write(overview_target, start, i, mode_name, total_stats):
+        time_now = time() - start
+        total_time = time_now / (i + 1) * total_to_compute
+        write_json({
+            "time": time_now,
+            "total": total_to_compute,
+            "done": (i+1),
+            "progress": (i+1) / total_to_compute,
+            "time_remaining_est": total_time - time_now,
+            "time_total_est": total_time,
+            "mode": mode_name,
+            "data": total_stats
+        }, overview_target)
+
+    overview_target = path.join(target, "overview.json")
     start = time()
     total_to_compute = len(nl_files)
-    for i, nl_file in enumerate(nl_files):
+    if path.exists(overview_target):
+        data = read_json(overview_target)
+        total_stats = data['data']
+        mode_name = data["mode"]
+        i_start = data['done']
+        start -= data["time"]
+        total_stats.append([
+            i_start,
+            nl_files[i_start],
+            -ca.inf, "FAILED", "CRASH"
+        ])
+        do_write(overview_target, start, i_start, mode_name, total_stats)
+        i_start += 1
+    else:
+        makedirs(target, exist_ok=True)
+        total_stats = [["id", "path", "obj",
+                        "load_time", "calctime",
+                        "solvertime", "iter_nr", "nr_int"]]
+        i_start = 0
+
+    for i in range(i_start, len(nl_files)):
+        nl_file = nl_files[i]
         try:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
             tic()
@@ -605,10 +644,11 @@ def batch_nl_runner(mode_name, target, nl_files):
             )
             stats["x_star"] = x_star
             stats["f_star"] = data.obj_val
-            total_stats.append(
-                [i, nl_file, data.obj_val, stats["total_time_calc"],
-                    stats["iter"], len(problem.idx_x_bin)]
-            )
+            total_stats.append([
+                i, nl_file, data.obj_val,
+                stats["total_time_loading"], stats["total_time_calc"],
+                stats['t_solver_total'], stats["iter_nr"], len(problem.idx_x_bin)
+            ])
         except Exception as e:
             print(f"{e}")
             total_stats.append(
@@ -616,17 +656,7 @@ def batch_nl_runner(mode_name, target, nl_files):
             )
         stats.print()
         stats.save(path.join(target, f"stats_{i}.pkl"))
-        time_now = time() - start
-        total_time = time_now / (i + 1) * total_to_compute
-        write_json({
-            "time": time_now,
-            "total": total_to_compute,
-            "done": (i+1),
-            "progress": (i+1) / total_to_compute,
-            "time_remaining_est": total_time - time_now,
-            "time_total_est": total_time,
-            "data": total_stats
-        }, overview_target)
+        do_write(overview_target, start, i, mode_name, total_stats)
 
 
 if __name__ == "__main__":
@@ -657,7 +687,8 @@ if __name__ == "__main__":
         target_file = extra_args[-1]
         extra_args = extra_args[:-2]
 
-    (problem, data, x_star), s = run_problem(mode, problem_name, stats, extra_args)
+    (problem, data, x_star), s = run_problem(
+        mode, problem_name, stats, extra_args)
     stats.print()
     if s.WITH_LOG_DATA:
         stats.save()

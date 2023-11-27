@@ -364,7 +364,6 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         # We take a point
         self.best_data = None
         self.x_sol_best = data.x0
-        self.iter = 0
 
     def solve(self, nlpdata: MinlpData, prev_feasible=True, relaxed=False) -> MinlpData:
         """Solve."""

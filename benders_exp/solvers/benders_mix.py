@@ -218,8 +218,14 @@ class BendersTRandMaster(BendersMasterMILP):
     def _add_infeasible_cut_closest_point(self, sol):
         """Add infeasible cut closest point."""
         # Rotate currently around x, but preferrably around x_infeasible
-        dx = sol['x_infeasible'] - sol['x']
-        self.g_infeasible.add(sol['x'][self.idx_x_bin], 0, dx[self.idx_x_bin])
+        dx = (sol['x_infeasible'] - sol['x'])[self.idx_x_bin]
+        dx_min = abs(min(dx.full()))
+        dx_max = abs(min(dx.full()))
+        multiplier = 1 / max(dx_min, dx_max)
+        if multiplier > 1000:
+            sol['x'][self.idx_x_bin] -= 10 * dx
+            multiplier = 1000
+        self.g_infeasible.add(sol['x'][self.idx_x_bin], 0, multiplier * dx)
         colored("New cut type", "blue")
 
     def _add_infeasible_cut(self, x_sol, lam_g_sol, nlpdata: MinlpData):
@@ -331,10 +337,6 @@ class BendersTRandMaster(BendersMasterMILP):
         g_cur_lin = self._get_g_linearized(self.x_sol_best, dx, nlpdata)
 
         g_total = g_cur_lin + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa + self.g_infeasible_oa
-
-        if self.settings.WITH_DEBUG and self.sol_best is not None:
-            check_integer_feasible(self.idx_x_bin, self.x_sol_best, self.settings, throws=False)
-            check_solution(self.problem, nlpdata, self.x_sol_best, self.settings, throws=False, check_objval=False)
 
         self.solver = ca.qpsol(
             f"benders_constraint_{self.g_lowerapprox.nr}", self.settings.MIP_SOLVER, {

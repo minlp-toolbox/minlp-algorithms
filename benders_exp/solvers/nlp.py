@@ -179,6 +179,11 @@ class FindClosestNlpSolver(SolverClass):
         super(FindClosestNlpSolver, self).__init___(problem, stats, s)
         options = regularize_options(
             s.IPOPT_SETTINGS, {
+                "ipopt.mu_strategy": "adaptive",
+                "ipopt.mu_target": min(
+                    1e-5,
+                    s.IPOPT_SETTINGS.get("ipopt.mu_target", 1e-5),
+                ),
                 "calc_multipliers":  True,
                 "jit": s.WITH_JIT
             }, s)

@@ -1,5 +1,6 @@
 """Overview of all problems."""
 
+from benders_exp.defines import Settings
 from benders_exp.problems import MinlpProblem, CASADI_VAR, MinlpData, \
     MetaDataOcp
 import casadi as ca
@@ -287,9 +288,10 @@ def counter_example_nonconvexity():
     return problem, data
 
 
-def create_from_nl_file(file):
+def create_from_nl_file(file, compiled=True):
     """Load from NL file."""
-    global CASADI_VAR
+    from benders_exp.utils.cache import CachedFunction, cache_data, return_func
+    import hashlib
     # Create an NLP instance
     nl = ca.NlpBuilder()
 
@@ -302,12 +304,23 @@ def create_from_nl_file(file):
 
     idx = np.where(np.array(nl.discrete))
 
-    problem = MinlpProblem(
-        x=ca.vcat(nl.x),
-        f=nl.f, g=ca.vcat(nl.g),
-        idx_x_bin=idx[0].tolist(),
-        p=[]
-    )
+    if compiled:
+        key = str(hashlib.md5(file.encode()).hexdigest())[:64]
+        x = ca.vcat(nl.x)
+        problem = MinlpProblem(
+            x=x,
+            f=CachedFunction(f"f_{key}", return_func(ca.Function("f", [x], [nl.f])))(x),
+            g=CachedFunction(f"g_{key}", return_func(ca.Function("g", [x], [ca.vcat(nl.g)])))(x),
+            idx_x_bin=idx[0].tolist(),
+            p=[]
+        )
+    else:
+        problem = MinlpProblem(
+            x=ca.vcat(nl.x),
+            f=nl.f, g=ca.vcat(nl.g),
+            idx_x_bin=idx[0].tolist(),
+            p=[]
+        )
     if nl.f.is_constant():
         raise Exception("No objective!")
 
@@ -319,7 +332,31 @@ def create_from_nl_file(file):
 
     from benders_exp.solvers import inspect_problem, set_constraint_types
     set_constraint_types(problem, *inspect_problem(problem, data))
-    return problem, data
+    s = Settings()
+
+    s.OBJECTIVE_TOL = 1e-5
+    s.CONSTRAINT_TOL = 1e-5
+    s.CONSTRAINT_INT_TOL = 1e-2
+    s.MINLP_TOLERANCE = 0.01
+    s.MINLP_TOLERANCE_ABS = 0.01
+    s.TIME_LIMIT = 300
+    s.TIME_LIMIT_SOLVER_ONLY = True
+    s.IPOPT_SETTINGS = {
+        "ipopt.linear_solver": "ma27",
+        "ipopt.max_cpu_time": s.TIME_LIMIT / 4,
+        "ipopt.mu_target": 1e-3,
+    }
+    s.MIP_SETTINGS_ALL["gurobi"] = {
+        "gurobi.MIPGap": 0.10,
+        "gurobi.FeasibilityTol": s.CONSTRAINT_INT_TOL,
+        "gurobi.IntFeasTol": s.CONSTRAINT_INT_TOL,
+        "gurobi.PoolSearchMode": 0,
+        "gurobi.PoolSolutions": 1000,
+        "gurobi.Threads": 1,
+        "gurobi.TimeLimit": s.TIME_LIMIT / 2
+    }
+    s.BONMIN_SETTINGS["bonmin.time_limit"] = s.TIME_LIMIT
+    return problem, data, s
 
 
 def reduce_list(data):

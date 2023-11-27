@@ -7,6 +7,7 @@ Solar Thermal Climate System (STCS) at Karsruhe University of Applied Sciences.
 
 from datetime import timedelta
 import numpy as np
+from benders_exp.defines import Settings
 from benders_exp.problems import MetaDataOcp
 from benders_exp.problems.solarsys.system import System, ca
 from benders_exp.problems.solarsys.ambient import Ambient, Timing
@@ -190,7 +191,6 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     F1 = 0.1 * ca.veccat(*F1)
     F2 = 0.01 * ca.sum1(ca.veccat(*F2))
 
-
     # Setup objective
     dsc.f = 0.5 * ca.mtimes(F1.T, F1) + F2
     logger.debug("NLP created")
@@ -208,13 +208,36 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     prob.meta = meta
     data = dsc.get_data()
     data.x0[prob.idx_x_bin] = to_0d(simulator.b_data).flatten().tolist()
+    s = Settings()
+    s.IPOPT_SETTINGS.update({
+        "ipopt.linear_solver": "ma57",
+        "ipopt.mumps_mem_percent": 10000,
+        "ipopt.mumps_pivtol": 0.001,
+        "ipopt.print_level": 5,
+        "ipopt.max_cpu_time": 3600.0,
+        "ipopt.max_iter": 600000,
+        "ipopt.acceptable_tol": 1e-1,
+        "ipopt.acceptable_iter": 8,
+        "ipopt.acceptable_constr_viol_tol": 10.0,
+        "ipopt.acceptable_dual_inf_tol": 10.0,
+        "ipopt.acceptable_compl_inf_tol": 10.0,
+        "ipopt.acceptable_obj_change_tol": 1e-1,
+        "ipopt.mu_strategy": "adaptive",
+        "ipopt.mu_target": 1e-5,
+    })
+    s.MIP_SETTINGS_ALL["gurobi"].update({
+        "gurobi.PoolSearchMode": 0,
+        "gurobi.PoolSolutions": 3,
+    })
+    # 7 days...
+    s.TIME_LIMIT = 7 * 24 * 3600
 
     # Improve calculation speed by getting indices:
     # set_constraint_types(prob, *cache_data(
     #     f"scts_{n_steps}_{with_slack}", inspect_problem, prob, data
     # ))
 
-    return prob, data
+    return prob, data, s
 
 
 if __name__ == "__main__":
@@ -222,7 +245,6 @@ if __name__ == "__main__":
     from benders_exp.problems import check_solution
     from benders_exp.solvers import Stats
     from benders_exp.solvers.nlp import NlpSolver
-    from benders_exp.defines import Settings
     from datetime import datetime
     import pickle
 
