@@ -563,7 +563,9 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
     if len(output) == 2:
         problem, data = output
         s = Settings()
+        logger.info("Using default settings")
     else:
+        logger.info("Using custom settings")
         problem, data, s = output
 
     if problem == "orig":
