@@ -353,6 +353,9 @@ class BendersTRandMaster(BendersMasterMILP):
             p=[constraint]
         )
         success, stats = self.collect_stats("TR-MILP")
+        if (stats['return_status'] == "TIME_LIMIT" and
+                not np.any(np.isnan(solution['x'].full()))):
+            success = True
         logger.info(f"SOLVED TR-MIQP with ub {constraint}")
         return solution, success, stats
 

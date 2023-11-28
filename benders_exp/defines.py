@@ -97,7 +97,7 @@ class Settings:
 
     @property
     def USE_SOLUTION_POOL(self):
-        return (self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSearchMode"] > 0)
+        return (self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSolutions"] > 0)
 
     @USE_SOLUTION_POOL.setter
     def USE_SOLUTION_POOL(self, value):

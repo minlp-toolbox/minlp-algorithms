@@ -38,7 +38,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     # Run simulator and predictor and use those output to warm start
     simulator = Simulator(ambient=ambient, N=n_steps)
     simulator.solve()
-    x_hat = simulator.predict()
+    # x_hat = simulator.predict()
 
     collocation_nodes = 2
 
@@ -227,7 +227,8 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     })
     s.MIP_SETTINGS_ALL["gurobi"].update({
         "gurobi.PoolSearchMode": 0,
-        "gurobi.PoolSolutions": 3,
+        "gurobi.PoolSolutions": 5,
+        "gurobi.TimeLimit": 900,
     })
     # 7 days...
     s.TIME_LIMIT = 7 * 24 * 3600
