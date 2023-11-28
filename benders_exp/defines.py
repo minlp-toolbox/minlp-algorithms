@@ -51,7 +51,7 @@ class Settings:
         "ipopt.linear_solver": "ma57",
         "ipopt.mumps_mem_percent": 10000,
         "ipopt.mumps_pivtol": 0.001,
-        "ipopt.print_level": 5,
+        "ipopt.print_level": 0,
         "ipopt.max_cpu_time": 3600.0,
         "ipopt.max_iter": 600000,
         "ipopt.acceptable_tol": 1e-1,
