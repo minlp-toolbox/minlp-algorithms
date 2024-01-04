@@ -520,6 +520,33 @@ def create_from_sto(file, with_uptime=True):
     )
     return problem, data
 
+def create_from_nlp(file):
+    """Create a problem from nlp."""
+    from benders_exp.utils.data import load_pickle
+    from os import path
+
+    name = path.basename(file)
+    data = load_pickle(file)
+
+    x = CASADI_VAR.sym("x", data['nx'])
+    p = CASADI_VAR.sym("p", data['np'])
+    f = data['f_fun'](x, p)
+    g = data['g_fun'](x, p)
+    idx_x_bin = data['idx_x_bin']
+
+    problem = MinlpProblem(
+        x=x, p=p, f=f, g=g,
+        idx_x_bin=idx_x_bin,
+        hessian_not_psd=True
+    )
+
+    data['x0'][idx_x_bin] = np.round(data['x0'][idx_x_bin])
+    data = MinlpData(
+        p=data['p0'], x0=data['x0'],
+        _lbx=data['lbx'], _ubx=data['ubx'],
+        _lbg=data['lbg'], _ubg=data['ubg']
+    )
+    return problem, data
 
 PROBLEMS = {
     "sign_check": create_check_sign_lagrange_problem,
@@ -538,6 +565,7 @@ PROBLEMS = {
     "nl_file": create_from_nl_file,
     "nosnoc": create_from_nosnoc,
     "from_sto": create_from_sto,
+    "nlp": create_from_nlp,
     "to_car": time_opt_car,
     "particle": particle_trajectory
 }
