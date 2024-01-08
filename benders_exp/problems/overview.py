@@ -530,8 +530,8 @@ def create_from_nlp(file):
 
     x = CASADI_VAR.sym("x", data['nx'])
     p = CASADI_VAR.sym("p", data['np'])
-    f = data['f_fun'](x, p)
-    g = data['g_fun'](x, p)
+    f = data['f_fun'](x)
+    g = data['g_fun'](x)
     idx_x_bin = data['idx_x_bin']
 
     problem = MinlpProblem(
