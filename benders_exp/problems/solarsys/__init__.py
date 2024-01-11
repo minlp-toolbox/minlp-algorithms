@@ -109,7 +109,6 @@ def create_stcs_problem(n_steps=None, with_slack=True):
             for j in range(1, collocation_nodes + 1)
         ]
         x_k_next_0 = dsc.sym("x", system.nx, lb=-ca.inf, ub=ca.inf,  w0=to_0d(simulator.x_data[k+1, :]).tolist())
-        x_k_full.append(x_k_next_0)
 
         # Add new binary controls
         b_k = dsc.sym_bool("b", system.nb)
@@ -130,6 +129,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         F_k_inp = {"x_k_" + str(i): x_k_i for i, x_k_i in enumerate(x_k_full)}
         F_k_inp.update(
             {
+                "x_k_next": x_k_next_0,
                 "c_k": c_k,
                 "u_k": u_k,
                 "b_k": b_k,
@@ -138,6 +138,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         )
         F_k = F(**F_k_inp)
         dsc.eq(F_k["eq_c"], 0)
+        dsc.eq(F_k["eq_d"], 0)
 
         # Add new slack variable for T_ac_min condition
         if with_slack:
