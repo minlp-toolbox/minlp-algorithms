@@ -62,6 +62,7 @@ class MinlpProblem:
     precompiled_nlp: Optional[str] = None
 
     hessian_not_psd: bool = False
+    f_qp: Optional[CASADI_VAR] = None
     meta: MetaData = MetaData()
 
 

@@ -51,7 +51,6 @@ class Settings:
         "ipopt.linear_solver": "ma57",
         "ipopt.mumps_mem_percent": 10000,
         "ipopt.mumps_pivtol": 0.001,
-        "ipopt.print_level": 0,
         "ipopt.max_cpu_time": 3600.0,
         "ipopt.max_iter": 600000,
         "ipopt.acceptable_tol": 1e-1,
@@ -77,7 +76,7 @@ class Settings:
             # this low tolerance does not affect the solution!
             "gurobi.FeasibilityTol": Settings.CONSTRAINT_INT_TOL,
             "gurobi.IntFeasTol": Settings.CONSTRAINT_INT_TOL,
-            "gurobi.PoolSearchMode": 0,
+            "gurobi.PoolSearchMode": 1,
             "gurobi.PoolSolutions": 5,
         }
     })
@@ -85,11 +84,9 @@ class Settings:
     def __post_init__(self, *args, **kwargs):
         """Settings."""
         super(Settings, self).__init__(*args, **kwargs)
-        if self.USE_SOLUTION_POOL:
-            self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSearchMode"] = 1
-            self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSolutions"] = 5
         if self.WITH_DEBUG:
             self.IPOPT_SETTINGS.update({"ipopt.print_level": 5})
+            self.MIP_SETTINGS_ALL['gurobi'].update({"gurobi.output_flag": 1})
         else:
             self.IPOPT_SETTINGS.update({"ipopt.print_level": 0})
             self.MIP_SETTINGS_ALL['gurobi'].update({"gurobi.output_flag": 0})
@@ -97,7 +94,7 @@ class Settings:
 
     @property
     def USE_SOLUTION_POOL(self):
-        return (self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSolutions"] > 0)
+        return (self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSolutions"] > 1)
 
     @USE_SOLUTION_POOL.setter
     def USE_SOLUTION_POOL(self, value):
@@ -106,7 +103,7 @@ class Settings:
             self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSolutions"] = 5
         else:
             self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSearchMode"] = 0
-            self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSolutions"] = 0
+            self.MIP_SETTINGS_ALL["gurobi"]["gurobi.PoolSolutions"] = 1
 
     @property
     def MIP_SOLVER(self):

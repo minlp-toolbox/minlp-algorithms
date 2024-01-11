@@ -12,7 +12,7 @@ from benders_exp.problems import MetaDataOcp
 from benders_exp.problems.solarsys.system import System, ca
 from benders_exp.problems.solarsys.ambient import Ambient, Timing
 from benders_exp.problems.solarsys.simulator import Simulator
-from benders_exp.problems.dsc import Description
+from benders_exp.problems.dsc import Description, CASADI_VAR
 from benders_exp.utils.cache import CachedFunction, cache_data
 from benders_exp.solvers import get_lin_bounds
 from benders_exp.solvers import inspect_problem, set_constraint_types
@@ -81,7 +81,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     mdot_hts_b_max_fcn = CachedFunction("stcs", system.get_mdot_hts_b_max_fcn)
     electric_power_balance_fcn = CachedFunction("stcs", system.get_electric_power_balance_fcn)
     F1_fcn = CachedFunction("stcs", system.get_F1_fcn)
-    F2_fcn = CachedFunction("stcs", system.get_F2_fcn)
+    F2_fcn = system.get_F2_fcn()  # CachedFunction("stcs", system.get_F2_fcn)
 
     logger.debug("Create NLP problem")
     x_k_0 = dsc.add_parameters("x0", system.nx, to_0d(simulator.x_data[0, :]).tolist())
@@ -101,6 +101,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
             for j in range(1, collocation_nodes + 1)
         ]
         x_k_next_0 = dsc.sym("x", system.nx, lb=-ca.inf, ub=ca.inf,  w0=to_0d(simulator.x_data[k+1, :]).tolist())
+        x_k_full.append(x_k_next_0)
 
         # Add new binary controls
         b_k = dsc.sym_bool("b", system.nb)
@@ -121,7 +122,6 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         F_k_inp = {"x_k_" + str(i): x_k_i for i, x_k_i in enumerate(x_k_full)}
         F_k_inp.update(
             {
-                "x_k_next": x_k_next_0,
                 "c_k": c_k,
                 "u_k": u_k,
                 "b_k": b_k,
@@ -130,13 +130,12 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         )
         F_k = F(**F_k_inp)
         dsc.eq(F_k["eq_c"], 0)
-        dsc.eq(F_k["eq_d"], 0)
 
         # Add new slack variable for T_ac_min condition
         if with_slack:
             s_ac_lb_k = dsc.sym("s_ac_lb", system.n_s_ac_lb, 0, ca.inf)
         else:
-            s_ac_lb_k = np.zeros(system.n_s_ac_lb)
+            s_ac_lb_k = np.zeros((system.n_s_ac_lb,))
 
         # Setup T_ac_min conditions
         dsc.leq(0, T_ac_min_fcn(x_k_0, c_k, b_k, s_ac_lb_k))
@@ -145,7 +144,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         if with_slack:
             s_ac_ub_k = dsc.sym("s_ac_ub", system.n_s_ac_ub, 0, ca.inf)
         else:
-            s_ac_ub_k = np.zeros(system.n_s_ac_ub)
+            s_ac_ub_k = np.zeros((system.n_s_ac_ub,))
 
         # Setup T_ac_max conditions
         dsc.leq(T_ac_max_fcn(x_k_0, c_k, b_k, s_ac_ub_k), 0)
@@ -154,7 +153,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         if with_slack:
             s_x_k = dsc.sym("s_x", system.nx, -ca.inf, ca.inf, w0=0)
         else:
-            s_x_k = np.zeros(system.nx)
+            s_x_k = np.zeros((system.nx,))
 
         # Setup state limits as soft constraints to prevent infeasibility
         dsc.add_g(x_min[k + 1, :], slacked_state_fcn(x_k_next_0, s_x_k), x_max[k + 1, :])
@@ -185,16 +184,30 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         x_k_0 = x_k_next_0
         u_k_prev = u_k
 
-    # Specify residual for GN Hessian computation
-    dsc.r = F1
     # Concatenate objects
     F1 = 0.1 * ca.veccat(*F1)
-    F2 = 0.01 * ca.sum1(ca.veccat(*F2))
+    F2 = 0.01 * sum(F2)
+
+    # Specify residual for GN Hessian computation
+    dsc.r = F1
 
     # Setup objective
     dsc.f = 0.5 * ca.mtimes(F1.T, F1) + F2
     logger.debug("NLP created")
     prob = dsc.get_problem()
+    x_bar = CASADI_VAR.sym("x_bar", prob.x.shape)
+    fun_F1 = ca.Function("F1", [prob.x, prob.p], [F1])
+    fun_F2 = ca.Function("F2", [prob.x, prob.p], [F2])
+    fun_grad_F1 = ca.Function("F1_grad", [prob.x, prob.p], [ca.jacobian(F1, prob.x).T])
+    fun_grad_F2 = ca.Function("F2_grad", [prob.x, prob.p], [ca.jacobian(F2, prob.x).T])
+
+    x = prob.x
+    prob.f_qp = ca.Function("F_qp", [x, x_bar, prob.p], [
+        0.5 * ca.mtimes(fun_F1(x_bar, prob.p).T, fun_F1(x_bar, prob.p))
+        + ca.mtimes([(x - x_bar).T,  fun_grad_F1(x_bar, prob.p), fun_F1(x_bar, prob.p)])
+        + 0.5 * ca.mtimes([(x - x_bar).T, fun_grad_F1(x_bar, prob.p), fun_grad_F1(x_bar, prob.p).T, (x - x_bar)])
+        + fun_F2(x_bar, prob.p) + ca.mtimes(fun_grad_F2(x_bar, prob.p).T, x - x_bar)
+    ])
     meta = MetaDataOcp(
         n_state=system.nx, n_continuous_control=system.nu, n_discrete_control=system.nb,
         idx_param=dsc.indices_p,
@@ -213,7 +226,6 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         "ipopt.linear_solver": "ma57",
         "ipopt.mumps_mem_percent": 10000,
         "ipopt.mumps_pivtol": 0.001,
-        "ipopt.print_level": 5,
         "ipopt.max_cpu_time": 3600.0,
         "ipopt.max_iter": 600000,
         "ipopt.acceptable_tol": 1e-1,

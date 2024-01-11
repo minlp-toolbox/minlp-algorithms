@@ -39,10 +39,10 @@ class BendersTRLB(BendersTRandMaster):
 
     def compute_hess_correction(self, nlpdata):
         correction = CASADI_VAR.sym("correction", 1)
-        dx = self._x - self.x_sol_best
-        f_k = self.f(self.x_sol_best, nlpdata.p)
-        f_lin = self.grad_f_x(self.x_sol_best, nlpdata.p)
-        f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
+        dx = self._x - self.sol_best['x']
+        f_k = self.f(self.sol_best['x'], nlpdata.p)
+        f_lin = self.grad_f_x(self.sol_best['x'], nlpdata.p)
+        f_hess = self.f_hess(self.sol_best['x'], nlpdata.p)
         f = ca.Function("f", [self._x, correction], [
             f_k + f_lin.T @ dx + 0.5 * dx.T @ f_hess * correction @ dx])
         g, g_ub = [], []
@@ -78,7 +78,7 @@ class BendersTRLB(BendersTRandMaster):
             for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
                 # check if new best solution found
                 try:
-                    nonzero = np.count_nonzero((sol['x'][:self.nr_x_orig] - self.x_sol_best)[self.idx_x_bin])
+                    nonzero = np.count_nonzero((sol['x'][:self.nr_x_orig] - self.sol_best['x'])[self.idx_x_bin])
                 except TypeError:
                     colored(sol['x'])
                     nonzero = -1
@@ -88,8 +88,9 @@ class BendersTRLB(BendersTRandMaster):
                     self._lowerapprox_oa(sol['x'], nlpdata)
                     needs_trust_region_update = True
                     if float(sol['f']) + self.settings.EPS < self.y_N_val:
-                        self.x_sol_best = sol['x'][:self.nr_x_orig]
+                        sol['x'] = sol['x'][:self.nr_x_orig]
                         self.sol_best = sol
+                        self.sol_best_feasible = True
                         self.y_N_val = float(sol['f'])  # update best objective
                         colored(f"New upper bound: {self.y_N_val}", "green")
                         # Correct hessian correction because new point!
@@ -117,10 +118,10 @@ class BendersTRLB(BendersTRandMaster):
 
     def _solve_miqp(self, nlpdata: MinlpData, correction, constraint) -> MinlpData:
         """Solve QP problem."""
-        dx = self._x - self.x_sol_best
-        f_k = self.f(self.x_sol_best, nlpdata.p)
-        f_lin = self.grad_f_x(self.x_sol_best, nlpdata.p)
-        f_hess = self.f_hess(self.x_sol_best, nlpdata.p)
+        dx = self._x - self.sol_best['x']
+        f_k = self.f(self.sol_best['x'], nlpdata.p)
+        f_lin = self.grad_f_x(self.sol_best['x'], nlpdata.p)
+        f_hess = self.f_hess(self.sol_best['x'], nlpdata.p)
         if self.hessian_not_psd:
             min_eigen_value = np.linalg.eigh(f_hess.full())[0][0]
             logger.info(f"Eigen value detected {min_eigen_value}")
@@ -132,12 +133,12 @@ class BendersTRLB(BendersTRandMaster):
         f = f_k + f_lin.T @ dx + 0.5 * correction * dx.T @ f_hess @ dx
         # Order seems to be important!
         g_total = self._get_g_linearized(
-            self.x_sol_best, dx, nlpdata
+            self.sol_best['x'], dx, nlpdata
         ) + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa
 
         if self.settings.WITH_DEBUG and self.sol_best is not None:
-            check_integer_feasible(self.idx_x_bin, self.x_sol_best, self.settings, throws=False)
-            check_solution(self.problem, self.sol_best, self.x_sol_best, self.settings, throws=False)
+            check_integer_feasible(self.idx_x_bin, self.sol_best['x'], self.settings, throws=False)
+            check_solution(self.problem, self.sol_best, self.sol_best['x'], self.settings, throws=False)
 
         self.solver = ca.qpsol(
             f"benders_constraint_{self.g_lowerapprox.nr}", self.settings.MIP_SOLVER, {
@@ -147,7 +148,7 @@ class BendersTRLB(BendersTRandMaster):
         )
 
         solution = self.solver(
-            x0=self.x_sol_best,
+            x0=self.sol_best['x'],
             lbx=nlpdata.lbx, ubx=nlpdata.ubx,
             lbg=g_total.lb,
             ubg=g_total.ub,
@@ -181,6 +182,6 @@ class BendersTRLB(BendersTRandMaster):
             nlpdata = get_solutions_pool(nlpdata, success, stats, self.settings,
                                          solution, self.idx_x_bin)
         else:
-            nlpdata.prev_solutions = [{"x": self.x_sol_best, "f": self.y_N_val}]
+            nlpdata.prev_solutions = [{"x": self.sol_best['x'], "f": self.y_N_val}]
 
         return nlpdata
