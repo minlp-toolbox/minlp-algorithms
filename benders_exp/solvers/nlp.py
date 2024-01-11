@@ -63,7 +63,8 @@ class NlpSolver(SolverClass):
             new_sol = self.solver(
                 p=nlpdata.p, x0=nlpdata.x0,
                 lbx=lbx, ubx=ubx,
-                lbg=nlpdata.lbg, ubg=nlpdata.ubg
+                lbg=nlpdata.lbg,
+                ubg=nlpdata.ubg
             )
 
             success, stats = self.collect_stats("NLP")
