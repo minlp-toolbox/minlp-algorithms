@@ -177,7 +177,7 @@ class BendersEquality(MiSolverClass):
     def solve_benders_eq_lb(self, nlpdata: MinlpData):
         """Solve benders equality to lb problem."""
         nu = CASADI_VAR.sym("slack", 1)
-        f = nu + ca.norm_2(self._x_bin - self.nlp_lb_x[self.idx_x_bin])
+        f = nu + ca.norm_2(self._x_bin - self.nlp_lb_x[self.idx_x_bin]) ** 2
         g = Constraints(0, [], [], [])
         for i in range(self.nr_cuts_benders):
             # cut < nu

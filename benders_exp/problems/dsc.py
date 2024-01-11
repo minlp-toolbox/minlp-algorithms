@@ -159,7 +159,7 @@ class Description:
         return as_shape(p, shape)
 
     def add_g(self, mini: float, equation: CASADI_VAR, maxi: float,
-              is_linear=-1, is_discrete=-1) -> int:
+              is_linear=0, is_discrete=0) -> int:
         """
         Add to g.
 
@@ -186,7 +186,7 @@ class Description:
         self.g_dis += make_list(int(is_discrete), nr)
         return len(self.ubg) - 1
 
-    def leq(self, op1, op2, is_linear=-1, is_discrete=-1):
+    def leq(self, op1, op2, is_linear=0, is_discrete=0):
         """Lower or equal."""
         if isinstance(op1, (float, int, list)):
             self.add_g(op1, op2, inf,
@@ -199,7 +199,7 @@ class Description:
             self.add_g(-inf, diff, 0,
                        is_linear=is_linear, is_discrete=is_discrete)
 
-    def eq(self, op1, op2, is_linear=-1, is_discrete=-1):
+    def eq(self, op1, op2, is_linear=0, is_discrete=0):
         """Equal."""
         self.add_g(0, op1 - op2, 0,
                    is_linear=is_linear, is_discrete=is_discrete)

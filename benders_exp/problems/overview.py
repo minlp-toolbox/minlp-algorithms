@@ -90,8 +90,12 @@ def create_ocp_unstable_system(p_val=[0.8, 0.7]):
     )
     problem.meta = meta
     data = dsc.get_data()
-
-    return problem, data
+    s = Settings()
+    s.CONSTRAINT_INT_TOL = 1e-5
+    s.MIP_SETTINGS_ALL["gurobi"].update(
+        {"gurobi.FeasibilityTol": s.CONSTRAINT_INT_TOL,
+         "gurobi.IntFeasTol": s.CONSTRAINT_INT_TOL,})
+    return problem, data, s
 
 
 def create_check_sign_lagrange_problem():
@@ -324,6 +328,7 @@ def create_from_nl_file(file, compiled=True):
     if nl.f.is_constant():
         raise Exception("No objective!")
 
+    problem.hessian_not_psd = True
     data = MinlpData(x0=np.array(nl.x_init),
                      _lbx=np.array(nl.x_lb),
                      _ubx=np.array(nl.x_ub),
@@ -345,15 +350,18 @@ def create_from_nl_file(file, compiled=True):
         "ipopt.linear_solver": "ma27",
         "ipopt.max_cpu_time": s.TIME_LIMIT / 4,
         "ipopt.mu_target": 1e-3,
+        "ipopt.max_iter": 1000,
+        "ipopt.print_level": 0,
     }
     s.MIP_SETTINGS_ALL["gurobi"] = {
         "gurobi.MIPGap": 0.10,
         "gurobi.FeasibilityTol": s.CONSTRAINT_INT_TOL,
         "gurobi.IntFeasTol": s.CONSTRAINT_INT_TOL,
         "gurobi.PoolSearchMode": 0,
-        "gurobi.PoolSolutions": 1000,
+        "gurobi.PoolSolutions": 1,
         "gurobi.Threads": 1,
-        "gurobi.TimeLimit": s.TIME_LIMIT / 2
+        "gurobi.TimeLimit": s.TIME_LIMIT / 2,
+        "gurobi.output_flag": 0,
     }
     s.BONMIN_SETTINGS["bonmin.time_limit"] = s.TIME_LIMIT
     return problem, data, s

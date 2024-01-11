@@ -31,6 +31,7 @@ class NlpSolver(SolverClass):
         #     problem.g.shape[0], problem.p.shape[0]
         # )
         # self.callback.add_to_solver_opts(options, 50)
+        self.g = ca.Function("g", [problem.x, problem.p], [problem.g])
 
         if problem.precompiled_nlp is not None:
             self.solver = ca.nlpsol(
@@ -65,9 +66,21 @@ class NlpSolver(SolverClass):
                 lbg=nlpdata.lbg, ubg=nlpdata.ubg
             )
 
-            success, _ = self.collect_stats("NLP")
+            success, stats = self.collect_stats("NLP")
+            if not success:
+                return_status_ok = stats["return_status"] in [
+                    "Search_Direction_Becomes_Too_Small", "Maximum_Iterations_Exceeded",
+                    "Maximum_CpuTime_Exceeded", "Maximum_WallTime_Exceeded",
+                    "Solved_To_Acceptable_Level", "Feasible_Point_Found",
+                    "Not_Enough_Degrees_Of_Freedom", "Insufficient_Memory"
+                ]
+                if return_status_ok:
+                    gk = self.g(new_sol['x'], nlpdata.p).full()
+                    if np.all(gk <= nlpdata.ubg) and np.all(gk >= nlpdata.lbg):
+                        success = True
             if not success:
                 print("NLP not solved")
+
             success_out.append(success)
             sols_out.append(new_sol)
 
@@ -190,17 +203,28 @@ class FindClosestNlpSolver(SolverClass):
 
         self.idx_x_bin = problem.idx_x_bin
         x_hat = CASADI_VAR.sym("x_hat", len(self.idx_x_bin))
+        x_best = CASADI_VAR.sym("x_best", len(self.idx_x_bin))
 
-        f = ca.norm_2(problem.x[self.idx_x_bin] - x_hat)
+        f = ca.norm_2(problem.x[self.idx_x_bin] - x_hat)**2
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
-            "f": f, "g": problem.g, "x": problem.x,
-            "p": ca.vertcat(problem.p, x_hat)
+            "f": f, "g": ca.vertcat(
+                problem.g,
+                ca.dot(
+                    problem.x[self.idx_x_bin] - x_best,
+                    problem.x[self.idx_x_bin] - x_best
+                )
+            ),
+            "x": problem.x,
+            "p": ca.vertcat(problem.p, x_hat, x_best)
         }, options)
 
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve NLP."""
         success_out = []
         sols_out = []
+        has_best = len(nlpdata.best_solutions) >= 1
+        if has_best:
+            x_best = nlpdata.best_solutions[-1][self.idx_x_bin]
         for success_prev, sol in zip(nlpdata.solved_all, nlpdata.solutions_all):
             if success_prev:
                 success_out.append(success_prev)
@@ -209,20 +233,38 @@ class FindClosestNlpSolver(SolverClass):
                 lbx = nlpdata.lbx
                 ubx = nlpdata.ubx
                 x_bin_var = to_0d(sol['x'][self.idx_x_bin])
+                if not has_best:
+                    x_best = x_bin_var
+                    distance = 1e16
+                else:
+                    distance = ca.dot(x_best - x_bin_var, x_best - x_bin_var)
 
                 new_sol = self.solver(
                     x0=nlpdata.x0,
                     lbx=lbx, ubx=ubx,
-                    lbg=nlpdata.lbg, ubg=nlpdata.ubg,
-                    p=ca.vertcat(nlpdata.p, x_bin_var)
+                    lbg=ca.vertcat(
+                        nlpdata.lbg,
+                        0
+                    ),
+                    ubg=ca.vertcat(
+                        nlpdata.ubg,
+                        distance
+                    ),
+                    p=ca.vertcat(
+                        nlpdata.p, x_bin_var, x_best
+
+                    )
                 )
                 new_sol['x_infeasible'] = sol['x']
-
                 success, _ = self.collect_stats("FC-NLP")
                 if not success:
                     print("FC-NLP not solved")
-                success_out.append(False)
-                sols_out.append(new_sol)
+                if float(new_sol['f']) < self.settings.CONSTRAINT_INT_TOL**2:
+                    success_out.append(True)
+                    sols_out.append(sol)
+                else:
+                    success_out.append(False)
+                    sols_out.append(new_sol)
 
         nlpdata.prev_solutions = sols_out
         nlpdata.solved_all = success_out

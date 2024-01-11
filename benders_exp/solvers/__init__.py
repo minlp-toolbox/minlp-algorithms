@@ -39,7 +39,7 @@ class Stats:
         """Print statistics."""
         print("Statistics")
         for k, v in sorted(self.data.items()):
-            if k not in ["iterate_data"]:
+            if k not in ["iterate_data", "solutions_all", "solved_all", "solutions"]:
                 print(f"\t{k}: {v}")
 
     def save(self, dest=None):

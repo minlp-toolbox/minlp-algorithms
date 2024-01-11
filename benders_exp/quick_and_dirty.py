@@ -38,10 +38,10 @@ def update_best_solutions(data, itr, ub, x_star, best_iter, s: Settings):
             obj_val = float(data.prev_solutions[i]['f'])
             if success:
                 if obj_val + s.EPS < ub:
+                    logger.debug(f"\n{x_star=}")
+                    logger.info(f"Decreased UB from {ub} to {obj_val}")
                     ub = obj_val
                     x_star = data.prev_solutions[i]['x']
-                    logger.info(f"\n{x_star=}")
-                    logger.debug(f"Decreased UB to {ub}")
                     data.best_solutions.append(x_star)
                     best_iter = itr
                 elif obj_val - s.EPS < ub:
@@ -90,7 +90,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
         if not np.all(data.solved_all):
             # Solve NLPF(y^k)
             data = fnlp.solve(data)
-            logger.debug("Infeasibility problem solved")
+            logger.info("Infeasibility problem solved")
 
         # Solve master^k and set lower bound:
         data = master_problem.solve(data, prev_feasible=prev_feasible)
@@ -118,7 +118,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
     def max_time(ret, s, stats):
         done = False
         if s.TIME_LIMIT_SOLVER_ONLY:
-            done = (stats["t_solver_total"] > s.TIME_LIMIT)
+            done = (stats["t_solver_total"] > s.TIME_LIMIT or toc() > s.TIME_LIMIT * 3)
         else:
             done = (toc() > s.TIME_LIMIT)
 
@@ -430,14 +430,14 @@ def benders_tr_master(
             data = nlp.solve(data, set_x_bin=True)
             logger.info("SOLVED NLP")
 
-            stats["ub"], x_star, stats["best_iter"] = update_best_solutions(
-                data, stats['iter_nr'], stats["ub"], x_star, stats["best_iter"], s
-            )
-
             if not np.all(data.solved_all):
                 # Solve NLPF(y^k)
                 data = fnlp.solve(data)
-                logger.debug("SOLVED FEASIBILITY NLP")
+                logger.info("SOLVED FEASIBILITY NLP")
+
+            stats["ub"], x_star, stats["best_iter"] = update_best_solutions(
+                data, stats['iter_nr'], stats["ub"], x_star, stats["best_iter"], s
+            )
 
             if s.WITH_DEBUG:
                 if np.allclose(old_sol, to_0d(data.x_sol)[[problem.idx_x_bin]]):
@@ -446,7 +446,7 @@ def benders_tr_master(
                     colored("All ok", "green")
 
             old_sol = to_0d(data.x_sol)[problem.idx_x_bin]
-            logger.debug(f"Adding {data.nr_sols} solutions")
+            logger.info(f"Adding {data.nr_sols} solutions")
             logger.debug(f"NLP {data.obj_val=}, {stats['ub']=}, {stats['lb']=}")
             stats["solutions_all"] = data.solutions_all
             stats["solved_all"] = data.solved_all
@@ -559,7 +559,7 @@ SOLVER_MODES = {
 }
 
 
-def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, MinlpData, ca.DM]:
+def run_problem(mode_name, problem_name, stats, args, s=None) -> Union[MinlpProblem, MinlpData, ca.DM]:
     """Run a problem and return the results."""
     if mode_name not in SOLVER_MODES:
         raise Exception(
@@ -571,7 +571,8 @@ def run_problem(mode_name, problem_name, stats, args) -> Union[MinlpProblem, Min
     output = PROBLEMS[problem_name](*args)
     if len(output) == 2:
         problem, data = output
-        s = Settings()
+        if s is None:
+            s = Settings()
         logger.info("Using default settings")
     else:
         logger.info("Using custom settings")
@@ -618,11 +619,12 @@ def batch_nl_runner(mode_name, target, nl_files):
         mode_name = data["mode"]
         i_start = data['done']
         start -= data["time"]
-        total_stats.append([
-            i_start,
-            nl_files[i_start],
-            -ca.inf, "FAILED", "CRASH"
-        ])
+        if total_stats[-1][0] != i_start:
+            total_stats.append([
+                i_start,
+                nl_files[i_start],
+                -ca.inf, "FAILED", "CRASH"
+            ])
         do_write(overview_target, start, i_start, mode_name, total_stats)
         i_start += 1
     else:

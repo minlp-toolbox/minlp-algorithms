@@ -861,7 +861,7 @@ class System:
             "integrator", "cvodes", ode, 0.0, 1.0
         )
 
-    def get_t_ac_min_function(self, use_big_m_constraints=False):
+    def get_t_ac_min_function(self, use_big_m_constraints=True):
         """
         Create a function to represent the minimum uptime.
 
@@ -895,7 +895,7 @@ class System:
             "T_ac_min_fcn", [self.x, self.c, self.b, s_ac_lb], [T_ac_min]
         )
 
-    def get_t_ac_max_function(self, use_big_m_constraints=False):
+    def get_t_ac_max_function(self, use_big_m_constraints=True):
         """
         Create a function to represent the maximum uptime.
 
