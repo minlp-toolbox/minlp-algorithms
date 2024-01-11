@@ -117,7 +117,7 @@ def compute_infeasibility(g, lbg, ubg):
 class BendersTRandMaster(BendersMasterMILP):
     """Mixing the idea from Moritz with a slightly altered version of benders masters."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, with_benders_master=True):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, with_benders_master=True, early_exit=False):
         """Create the benders constraint MILP."""
         super(BendersTRandMaster, self).__init__(
             problem, data, stats, s, with_lin_bounds=False)
@@ -180,6 +180,8 @@ class BendersTRandMaster(BendersMasterMILP):
         self.with_benders_master = with_benders_master
         self.hessian_not_psd = problem.hessian_not_psd
         self.with_oa_conv_cuts = True
+        self.trust_region_fails = False
+        self.early_exit = early_exit
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
@@ -264,7 +266,7 @@ class BendersTRandMaster(BendersMasterMILP):
             (g_k - np.where(np.isinf(nlpdata.lbg), 0, nlpdata.lbg))
         )
         # assert g_bar_k > 0
-        if g_bar_k < 0:
+        if g_bar_k < self.settings.EPS:
             colored(f"Infeasibility cut of {g_bar_k}")
         else:
             colored(f"Infeasibility cut of {g_bar_k}", "blue")
@@ -335,15 +337,18 @@ class BendersTRandMaster(BendersMasterMILP):
             self.g_lowerapprox.add(x_bin_new, f_k, lambda_k)
 
     def _get_g_linearized(self, x, dx, nlpdata):
-        g_lin = self.g(x, nlpdata.p)
-        jac_g = self.jac_g(x, nlpdata.p)
+        if not self.sol_best_feasible and self.trust_region_fails:
+            return Constraints()
+        else:
+            g_lin = self.g(x, nlpdata.p)
+            jac_g = self.jac_g(x, nlpdata.p)
 
-        return Constraints(
-            g_lin.numel(),
-            (g_lin + jac_g @ dx),
-            nlpdata.lbg - self.settings.EPS,
-            nlpdata.ubg + self.settings.EPS,
-        )
+            return Constraints(
+                g_lin.numel(),
+                (g_lin + jac_g @ dx),
+                nlpdata.lbg - self.settings.EPS,
+                nlpdata.ubg + self.settings.EPS,
+            )
 
     def _solve_trust_region_problem(self, nlpdata: MinlpData, constraint) -> MinlpData:
         """Solve QP problem."""
@@ -473,17 +478,19 @@ class BendersTRandMaster(BendersMasterMILP):
             constraint = (self.y_N_val + self.internal_lb) / 2
             solution, success, stats = self._solve_trust_region_problem(
                 nlpdata, constraint)
-            solution['f'] = self.internal_lb
-            # if self.g_lowerapprox.nr == 0:
-            #     solution['f'] = self.internal_lb
-            # else:
-            #     solution['f'] = self.compute_lb(solution['x'])
+            if self.early_exit and solution['f'] > self.y_N_val:
+                nlpdata = get_solutions_pool(
+                    nlpdata, success, stats, self.settings,
+                    solution, self.idx_x_bin
+                )
+                return nlpdata, True
 
             if success:
                 if any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin):
                     colored("QP stagnates, need LB problem", "yellow")
                     do_benders = True
             else:
+                self.trust_region_fails = True
                 colored("Failed solving TR", "red")
                 do_benders = True
 
