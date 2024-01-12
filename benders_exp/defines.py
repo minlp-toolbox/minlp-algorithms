@@ -77,7 +77,7 @@ class Settings:
             "gurobi.FeasibilityTol": Settings.CONSTRAINT_INT_TOL,
             "gurobi.IntFeasTol": Settings.CONSTRAINT_INT_TOL,
             "gurobi.PoolSearchMode": 1,
-            "gurobi.PoolSolutions": 1,
+            "gurobi.PoolSolutions": 5,
         }
     })
 
