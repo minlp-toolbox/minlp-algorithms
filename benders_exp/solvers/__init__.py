@@ -6,7 +6,7 @@ import os
 from typing import Dict, List, Optional
 from benders_exp.problems import MinlpProblem, MinlpData
 from benders_exp.defines import OUT_DIR, Settings
-from benders_exp.utils import to_0d, toc
+from benders_exp.utils import to_0d, toc, colored
 import casadi as ca
 import numpy as np
 import logging
@@ -95,17 +95,22 @@ class SolverClass(ABC):
         else:
             stats = solver.stats()
 
-        if "t_proc_total" in stats:
+        if "t_proc_my_solver" in stats:
+            t_proc = stats["t_proc_my_solver"]
+        elif "t_proc_total" in stats:
             t_proc = stats["t_proc_total"]
         else:
-            logger.info(f"t_proc_total not found for {algo_name}")
+            logger.info(colored(f"t_proc_total not found for {algo_name}"))
             t_proc = sum(
                 [v for k, v in stats.items() if "t_proc" in k]
             )
-        if "t_wall_total" in stats:
+
+        if "t_wall_my_solver" in stats:
+            t_wall = stats["t_proc_my_solver"]
+        elif "t_wall_total" in stats:
             t_wall = stats["t_wall_total"]
         else:
-            logger.info(f"t_wall_total not found for {algo_name}")
+            logger.info(colored(f"t_wall_total not found for {algo_name}", "red"))
             t_wall = sum(
                 [v for k, v in stats.items() if "t_wall" in k]
             )
@@ -132,7 +137,7 @@ def regularize_options(options, default, s: Settings):
     ret = {} if options is None else options.copy()
 
     if not s.WITH_DEBUG:
-        ret.update({"verbose": False, "print_time": 1})
+        ret.update({"verbose": False, "print_time": 0})
 
     ret.update(default)
 
