@@ -182,6 +182,7 @@ class BendersTRandMaster(BendersMasterMILP):
         self.with_oa_conv_cuts = True
         self.trust_region_fails = False
         self.early_exit = early_exit
+        self.early_benders = False
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
@@ -473,7 +474,7 @@ class BendersTRandMaster(BendersMasterMILP):
     def _solve_mix(self, nlpdata: MinlpData):
         """Solve mix."""
         # We miss the LB, try to find one...
-        do_benders = np.isinf(self.internal_lb)
+        do_benders = np.isinf(self.internal_lb) or self.early_benders
         if not do_benders:
             constraint = (self.y_N_val + self.internal_lb) / 2
             solution, success, stats = self._solve_trust_region_problem(
@@ -484,6 +485,8 @@ class BendersTRandMaster(BendersMasterMILP):
                     solution, self.idx_x_bin
                 )
                 return nlpdata, True
+            elif solution['f'] > self.y_N_val:
+                self.early_benders = True
 
             if success:
                 if any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin):
@@ -497,6 +500,7 @@ class BendersTRandMaster(BendersMasterMILP):
         if do_benders:
             solution, success, stats = self._solve_benders_problem(nlpdata)
             self.internal_lb = float(solution['f'])
+            self.early_benders = False
 
         nlpdata = get_solutions_pool(nlpdata, success, stats, self.settings,
                                      solution, self.idx_x_bin)
