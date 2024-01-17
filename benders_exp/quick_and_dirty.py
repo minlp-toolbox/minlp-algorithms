@@ -38,7 +38,6 @@ def update_best_solutions(data, itr, ub, x_star, best_iter, s: Settings):
             obj_val = float(data.prev_solutions[i]['f'])
             if success:
                 if obj_val + s.EPS < ub:
-                    logger.debug(f"\n{x_star=}")
                     logger.info(f"Decreased UB from {ub} to {obj_val}")
                     ub = obj_val
                     x_star = data.prev_solutions[i]['x']
@@ -373,16 +372,17 @@ def voronoi_tr_algorithm(
 def benders_tr_master(
     problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, termination_type: str = 'std',
     first_relaxed=True, use_feasibility_pump=True, with_benders_master=True,
-    with_new_inf=False
+    with_new_inf=False, early_exit=False
 ) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """Run the base strategy."""
+    check = CheckNoDuplicate(problem, s)
     termination_condition = get_termination_condition(
         termination_type, problem, data, s
     )
     logger.info("Setup Mixed Benders TR/Master")
     master_problem = BendersTRandMaster(
         problem, data, stats, s,
-        with_benders_master=with_benders_master
+        with_benders_master=with_benders_master, early_exit=early_exit
     )
     toc()
     logger.info("Setup NLP solver...")
@@ -426,6 +426,7 @@ def benders_tr_master(
 
     try:
         while feasible and not termination_met:
+            check(data)
             # Solve NLP(y^k)
             data = nlp.solve(data, set_x_bin=True)
             logger.info("SOLVED NLP")
@@ -517,6 +518,10 @@ SOLVER_MODES = {
         p, d, st, s, termination_type='equality',
         use_feasibility_pump=False, with_benders_master=False
     ),
+    "benders_tri": lambda p, d, st, s: benders_tr_master(
+        p, d, st, s, termination_type='equality',
+        use_feasibility_pump=False, with_benders_master=False, with_new_inf=True
+    ),
     "benders_tr_fp": lambda p, d, st, s: benders_tr_master(
         p, d, st, s, termination_type='equality',
         use_feasibility_pump=True, with_benders_master=False
@@ -526,6 +531,10 @@ SOLVER_MODES = {
     ),
     "benders_trmi": lambda p, d, st, s: benders_tr_master(
         p, d, st, s, use_feasibility_pump=False, with_benders_master=True, with_new_inf=True
+    ),
+    "benders_trmi+": lambda p, d, st, s: benders_tr_master(
+        p, d, st, s, use_feasibility_pump=False, with_benders_master=True, with_new_inf=True,
+        early_exit=True
     ),
     "benders_trmi_fp": lambda p, d, st, s: benders_tr_master(
         p, d, st, s, use_feasibility_pump=True, with_benders_master=True, with_new_inf=True
