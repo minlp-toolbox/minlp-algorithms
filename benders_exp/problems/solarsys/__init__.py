@@ -69,6 +69,14 @@ def create_stcs_problem(n_steps=None, with_slack=True):
             np.inf * np.ones((n_steps, 1)),
         ]
     )
+    min_up_times = np.asarray(
+                    system.p_op["acm"]["min_up_time"] +
+                    system.p_op["hp"]["min_up_time"]
+                ) -1e-3
+    min_down_times = np.asarray(
+                    system.p_op["acm"]["min_down_time"] +
+                    system.p_op["hp"]["min_down_time"]
+                ) -1e-3
 
     logger.debug("Creating basic equations")
     F = system.get_system_dynamics_collocation(collocation_nodes)
@@ -101,7 +109,6 @@ def create_stcs_problem(n_steps=None, with_slack=True):
             for j in range(1, collocation_nodes + 1)
         ]
         x_k_next_0 = dsc.sym("x", system.nx, lb=-ca.inf, ub=ca.inf,  w0=to_0d(simulator.x_data[k+1, :]).tolist())
-        x_k_full.append(x_k_next_0)
 
         # Add new binary controls
         b_k = dsc.sym_bool("b", system.nb)
@@ -122,6 +129,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         F_k_inp = {"x_k_" + str(i): x_k_i for i, x_k_i in enumerate(x_k_full)}
         F_k_inp.update(
             {
+                "x_k_next": x_k_next_0,
                 "c_k": c_k,
                 "u_k": u_k,
                 "b_k": b_k,
@@ -130,6 +138,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         )
         F_k = F(**F_k_inp)
         dsc.eq(F_k["eq_c"], 0)
+        dsc.eq(F_k["eq_d"], 0)
 
         # Add new slack variable for T_ac_min condition
         if with_slack:
@@ -190,6 +199,55 @@ def create_stcs_problem(n_steps=None, with_slack=True):
 
     # Specify residual for GN Hessian computation
     dsc.r = F1
+
+
+    idx_b_2d = np.asarray(dsc.get_indices('b')).T
+    w = ca.vertcat(*dsc.w)
+
+    # Add min uptime
+    for k in range(-1, n_steps + 1):
+        for i in range(system.nb):
+            uptime = 0
+            it = 0
+            for dt in ambient.time_steps[max(0, k) :]:
+                uptime += dt.total_seconds()
+                if uptime < min_up_times[i]:
+                    if k != -1:
+                        idx_k = idx_b_2d[i, k]
+
+                    try:
+                        idx_k_1 = idx_b_2d[i, k + 1]
+                        idx_k_dt = idx_b_2d[i, k + it + 2]
+                    except IndexError:
+                        pass
+                    if k != -1:
+                        dsc.leq(- w[idx_k] + w[idx_k_1] - w[idx_k_dt], 0)
+                    else:
+                        dsc.leq( w[idx_k_1] - w[idx_k_dt], 0)
+
+                    it += 1
+    # Add min downtime
+    for k in range(-1, n_steps + 1):
+        for i in range(system.nb):
+            downtime = 0
+            it = 0
+            for dt in ambient.time_steps[max(0, k) :]:
+                downtime += dt.total_seconds()
+                if downtime < min_down_times[i]:
+                    if k != -1:
+                        idx_k = idx_b_2d[i, k]
+
+                    try:
+                        idx_k_1 = idx_b_2d[i, k + 1]
+                        idx_k_dt = idx_b_2d[i, k + it + 2]
+                    except IndexError:
+                        pass
+                    if k != -1:
+                        dsc.leq(w[idx_k] - w[idx_k_1] + w[idx_k_dt], 1)
+                    else:
+                        dsc.leq(- w[idx_k_1] + w[idx_k_dt], 1)
+
+                    it += 1
 
     # Setup objective
     dsc.f = 0.5 * ca.mtimes(F1.T, F1) + F2
