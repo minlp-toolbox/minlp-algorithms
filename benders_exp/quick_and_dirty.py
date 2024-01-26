@@ -462,6 +462,7 @@ def benders_tr_master(
                     stats["lb"] = data.obj_val
                 else:
                     stats["lb"] = max(data.obj_val, stats["lb"])
+            stats['mip_obj'] = data.obj_val
             logger.debug(f"MIP {data.obj_val=}, {stats['ub']=}, {stats['lb']=}")
 
             x_hat = data.x_sol
