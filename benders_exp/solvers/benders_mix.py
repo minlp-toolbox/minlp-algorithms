@@ -500,7 +500,6 @@ class BendersTRandMaster(BendersMasterMILP):
         if do_benders:
             solution, success, stats = self._solve_benders_problem(nlpdata)
             self.internal_lb = float(solution['f'])
-            self.early_benders = False
 
         nlpdata = get_solutions_pool(nlpdata, success, stats, self.settings,
                                      solution, self.idx_x_bin)
@@ -538,6 +537,7 @@ class BendersTRandMaster(BendersMasterMILP):
         self.sol_best = sol
         if feasible:
             self.y_N_val = float(sol['f'])
+            self.early_benders = False
             colored(f"New upper bound: {self.y_N_val}", "green")
         else:
             colored(f"New upper bound: Inf {self.sol_infeasibility}", "red")
