@@ -151,6 +151,7 @@ class BendersMasterMILP(MiSolverClass):
         solution['x'] = x_full
         nlpdata.prev_solution = solution
         nlpdata.solved, stats = self.collect_stats("BENDERS-MILP")
+        del self.solver
         return nlpdata
 
     def setup_3d_cut_plot(self, problem: MinlpProblem, data: MinlpData):
@@ -302,6 +303,7 @@ class BendersMasterMIQP(BendersMasterMILP):
         solution['x'] = x_full
         nlpdata.prev_solution = solution
         nlpdata.solved, stats = self.collect_stats("BENDERS-MIQP")
+        del self.solver
         return nlpdata
 
 
@@ -444,5 +446,5 @@ class BendersTrustRegionMIP(BendersMasterMILP):
             print("FINAL ITERATION")
             # Final iteration
             nlpdata.solved = True
-
+        del self.solver
         return nlpdata

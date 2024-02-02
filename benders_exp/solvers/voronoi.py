@@ -177,6 +177,7 @@ class VoronoiTrustRegionMILP(MiSolverClass):
         )
 
         nlpdata.solved, stats = self.collect_stats("VTR-MILP")
+        del self.solver
         return nlpdata
 
     def _generate_infeasible_cut(self, x, x_sol, lam_g, p):

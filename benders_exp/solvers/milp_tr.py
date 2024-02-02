@@ -155,4 +155,5 @@ class MILPTrustRegion(SolverClass):
         success, _ = self.collect_stats("OFP")
         nlpdata.prev_solution = solution
         nlpdata.solved = success
+        del self.solver
         return nlpdata

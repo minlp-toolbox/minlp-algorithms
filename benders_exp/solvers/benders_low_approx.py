@@ -157,6 +157,7 @@ class BendersTRLB(BendersTRandMaster):
         nlpdata.prev_solutions = [solution]
         success, stats = self.collect_stats("TR-MILP")
         logger.info(f"SOLVED TR-MIQP with ub {constraint} - {correction=} {success=}")
+        del self.solver
         return solution, success, stats
 
     def _solve_internal(self, nlpdata: MinlpData):

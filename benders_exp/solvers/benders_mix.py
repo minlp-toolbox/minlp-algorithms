@@ -395,6 +395,7 @@ class BendersTRandMaster(BendersMasterMILP):
                 not np.any(np.isnan(solution['x'].full()))):
             success = True
         logger.info(f"SOLVED TR-MIQP with ub {constraint}")
+        del self.solver
         return solution, success, stats
 
     def _solve_benders_problem(self, nlpdata: MinlpData) -> MinlpData:
@@ -443,6 +444,7 @@ class BendersTRandMaster(BendersMasterMILP):
             solution['x'] = solution['x'][:-1]
             logger.info("SOLVED LB-MILP")
 
+        del self.solver
         return solution, success, stats
 
     def update_options(self, relaxed=False):
