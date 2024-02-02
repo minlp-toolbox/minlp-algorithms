@@ -1,5 +1,7 @@
 """Implementation of the CIA algorithm."""
 
+import copy
+import datetime
 import casadi as ca
 import numpy as np
 from typing import Tuple
@@ -89,7 +91,7 @@ class PycombinaSolver(SolverClass):
         """Create NLP problem."""
         super(PycombinaSolver, self).__init___(problem, stats, s)
         self.idx_x_bin = problem.idx_x_bin
-        self.meta = problem.meta
+        self.meta = copy.deepcopy(problem.meta)
 
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve NLP."""
@@ -103,19 +105,38 @@ class PycombinaSolver(SolverClass):
         b_rel[b_rel > 1.0] = 1
 
         N = b_rel.shape[0] + 1
-        # NOTE assuming uniform grid
-        t = np.arange(0, N*self.meta.dt, self.meta.dt)
-        binapprox = BinApprox(t, b_rel)
+        if isinstance(self.meta.dt, list):
+            if isinstance(self.meta.dt[0], datetime.timedelta):
+                time_array = [0]
+                for t in self.meta.dt:
+                    time_array.append(time_array[-1] + t.total_seconds())
+                time_array = np.array(time_array)
+            else:
+                raise NotImplementedError()
+        else:
+            time_array = np.arange(0, N*self.meta.dt, self.meta.dt)  # Assumes uniform grid
+        binapprox = BinApprox(time_array, b_rel)
 
         value_set = False
         if self.meta.min_downtime is not None:
             value_set = True
-            binapprox.set_min_down_times(
-                to_list(self.meta.dt, self.meta.min_downtime, b_rel.shape[1]))
+            if isinstance(self.meta.min_downtime, np.ndarray):
+                if self.meta.min_downtime.shape[0] == self.meta.n_discrete_control:
+                    min_downtimes = np.concatenate([self.meta.min_downtime, np.zeros(1)])
+                    binapprox.set_min_down_times(min_downtimes)
+            else:
+                binapprox.set_min_down_times(
+                    to_list(self.meta.dt, self.meta.min_downtime, b_rel.shape[1]))
+
         if self.meta.min_uptime is not None:
             value_set = True
-            binapprox.set_min_up_times(
-                to_list(self.meta.dt, self.meta.min_uptime, b_rel.shape[1]))
+            if isinstance(self.meta.min_uptime, np.ndarray):
+                if self.meta.min_uptime.shape[0] == self.meta.n_discrete_control:
+                    min_uptimes = np.concatenate([self.meta.min_uptime, np.zeros(1)])
+                    binapprox.set_min_down_times(min_uptimes)
+            else:
+                binapprox.set_min_up_times(
+                    to_list(self.meta.dt, self.meta.min_uptime, b_rel.shape[1]))
 
         # binapprox.set_n_max_switches(...)
         # binapprox.set_max_up_times(...)

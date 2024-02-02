@@ -273,8 +273,9 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         idx_control=np.hstack(dsc.indices['u']).tolist(),
         idx_bin_control=np.hstack(dsc.indices['b']).tolist(),
         initial_state=to_0d(simulator.x_data[0, :]).tolist(),
-        dt=dt.total_seconds(),
-        min_uptime=1,
+        dt=ambient.time_steps,
+        min_uptime=min_up_times,
+        min_downtime=min_down_times,
         )
     prob.meta = meta
     data = dsc.get_data()
