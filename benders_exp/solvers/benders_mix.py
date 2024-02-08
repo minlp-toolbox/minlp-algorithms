@@ -122,8 +122,7 @@ class BendersTRandMaster(BendersMasterMILP):
         super(BendersTRandMaster, self).__init__(
             problem, data, stats, s, with_lin_bounds=False)
         # Settings
-        self.nonconvex_strategy = NonconvexStrategy.GRADIENT_BASED
-        self.nonconvex_strategy_alpha = 0.2
+        self.alpha_kronqvist = 0.5
         self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
         self.trust_region_feasibility_rho = 1.5
 
@@ -478,7 +477,7 @@ class BendersTRandMaster(BendersMasterMILP):
         # We miss the LB, try to find one...
         do_benders = np.isinf(self.internal_lb) or self.early_benders
         if not do_benders:
-            constraint = (self.y_N_val + self.internal_lb) / 2
+            constraint = self.internal_lb + self.alpha_kronqvist * (self.y_N_val - self.internal_lb)  # Kronqvist's trick
             solution, success, stats = self._solve_trust_region_problem(
                 nlpdata, constraint)
             if self.early_exit and solution['f'] > self.y_N_val:

@@ -54,8 +54,8 @@ def feasibility_pump(
         data = nlp.solve(data)
 
     relaxed_value = data.obj_val
-    ATTEMPT_TOLERANCE = 0.1
-    TOLERANCE = 0.01
+    ATTEMPT_TOLERANCE = 0.01
+    TOLERANCE = 0.001
     MAX_ITER = 1000
     KK = 5  # Need an integer improvement in 5 steps
     prev_x = []
@@ -96,13 +96,25 @@ def feasibility_pump(
                 data, problem.idx_x_bin), True)
             if datarounded.solved:
                 stats['total_time_calc'] += toc(reset=True)
+                stats["x_sol"] = to_0d(datarounded.x_sol)
+                stats["obj_sol"] = float(datarounded.obj_val)
+                if s.WITH_LOG_DATA:
+                    stats.save()
                 return problem, datarounded, datarounded.x_sol
 
+        stats["x_sol"] = to_0d(data.x_sol)
+        stats["obj_sol"] = float(data.obj_val)
+        if s.WITH_LOG_DATA:
+            stats.save()
         stats["iter_nr"] += 1
         logger.info(f"Iteration {stats['iter_nr']} finished")
 
     stats['total_time_calc'] += toc(reset=True)
     data = nlp.solve(data, True)
+    stats["x_sol"] = to_0d(data.x_sol)
+    stats["obj_sol"] = float(data.obj_val)
+    if s.WITH_LOG_DATA:
+        stats.save()
     return problem, data, data.x_sol
 
 

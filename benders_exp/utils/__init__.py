@@ -211,6 +211,8 @@ def plot_trajectory(
                 meta.scaling_coeff_control[a] * np.append([a_traj[0, a]], a_traj[:, a]),
                 alpha=alpha,
                 color="tab:orange",
+                marker='.',
+                where='post'
             )
         axs[meta.n_state + a].set_ylabel(f"$u_{a}$")
         axs[meta.n_state + a].grid()
