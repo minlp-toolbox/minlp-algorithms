@@ -1,8 +1,9 @@
 """An easier way to define a problem, similar to casadi opti."""
 
+import copy
 from typing import Optional, Union, List, Tuple
 from benders_exp.defines import CASADI_VAR
-from casadi import vertcat, inf, hessian, Function, DM, reshape, jacobian, vcat
+from casadi import inf, vertcat, hessian, Function, DM, reshape, jacobian, vcat, Sparsity, blockcat
 from math import isinf
 from benders_exp.problems import MinlpProblem, MinlpData
 import numpy as np
@@ -41,11 +42,25 @@ def as_shape(x, shape):
         return x
 
 
+def make_soc_matrix(h, new_h):
+    if isinstance(h, list):
+        if h == []:
+            return new_h
+    else:
+        upper_left = copy.deepcopy(h)
+        lower_right = copy.deepcopy(new_h)
+        upper_right = Sparsity(upper_left.shape[0], lower_right.shape[1])
+        lower_left = Sparsity(lower_right.shape[0], upper_left.shape[1])
+        return blockcat(upper_left, upper_right, lower_left, lower_right)
+
+
+
 class Description:
     """Description for Casadi."""
 
     def __init__(self):
         """Create description."""
+        self.h = []  # for soc-type constraints
         self.g = []
         self.ubg = []
         self.lbg = []
@@ -159,7 +174,7 @@ class Description:
         return as_shape(p, shape)
 
     def add_g(self, mini: float, equation: CASADI_VAR, maxi: float,
-              is_linear=0, is_discrete=0) -> int:
+              is_linear=0, is_discrete=0, is_soc=0) -> int:
         """
         Add to g.
 
@@ -177,14 +192,18 @@ class Description:
                     )
                 )
 
-        nr = equation.shape[0] * equation.shape[1]
-        equation = reshape(equation, (nr, 1))
-        self.lbg += make_list(mini, nr)
-        self.g += make_list(equation)
-        self.ubg += make_list(maxi, nr)
-        self.g_lin += make_list(int(is_linear), nr)
-        self.g_dis += make_list(int(is_discrete), nr)
-        return len(self.ubg) - 1
+        if is_soc:
+            self.h = make_soc_matrix(self.h, equation)
+            return 0
+        else:
+            nr = equation.shape[0] * equation.shape[1]
+            equation = reshape(equation, (nr, 1))
+            self.lbg += make_list(mini, nr)
+            self.g += make_list(equation)
+            self.ubg += make_list(maxi, nr)
+            self.g_lin += make_list(int(is_linear), nr)
+            self.g_dis += make_list(int(is_discrete), nr)
+            return len(self.ubg) - 1
 
     def leq(self, op1, op2, is_linear=0, is_discrete=0):
         """Lower or equal."""
@@ -236,7 +255,7 @@ class Description:
             gn_hessian = self.get_gauss_newton_hessian()
         else:
             gn_hessian = None
-        return MinlpProblem(f=self.f, g=vertcat(*self.g),
+        return MinlpProblem(f=self.f, g=vertcat(*self.g), h=self.h,
                             x=vertcat(*self.w), idx_x_bin=idx_x_bin, p=vertcat(*self.p), gn_hessian=gn_hessian)
 
     def get_data(self) -> MinlpData:
@@ -244,13 +263,16 @@ class Description:
         return MinlpData(p=self.p0, x0=DM(self.w0), _lbx=DM(self.lbw), _ubx=DM(self.ubw),
                          _lbg=DM(self.lbg), _ubg=DM(self.ubg))
 
-    def get_indices(self, name: str):
+    def get_indices(self, name: str, is_param: bool = False):
         """
         Get indices of a certain variable.
 
         :param name: name
         """
-        return self.indices[name]
+        if is_param:
+            return self.indices_p[name]
+        else:
+            return self.indices[name]
 
     def check(self):
         """Test properties."""

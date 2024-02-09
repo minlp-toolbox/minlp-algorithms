@@ -16,6 +16,7 @@ class MetaData:
 class MetaDataOcp(MetaData):
     """Meta data in case the problem is an OCP."""
 
+    N_horizon: Optional[int] = None
     n_state: Optional[int] = None
     n_continuous_control: Optional[int] = None
     n_discrete_control: Optional[int] = None
@@ -54,6 +55,7 @@ class MinlpProblem:
     p: CASADI_VAR
     idx_x_bin: List[float]
 
+    h: Optional[CASADI_VAR] = None  # for soc-type constraints
     gn_hessian: Optional[CASADI_VAR] = None
     idx_g_lin: Optional[List[int]] = None
     idx_g_lin_bin: Optional[List[int]] = None

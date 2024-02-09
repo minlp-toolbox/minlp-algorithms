@@ -59,7 +59,7 @@ def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
     lbx, ubx = data.lbx, data.ubx
     lbg, ubg = data.lbg, data.ubg
 
-    # # Move all continmous bounds to g!
+    # # Move all continuous bounds to g!
     # when constraints are one sided the convention is -inf <= g <= ubg
     g_extra, g_lb, g_ub = [], [], []
     for i in range(data.lbx.shape[0]):
@@ -109,6 +109,8 @@ def to_0d(array):
     """To zero dimensions."""
     if isinstance(array, np.ndarray):
         ret = array.squeeze()
+    elif isinstance(array, list):
+        ret = np.array(array).squeeze()
     else:
         ret = array.full().squeeze()
     if ret.size == 1:
