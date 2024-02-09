@@ -342,7 +342,8 @@ class BendersTRandMaster(BendersMasterMILP):
         else:
             g_lin = self.g(x, nlpdata.p)
             jac_g = self.jac_g(x, nlpdata.p)
-
+            if g_lin.shape == (0,0):
+                g_lin = ca.DM(0)
             return Constraints(
                 g_lin.numel(),
                 (g_lin + jac_g @ dx),

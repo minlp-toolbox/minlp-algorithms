@@ -33,6 +33,8 @@ class Settings:
     TIME_LIMIT_SOLVER_ONLY: bool = False
     WITH_JIT: bool = False
     WITH_PLOT: bool = False
+    INF: float = 1e8
+    BIGM: float = 1e6
     EPS: float = 1e-6
     OBJECTIVE_TOL: float = 1e-5
     CONSTRAINT_INT_TOL: float = 1e-2  # Due to rounding, this will be almost EPS
@@ -42,6 +44,7 @@ class Settings:
 
     WITH_DEBUG: bool = to_bool(environ.get("DEBUG", False))
     WITH_LOG_DATA: bool = to_bool(environ.get("LOG_DATA", False))
+    WITH_SAVE_FIG = to_bool(environ.get("SAVE_FIG", False))
     MINLP_TOLERANCE: float = 0.01
     MINLP_TOLERANCE_ABS: float = 0.01
     # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
