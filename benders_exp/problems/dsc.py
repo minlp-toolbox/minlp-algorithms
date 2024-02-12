@@ -192,14 +192,14 @@ class Description:
                     )
                 )
 
-            nr = equation.shape[0] * equation.shape[1]
-            equation = reshape(equation, (nr, 1))
-            self.lbg += make_list(mini, nr)
-            self.g += make_list(equation)
-            self.ubg += make_list(maxi, nr)
-            self.g_lin += make_list(int(is_linear), nr)
-            self.g_dis += make_list(int(is_discrete), nr)
-            return len(self.ubg) - 1
+        nr = equation.shape[0] * equation.shape[1]
+        equation = reshape(equation, (nr, 1))
+        self.lbg += make_list(mini, nr)
+        self.g += make_list(equation)
+        self.ubg += make_list(maxi, nr)
+        self.g_lin += make_list(int(is_linear), nr)
+        self.g_dis += make_list(int(is_discrete), nr)
+        return len(self.ubg) - 1
 
     def add_soc(self, equation: CASADI_VAR):
         self.h = make_soc_matrix(self.h, equation)
