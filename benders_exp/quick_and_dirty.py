@@ -588,8 +588,12 @@ def run_problem(mode_name, problem_name, stats, args, s=None) -> Union[MinlpProb
         logger.info("Using custom settings")
         problem, data, s = output
 
-    data.lbx, data.ubx = to_0d(data.lbx), to_0d(data.ubx)
-    data.lbg, data.ubg = to_0d(data.lbg), to_0d(data.ubg)
+
+    if problem == "orig":
+        new_inf = 1e5
+    else:
+        new_inf = 1e3
+    make_bounded(problem, data, new_inf=new_inf)
 
     if len(problem.idx_x_bin) == 0:
         mode_name = "relaxed"

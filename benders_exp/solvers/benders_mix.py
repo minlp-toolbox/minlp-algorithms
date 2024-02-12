@@ -339,11 +339,13 @@ class BendersTRandMaster(BendersMasterMILP):
     def _get_g_linearized(self, x, dx, nlpdata):
         if not self.sol_best_feasible and self.trust_region_fails:
             return Constraints()
+        elif (self.g.size1_out("o0") == 0) & (self.g.size2_out("o0") == 0):
+            if self.settings.WITH_DEBUG:
+                breakpoint()
+            return Constraints()
         else:
             g_lin = self.g(x, nlpdata.p)
             jac_g = self.jac_g(x, nlpdata.p)
-            if g_lin.shape == (0,0):
-                g_lin = ca.DM(0)
             return Constraints(
                 g_lin.numel(),
                 (g_lin + jac_g @ dx),

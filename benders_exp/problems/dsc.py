@@ -174,7 +174,7 @@ class Description:
         return as_shape(p, shape)
 
     def add_g(self, mini: float, equation: CASADI_VAR, maxi: float,
-              is_linear=0, is_discrete=0, is_soc=0) -> int:
+              is_linear=0, is_discrete=0) -> int:
         """
         Add to g.
 
@@ -192,10 +192,6 @@ class Description:
                     )
                 )
 
-        if is_soc:
-            self.h = make_soc_matrix(self.h, equation)
-            return 0
-        else:
             nr = equation.shape[0] * equation.shape[1]
             equation = reshape(equation, (nr, 1))
             self.lbg += make_list(mini, nr)
@@ -204,6 +200,9 @@ class Description:
             self.g_lin += make_list(int(is_linear), nr)
             self.g_dis += make_list(int(is_discrete), nr)
             return len(self.ubg) - 1
+
+    def add_soc(self, equation: CASADI_VAR):
+        self.h = make_soc_matrix(self.h, equation)
 
     def leq(self, op1, op2, is_linear=0, is_discrete=0):
         """Lower or equal."""
