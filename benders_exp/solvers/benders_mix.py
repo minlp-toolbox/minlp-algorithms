@@ -166,10 +166,19 @@ class BendersTRandMaster(BendersMasterMILP):
         self.options.update({"discrete": [
             1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])]})
         self.options_master = self.options.copy()
-        self.options_master['gurobi.MIPGap'] = s.MINLP_TOLERANCE
         self.options_master["discrete"] = self.options["discrete"] + [0]
         self.options_master['error_on_fail'] = False
         self.options['error_on_fail'] = False
+
+        if problem.meta.mip_gap_brmiqp is None:
+            self.mipgap_miqp = s.MINLP_TOLERANCE
+        else:
+            self.mipgap_miqp = problem.meta.mip_gap_brmiqp
+        if problem.meta.mip_gap_lbmilp is None:
+            self.mipgap_milp = s.MINLP_TOLERANCE
+        else:
+            self.mipgap_milp = problem.meta.mip_gap_lbmilp
+        self.options_master['gurobi.MIPGap'] = self.mipgap_milp
 
         self.internal_lb = -ca.inf
         self.sol_best_feasible = False
@@ -351,7 +360,7 @@ class BendersTRandMaster(BendersMasterMILP):
             )
 
     def _solve_trust_region_problem(self, nlpdata: MinlpData, constraint) -> MinlpData:
-        """Solve QP problem."""
+        """Solve BR-MIQP problem."""
         dx = self._x - self.sol_best['x']
 
         if self.f_qp is None:
@@ -390,15 +399,18 @@ class BendersTRandMaster(BendersMasterMILP):
             p=[constraint]
         )
         success, stats = self.collect_stats("TR-MIQP")
-        if (stats['return_status'] == "TIME_LIMIT" and
-                not np.any(np.isnan(solution['x'].full()))):
-            success = True
+        breakpoint()
+        if (stats['return_status'] == "TIME_LIMIT" and not np.any(np.isnan(solution['x'].full()))):
+            if np.all(solution['f']>constraint):
+                success = False
+            else:
+                success = True
         logger.info(f"SOLVED TR-MIQP with ub {constraint}")
         del self.solver
         return solution, success, stats
 
     def _solve_benders_problem(self, nlpdata: MinlpData) -> MinlpData:
-        """Solve benders master problem with one OA constraint."""
+        """Solve LB-MILP problem - Benders master problem with one OA constraint."""
         dx = self._x - self.sol_best['x']
 
         f_k = self.f(self.sol_best['x'], nlpdata.p)
@@ -453,8 +465,9 @@ class BendersTRandMaster(BendersMasterMILP):
 
         if relaxed:
             self.options['gurobi.MIPGap'] = 1.0
+            # self.options['gurobi.MIPGap'] = self.mipgap_miqp
         else:
-            self.options['gurobi.MIPGap'] = 0.1
+            self.options['gurobi.MIPGap'] = self.mipgap_miqp
         logger.info(f"MIP Gap set to {self.options['gurobi.MIPGap']} - "
                     f"Expected Range lb={self.internal_lb}  ub={self.y_N_val}")
 
@@ -508,9 +521,12 @@ class BendersTRandMaster(BendersMasterMILP):
 
     def _solve_tr_only(self, nlpdata: MinlpData):
         """Only solve trust regions."""
-        MIPGap = 0.001
-        constraint = self.y_N_val * (1 - MIPGap)
-        self.options['gurobi.MIPGap'] = 0.1
+        if self.internal_lb > -ca.inf:
+            constraint = self.internal_lb + self.alpha_kronqvist * (self.y_N_val - self.internal_lb)  # Kronqvist's trick
+        else:
+            constraint = self.y_N_val * 0.99
+
+        self.options['gurobi.MIPGap'] = self.mipgap_miqp
         solution, success, stats = self._solve_trust_region_problem(
             nlpdata, constraint)
         if not success:

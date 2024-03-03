@@ -276,6 +276,8 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         dt=ambient.time_steps,
         min_uptime=min_up_times,
         min_downtime=min_down_times,
+        mip_gap_brmiqp=0.1,
+        mip_gap_lbmilp=0.01,
         )
     prob.meta = meta
     data = dsc.get_data()
@@ -297,9 +299,9 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         "ipopt.mu_target": 1e-5,
     })
     s.MIP_SETTINGS_ALL["gurobi"].update({
-        "gurobi.PoolSearchMode": 0,
-        "gurobi.PoolSolutions": 5,
-        "gurobi.TimeLimit": 900,
+        "gurobi.PoolSearchMode": 1,
+        "gurobi.PoolSolutions": 2,
+        "gurobi.TimeLimit": 120,
     })
     # 7 days...
     s.TIME_LIMIT = 7 * 24 * 3600
