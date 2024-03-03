@@ -299,9 +299,9 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         "ipopt.mu_target": 1e-5,
     })
     s.MIP_SETTINGS_ALL["gurobi"].update({
-        "gurobi.PoolSearchMode": 1,
-        "gurobi.PoolSolutions": 2,
-        "gurobi.TimeLimit": 120,
+        "gurobi.PoolSearchMode": 0,
+        "gurobi.PoolSolutions": 3,
+        "gurobi.TimeLimit": 900,
     })
     # 7 days...
     s.TIME_LIMIT = 7 * 24 * 3600

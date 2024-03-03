@@ -124,7 +124,7 @@ class BendersTRandMaster(BendersMasterMILP):
         # Settings
         self.alpha_kronqvist = 0.5
         self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
-        self.trust_region_feasibility_rho = 1.5
+        self.trust_region_feasibility_rho = 1.01
 
         if s.WITH_DEBUG:
             self.problem = problem
@@ -399,13 +399,13 @@ class BendersTRandMaster(BendersMasterMILP):
             p=[constraint]
         )
         success, stats = self.collect_stats("TR-MIQP")
-        breakpoint()
         if (stats['return_status'] == "TIME_LIMIT" and not np.any(np.isnan(solution['x'].full()))):
             if np.all(solution['f']>constraint):
                 success = False
+                colored(f"TR-MIQP returned objective {float(solution['f'])} > J_bar={constraint}", "red")
             else:
                 success = True
-        logger.info(f"SOLVED TR-MIQP with ub {constraint}")
+                colored(f"SOLVED TR-MIQP with objective {float(solution['f'])} < J_bar={constraint}")
         del self.solver
         return solution, success, stats
 
