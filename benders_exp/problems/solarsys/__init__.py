@@ -276,8 +276,8 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         dt=ambient.time_steps,
         min_uptime=min_up_times,
         min_downtime=min_down_times,
-        mip_gap_brmiqp=0.1,
-        mip_gap_lbmilp=0.01,
+        mip_gap_brmiqp=0.15,
+        mip_gap_lbmilp=0.15,
         )
     prob.meta = meta
     data = dsc.get_data()

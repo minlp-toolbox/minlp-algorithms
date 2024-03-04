@@ -122,9 +122,9 @@ class BendersTRandMaster(BendersMasterMILP):
         super(BendersTRandMaster, self).__init__(
             problem, data, stats, s, with_lin_bounds=False)
         # Settings
-        self.alpha_kronqvist = 0.5
+        self.alpha_kronqvist = 0.2
         self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
-        self.trust_region_feasibility_rho = 1.01
+        self.trust_region_feasibility_rho = 1.5
 
         if s.WITH_DEBUG:
             self.problem = problem
@@ -400,12 +400,7 @@ class BendersTRandMaster(BendersMasterMILP):
         )
         success, stats = self.collect_stats("TR-MIQP")
         if (stats['return_status'] == "TIME_LIMIT" and not np.any(np.isnan(solution['x'].full()))):
-            if np.all(solution['f']>constraint):
-                success = False
-                colored(f"TR-MIQP returned objective {float(solution['f'])} > J_bar={constraint}", "red")
-            else:
-                success = True
-                colored(f"SOLVED TR-MIQP with objective {float(solution['f'])} < J_bar={constraint}")
+            success = True
         del self.solver
         return solution, success, stats
 
@@ -464,8 +459,8 @@ class BendersTRandMaster(BendersMasterMILP):
             self.internal_lb = self.y_N_val
 
         if relaxed:
-            self.options['gurobi.MIPGap'] = 1.0
-            # self.options['gurobi.MIPGap'] = self.mipgap_miqp
+            # self.options['gurobi.MIPGap'] = 1.0
+            self.options['gurobi.MIPGap'] = self.mipgap_miqp
         else:
             self.options['gurobi.MIPGap'] = self.mipgap_miqp
         logger.info(f"MIP Gap set to {self.options['gurobi.MIPGap']} - "
