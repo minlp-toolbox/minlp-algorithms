@@ -297,6 +297,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         "ipopt.acceptable_obj_change_tol": 1e-1,
         "ipopt.mu_strategy": "adaptive",
         "ipopt.mu_target": 1e-5,
+        "ipopt.print_frequency_iter": 100,
     })
     s.MIP_SETTINGS_ALL["gurobi"].update({
         "gurobi.PoolSearchMode": 0,
