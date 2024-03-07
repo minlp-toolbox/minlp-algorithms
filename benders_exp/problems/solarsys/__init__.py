@@ -288,7 +288,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         "ipopt.mumps_mem_percent": 10000,
         "ipopt.mumps_pivtol": 0.001,
         "ipopt.max_cpu_time": 3600.0,
-        "ipopt.max_iter": 600000,
+        "ipopt.max_iter": 5000,
         "ipopt.acceptable_tol": 1e-1,
         "ipopt.acceptable_iter": 8,
         "ipopt.acceptable_constr_viol_tol": 10.0,
@@ -301,7 +301,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     s.MIP_SETTINGS_ALL["gurobi"].update({
         "gurobi.PoolSearchMode": 0,
         "gurobi.PoolSolutions": 3,
-        "gurobi.TimeLimit": 900,
+        "gurobi.TimeLimit": 600,
     })
     # 7 days...
     s.TIME_LIMIT = 7 * 24 * 3600
