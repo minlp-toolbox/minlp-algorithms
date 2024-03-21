@@ -47,6 +47,10 @@ class Settings:
     WITH_SAVE_FIG = to_bool(environ.get("SAVE_FIG", False))
     MINLP_TOLERANCE: float = 0.01
     MINLP_TOLERANCE_ABS: float = 0.01
+    BRMIQP_GAP: float = 1e-4
+    LBMILP_GAP: float = 1e-4
+    RHO_AMPLIFICATION: float = 1.5
+    ALPHA_KRONQVIST: float = 0.5
     # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
 
     AMPL_EXPORT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})

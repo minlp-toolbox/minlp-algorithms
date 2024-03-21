@@ -122,9 +122,9 @@ class BendersTRandMaster(BendersMasterMILP):
         super(BendersTRandMaster, self).__init__(
             problem, data, stats, s, with_lin_bounds=False)
         # Settings
-        self.alpha_kronqvist = 0.2
+        self.alpha_kronqvist = s.ALPHA_KRONQVIST
         self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
-        self.trust_region_feasibility_rho = 1.5
+        self.trust_region_feasibility_rho = s.RHO_AMPLIFICATION
 
         if s.WITH_DEBUG:
             self.problem = problem
@@ -170,14 +170,8 @@ class BendersTRandMaster(BendersMasterMILP):
         self.options_master['error_on_fail'] = False
         self.options['error_on_fail'] = False
 
-        if problem.meta.mip_gap_brmiqp is None:
-            self.mipgap_miqp = s.MINLP_TOLERANCE
-        else:
-            self.mipgap_miqp = problem.meta.mip_gap_brmiqp
-        if problem.meta.mip_gap_lbmilp is None:
-            self.mipgap_milp = s.MINLP_TOLERANCE
-        else:
-            self.mipgap_milp = problem.meta.mip_gap_lbmilp
+        self.mipgap_miqp = s.BRMIQP_GAP
+        self.mipgap_milp = s.LBMILP_GAP
         self.options_master['gurobi.MIPGap'] = self.mipgap_milp
 
         self.internal_lb = -ca.inf
@@ -466,7 +460,7 @@ class BendersTRandMaster(BendersMasterMILP):
             self.options['gurobi.MIPGap'] = self.mipgap_miqp
         else:
             self.options['gurobi.MIPGap'] = self.mipgap_miqp
-        logger.info(f"MIP Gap set to {self.options['gurobi.MIPGap']} - "
+        logger.info(f"MIP Gap set to {self.mipgap_miqp} - "
                     f"Expected Range lb={self.internal_lb}  ub={self.y_N_val}")
 
     def update_relaxed_solution(self, nlpdata: MinlpData):

@@ -10,8 +10,6 @@ import numpy as np
 @dataclass
 class MetaData:
     """Meta data class."""
-    mip_gap_brmiqp: Optional[float] = None
-    mip_gap_lbmilp: Optional[float] = None
 
 
 @dataclass

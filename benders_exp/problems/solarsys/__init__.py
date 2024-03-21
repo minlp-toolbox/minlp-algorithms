@@ -276,13 +276,14 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         dt=ambient.time_steps,
         min_uptime=min_up_times,
         min_downtime=min_down_times,
-        mip_gap_brmiqp=0.15,
-        mip_gap_lbmilp=0.15,
         )
     prob.meta = meta
     data = dsc.get_data()
     data.x0[prob.idx_x_bin] = to_0d(simulator.b_data).flatten().tolist()
     s = Settings()
+    s.BRMIQP_GAP = 0.15
+    s.LBMILP_GAP = 0.15
+    s.ALPHA_KRONQVIST = 0.2
     s.IPOPT_SETTINGS.update({
         "ipopt.linear_solver": "ma57",
         "ipopt.mumps_mem_percent": 10000,
