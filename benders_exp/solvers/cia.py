@@ -95,8 +95,9 @@ class PycombinaSolver(SolverClass):
 
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve NLP."""
-        b_rel = to_0d(nlpdata.x_sol[self.meta.idx_bin_control]
-                      ).reshape(-1, self.meta.n_discrete_control)
+        b_rel = to_0d(nlpdata.x_sol)[self.meta.idx_bin_control]
+        if len(b_rel.shape) == 1:  # flatten array
+            b_rel = b_rel.reshape(-1, self.meta.n_discrete_control)
         b_rel = np.hstack([np.asarray(b_rel), np.array(
             1-b_rel.sum(axis=1).reshape(-1, 1))])  # Make sos1 structure
 
@@ -146,8 +147,8 @@ class PycombinaSolver(SolverClass):
 
         combina = CombinaBnB(binapprox)
         combina.solve()
-
         b_bin = binapprox.b_bin[:-1, :].T.flatten()
-        nlpdata.x_sol[self.meta.idx_bin_control] = b_bin
+        idx_bin_control = np.array(self.meta.idx_bin_control).flatten().tolist()
+        nlpdata.x_sol[idx_bin_control] = b_bin
 
         return nlpdata

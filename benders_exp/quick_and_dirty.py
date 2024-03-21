@@ -330,6 +330,8 @@ def relaxed(
     nlp = NlpSolver(problem, stats, s)
     stats['total_time_loading'] = toc(reset=True)
     data = nlp.solve(data)
+    stats["x_sol"] = to_0d(data.x_sol)
+    stats["obj_sol"] = float(data.obj_val)
     stats['total_time_calc'] = toc(reset=True)
     return problem, data, data.x_sol
 
@@ -344,6 +346,8 @@ def bonmin(
     stats['total_time_loading'] = toc(reset=True)
     data = minlp.solve(data)
     stats['total_time_calc'] = toc(reset=True)
+    stats['x_sol'] = to_0d(data.x_sol)
+    stats["obj_sol"] = float(data.obj_val)
     return problem, data, data.x_sol
 
 
@@ -419,7 +423,13 @@ def benders_tr_master(
         logger.info("Solver initialized.")
         data = nlp.solve(data)
         stats["lb"] = data.obj_val
+        stats["solutions_all"] = data.solutions_all
+        stats["solved_all"] = data.solved_all
         data, stats["last_benders"] = master_problem.solve(data, relaxed=True)
+        stats["mip_solutions_all"] = data.solutions_all
+        stats["mip_solved_all"] = data.solved_all
+        if s.WITH_LOG_DATA:
+            stats.save()
     else:
         stats['total_time_loading'] = toc(reset=True)
         logger.info("Solver initialized.")
@@ -456,13 +466,14 @@ def benders_tr_master(
 
             # Solve master^k and set lower bound:
             data, stats["last_benders"] = master_problem.solve(data)
+            stats["mip_solutions_all"] = data.solutions_all
+            stats["mip_solved_all"] = data.solved_all
             if stats["last_benders"]:
                 if stats["ub"] < stats["lb"]:
                     # Problems!
                     stats["lb"] = data.obj_val
                 else:
                     stats["lb"] = max(data.obj_val, stats["lb"])
-            stats['mip_obj'] = data.obj_val
             logger.debug(f"MIP {data.obj_val=}, {stats['ub']=}, {stats['lb']=}")
 
             x_hat = data.x_sol
