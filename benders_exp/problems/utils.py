@@ -22,20 +22,24 @@ def integrate_rk4(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: Union[flo
     X0 = CASADI_VAR.sym("X0", x.shape[0])
     U = CASADI_VAR.sym("U", u.shape[0])
     X = X0
+    if isinstance(dt, CASADI_VAR):
+        DT = CASADI_VAR.sym("DT")
+    else:
+        DT = dt
     for _ in range(m_steps):
         k1 = f(X, U)
-        k2 = f(X + dt / 2 * k1, U)
-        k3 = f(X + dt / 2 * k2, U)
-        k4 = f(X + dt * k3, U)
-        X = X + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        k2 = f(X + DT / 2 * k1, U)
+        k3 = f(X + DT / 2 * k2, U)
+        k4 = f(X + DT * k3, U)
+        X = X + DT / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
     if isinstance(dt, CASADI_VAR):
-        return ca.Function("I_rk4", [X0, U, dt], [X], ["x0", "u", "dt"], ["xf"])
+        return ca.Function("I_rk4", [X0, U, DT], [X], ["x0", "u", "dt"], ["xf"])
     else:
         return ca.Function("I_rk4", [X0, U], [X], ["x0", "u"], ["xf"])
 
 
-def integrate_ee(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_steps: int = 1):
+def integrate_ee(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: Union[float, CASADI_VAR], m_steps: int = 1):
     """
     Implement explicit euler integrator for ODE.
 
@@ -52,17 +56,31 @@ def integrate_ee(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_s
     X0 = CASADI_VAR.sym("X0", x.shape[0])
     U = CASADI_VAR.sym("U", u.shape[0])
     X = X0
+    if isinstance(dt, CASADI_VAR):
+        DT = CASADI_VAR.sym("DT")
+    else:
+        DT = dt
     for _ in range(m_steps):
         k1 = f(X, U)
-        X = X + dt * k1
-    return ca.Function("I_ee", [X0, U], [X], ["x0", "u"], ["xf"])
+        X = X + DT * k1
+    if isinstance(dt, CASADI_VAR):
+        return ca.Function("I_ee", [X0, U, DT], [X], ["x0", "u", "dt"], ["xf"])
+    else:
+        return ca.Function("I_ee", [X0, U], [X], ["x0", "u"], ["xf"])
 
 
-def integrate_ie(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: float, m_steps: int = 1):
+def integrate_ie(x: CASADI_VAR, u: CASADI_VAR, x_dot: CASADI_VAR, dt: Union[float, CASADI_VAR]):
     """Integrate Implicit Euler."""
     f = ca.Function("f", [x, u], [x_dot])
     X0 = CASADI_VAR.sym("X0", x.shape[0])
     Xk = CASADI_VAR.sym("Xk", x.shape[0])
     U = CASADI_VAR.sym("U", u.shape[0])
-    f = X0 + dt * f(Xk, U) - Xk
-    return ca.Function("I_ee", [X0, Xk, U], [f], ["x0", "xk", "u"], ["xf"])
+    if isinstance(dt, CASADI_VAR):
+        DT = CASADI_VAR.sym("DT")
+    else:
+        DT = dt
+    f = X0 + DT * f(Xk, U) - Xk
+    if isinstance(dt, CASADI_VAR):
+        return ca.Function("I_ie", [X0, U, Xk, DT], [f], ["x0",  "u", "x1","dt"], ["xf"])
+    else:
+        return ca.Function("I_ie", [X0, U, Xk], [f], ["x0", "u", "x1"], ["xf"])

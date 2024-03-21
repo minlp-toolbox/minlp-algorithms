@@ -23,6 +23,7 @@ class Stats:
     problem_name: str
     datetime: str
     data: Dict[str, float]
+    out_dir: str = OUT_DIR
     full_stats_to_pickle = []
 
     def __getitem__(self, key):
@@ -39,7 +40,7 @@ class Stats:
         """Print statistics."""
         print("Statistics")
         for k, v in sorted(self.data.items()):
-            if k not in ["iterate_data", "solutions_all", "solved_all", "solutions"]:
+            if k not in ["iterate_data", "solutions_all", "solved_all", "solutions", "mip_solutions_all", "mip_solved_all", "x_sol"]:
                 print(f"\t{k}: {v}")
 
     def save(self, dest=None):
@@ -47,23 +48,27 @@ class Stats:
         time = toc()  # TODO add time
         if dest is None:
             dest = os.path.join(
-                OUT_DIR, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl')
+                self.out_dir, f'{self.datetime}_{self.mode}_{self.problem_name}.pkl')
         print(f"Saving to {dest}")
         data = self.data.copy()
         to_pickle = []
         general_stats = {}
         for key, value in data.items():
-            if key not in ["solutions_all", "solved_all"]:
+            if key not in ["solutions_all", "solved_all", "mip_solutions_all", "mip_solved_all"]:
                 general_stats[key] = value
         general_stats["time"] = time
         try:
-            for idx, elm in enumerate(data["solutions_all"]):
+            for idx, (elm, mip_elm) in enumerate(zip(data["solutions_all"], data["mip_solutions_all"])):
                 tmp_dict = {}
                 tmp_dict.update(general_stats)
                 tmp_dict["sol_pool_idx"] = idx
                 tmp_dict["sol_pool_success"] = data["solved_all"][idx]
                 tmp_dict["sol_pool_objective"] = float(elm["f"])
                 tmp_dict["sol_pool_x"] = to_0d(elm["x"])
+                tmp_dict["mip_sol_pool_idx"] = idx
+                tmp_dict["mip_sol_pool_success"] = data["mip_solved_all"][idx]
+                tmp_dict["mip_sol_pool_objective"] = float(mip_elm["f"])
+                tmp_dict["mip_sol_pool_x"] = to_0d(mip_elm["x"])
                 to_pickle.append(tmp_dict)
         except:
             tmp_dict = {}

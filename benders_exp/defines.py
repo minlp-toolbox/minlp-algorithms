@@ -14,7 +14,7 @@ def to_bool(val):
         return not (val.lower() in ["0", "false", "false", "no"])
 
 
-CASADI_VAR = ca.MX
+CASADI_VAR = ca.SX
 SOURCE_FOLDER = path.dirname(path.abspath(__file__))
 _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
@@ -51,19 +51,7 @@ class Settings:
 
     AMPL_EXPORT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})
     IPOPT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {
-        "ipopt.linear_solver": "ma57",
-        "ipopt.mumps_mem_percent": 10000,
-        "ipopt.mumps_pivtol": 0.001,
-        "ipopt.max_cpu_time": 3600.0,
-        "ipopt.max_iter": 600000,
-        "ipopt.acceptable_tol": 1e-1,
-        "ipopt.acceptable_iter": 8,
-        "ipopt.acceptable_constr_viol_tol": 10.0,
-        "ipopt.acceptable_dual_inf_tol": 10.0,
-        "ipopt.acceptable_compl_inf_tol": 10.0,
-        "ipopt.acceptable_obj_change_tol": 1e-1,
-        "ipopt.mu_strategy": "adaptive",
-        "ipopt.mu_target": 1e-5,
+        "ipopt.linear_solver": "ma27",
     })
     BONMIN_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {
         "bonmin.time_limit": Settings.TIME_LIMIT,
