@@ -61,7 +61,6 @@ class Settings:
         "highs": {},
         "cbc": {},
         "gurobi": {
-            "gurobi.MIPGap": 0.05,
             "gurobi.NumericFocus": 1,
             # Note since this is only the dual, and since rounding occurs,
             # this low tolerance does not affect the solution!
