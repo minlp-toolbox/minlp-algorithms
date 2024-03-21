@@ -14,7 +14,7 @@ def to_bool(val):
         return not (val.lower() in ["0", "false", "false", "no"])
 
 
-CASADI_VAR = ca.SX
+CASADI_VAR = ca.MX
 SOURCE_FOLDER = path.dirname(path.abspath(__file__))
 _DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
 IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
