@@ -50,7 +50,7 @@ def particle_trajectory():
         uk = dsc.sym("u", U.numel(), U_lb, U_ub, discrete=U_discrete)
         dsc.eq(Up, uk[0] - uk[1] + uk[2])
         u_vector.append(uk[1] + uk[2])
-        dsc.eq(F(xp, xk, uk), 0)
+        dsc.eq(F(xp, uk, xk), 0)
         dsc.f += dt * stage_cost(xk, uk, (i + 1) * dt)
         xp, Up = xk, uk[0]
 

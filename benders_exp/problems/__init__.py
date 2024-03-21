@@ -10,6 +10,8 @@ import numpy as np
 @dataclass
 class MetaData:
     """Meta data class."""
+    mip_gap_brmiqp: Optional[float] = None
+    mip_gap_lbmilp: Optional[float] = None
 
 
 @dataclass
@@ -35,8 +37,6 @@ class MetaDataOcp(MetaData):
     min_downtime: Optional[int] = None
     dump_solution: ca.Function = None
     idx_t: Optional[int] = None
-    mip_gap_brmiqp: Optional[float] = None
-    mip_gap_lbmilp: Optional[float] = None
 
 
 @dataclass
