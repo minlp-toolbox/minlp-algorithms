@@ -35,6 +35,8 @@ jit_tmp*
 **/*.blg
 **/*.nav
 **/*.snm
+**/*.bcf
+**/*.run.xml
 
 # Coverage files
 .coverage

@@ -20,7 +20,7 @@ from benders_exp.problems.time_opt import time_opt_car
 from benders_exp.problems.sto_based import particle_trajectory
 
 
-def create_ocp_unstable_system(p_val=[0.8, 0.7]):
+def create_ocp_unstable_system(p_val=[0.9, 0.7]):
     """
     OCP of a unstable system subject to min uptime constraints.
 
