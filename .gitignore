@@ -1,0 +1,52 @@
+__pycache__/
+.src/
+.lib/
+*.egg-info/
+.DS_Store
+.python-version
+.vscode/
+.ipynb_checkpoints
+venv*
+
+# Ignore results
+results/*
+jit_tmp*
+*.pkl
+
+## Core latex/pdflatex auxiliary files:
+**/*.aux
+**/*.lof
+**/*.log
+**/*.lot
+**/*.fls
+**/*.out
+**/*.toc
+**/*.fmt
+**/*.fot
+**/*.cb
+**/*.cb2
+**/*.lb
+**/*.synctex.gz
+**/*.fdb_latexmk
+# **/*.pdf
+**/report.pdf
+**/report_short.pdf
+**/*.bbl
+**/*.blg
+**/*.nav
+**/*.snm
+**/*.bcf
+**/*.run.xml
+
+# Coverage files
+.coverage
+coverage.xml
+
+# Cache and code generated files
+data/cache
+*.so
+*.c
+
+# Generated images
+tutorial-example/img/benders_tr_counterexample.pdf
+
