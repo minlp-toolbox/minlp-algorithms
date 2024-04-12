@@ -9,7 +9,7 @@ import casadi as ca
 import numpy as np
 from benders_exp.utils import get_control_vector, plot_trajectory, tic, to_0d, toc, \
     make_bounded, setup_logger, logging, colored
-from benders_exp.json_tools import write_json, read_json
+from benders_exp.utils.data import write_json, read_json
 from benders_exp.defines import Settings, IMG_DIR
 from benders_exp.problems.overview import PROBLEMS
 from benders_exp.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc

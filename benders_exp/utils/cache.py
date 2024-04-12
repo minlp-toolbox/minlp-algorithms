@@ -7,8 +7,7 @@ import casadi as ca
 from subprocess import call
 
 from benders_exp.defines import CACHE_FOLDER
-from benders_exp.json_tools import read_json, write_json
-from benders_exp.utils.data import load_pickle, save_pickle
+from benders_exp.utils.data import read_json, write_json, load_pickle, save_pickle
 
 logger = logging.getLogger(__name__)
 _COMPILERS = ["gcc"]
