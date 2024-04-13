@@ -3,7 +3,7 @@ import numpy as np
 import casadi as ca
 from minlp_algorithms.solvers import Stats, MinlpProblem, MinlpData
 from minlp_algorithms.utils import colored
-from minlp_algorithms.defines import Settings, CASADI_VAR
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.solvers.benders import BendersMasterMILP
 from minlp_algorithms.solvers.utils import Constraints, get_solutions_pool, any_equal
 from minlp_algorithms.solvers.tighten import tighten_bounds_x
@@ -92,7 +92,7 @@ def compute_gradient_correction(x_best, x_new, obj_best, obj_new, grad, s: Setti
 
     if with_ipopt:
         nr_x = x_best.numel()
-        grad_corr = CASADI_VAR.sym("gradient_correction", nr_x)
+        grad_corr = GlobalSettings.CASADI_VAR.sym("gradient_correction", nr_x)
         obj = ca.norm_2(grad_corr) ** 2
         g = (obj_new - obj_best - s.EPS) + \
             (grad + grad_corr).T @ (x_best - x_new)
@@ -155,7 +155,7 @@ class BendersTRandMaster(BendersMasterMILP):
             self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
                 problem.gn_hessian])
 
-        self._x = CASADI_VAR.sym("x_benders", problem.x.numel())
+        self._x = GlobalSettings.CASADI_VAR.sym("x_benders", problem.x.numel())
         self._x_bin = self._x[problem.idx_x_bin]
         self.g_lowerapprox = LowerApproximation(self._x_bin, self._nu)
         self.g_lowerapprox_oa = LowerApproximation(self._x, self._nu)

@@ -16,7 +16,7 @@ import casadi as ca
 import numpy as np
 from typing import Tuple
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, regularize_options
-from minlp_algorithms.defines import CASADI_VAR, Settings
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.solvers import get_idx_inverse
 from minlp_algorithms.solvers.nlp import NlpSolver
 from minlp_algorithms.utils import colored
@@ -120,7 +120,7 @@ class MILPTrustRegion(SolverClass):
         self.nr_x = problem.x.numel()
         self.idx_x_c = get_idx_inverse(problem.idx_x_bin, self.nr_x)
         self.nr_x_c = len(self.idx_x_c)
-        self.x = CASADI_VAR.sym("x", self.nr_x)
+        self.x = GlobalSettings.CASADI_VAR.sym("x", self.nr_x)
         self.options = regularize_options(options, s.MIP_SETTINGS, s)
         self.settings = s
         discrete = [0] * (self.nr_x)

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import os
 from typing import Dict, List, Optional
 from minlp_algorithms.problems import MinlpProblem, MinlpData
-from minlp_algorithms.defines import OUT_DIR, Settings
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.utils import to_0d, toc, colored
 import casadi as ca
 import numpy as np
@@ -23,7 +23,7 @@ class Stats:
     problem_name: str
     datetime: str
     data: Dict[str, float]
-    out_dir: str = OUT_DIR
+    out_dir: str = GlobalSettings.OUT_DIR
     full_stats_to_pickle = []
 
     def __getitem__(self, key):
@@ -40,7 +40,10 @@ class Stats:
         """Print statistics."""
         print("Statistics")
         for k, v in sorted(self.data.items()):
-            if k not in ["iterate_data", "solutions_all", "solved_all", "solutions", "mip_solutions_all", "mip_solved_all", "x_sol"]:
+            if k not in [
+                "iterate_data", "solutions_all", "solved_all", "solutions", "mip_solutions_all",
+                "mip_solved_all", "x_sol"
+            ]:
                 print(f"\t{k}: {v}")
 
     def save(self, dest=None):
@@ -70,7 +73,7 @@ class Stats:
                 tmp_dict["mip_sol_pool_objective"] = float(mip_elm["f"])
                 tmp_dict["mip_sol_pool_x"] = to_0d(mip_elm["x"])
                 to_pickle.append(tmp_dict)
-        except Exception as e:
+        except Exception:
             tmp_dict = {}
             tmp_dict.update(general_stats)
             to_pickle.append(tmp_dict)

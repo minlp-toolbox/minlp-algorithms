@@ -4,10 +4,10 @@ Validation tools.
 Several validation tools to check if a solution is feasible and valid.
 """
 
-from minlp_algorithms.types.problem import MinlpProblem
-from minlp_algorithms.types.data import MinlpData
+from minlp_algorithms.problem import MinlpProblem
+from minlp_algorithms.data import MinlpData
 import casadi as ca
-from minlp_algorithms.defines import Settings
+from minlp_algorithms.settings import Settings
 import numpy as np
 from minlp_algorithms.utils.conversion import to_float
 

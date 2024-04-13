@@ -7,7 +7,7 @@
 # @License: LGPL-3.0
 
 import casadi as cs
-from minlp_algorithms.defines import CASADI_VAR
+from minlp_algorithms.settings import GlobalSettings
 
 # engine
 
@@ -15,11 +15,11 @@ from minlp_algorithms.defines import CASADI_VAR
 def insight_50kw_power_jc():
 
     # properties : jointly-convex
-    w = CASADI_VAR.sym('w')
-    P = CASADI_VAR.sym('P')
+    w = GlobalSettings.CASADI_VAR.sym('w')
+    P = GlobalSettings.CASADI_VAR.sym('P')
 
-    wrat = CASADI_VAR.sym('wrat')
-    Prat = CASADI_VAR.sym('Prat')
+    wrat = GlobalSettings.CASADI_VAR.sym('wrat')
+    Prat = GlobalSettings.CASADI_VAR.sym('Prat')
 
     Trat = 1.1349*Prat/wrat
 
@@ -110,11 +110,11 @@ def insight_50kw_power_jc():
 # electric motor
 def advisor_em_pwr_sc():
     # properties : semi-convex
-    w = CASADI_VAR.sym('w')
-    P = CASADI_VAR.sym('P')
+    w = GlobalSettings.CASADI_VAR.sym('w')
+    P = GlobalSettings.CASADI_VAR.sym('P')
 
-    wrat = CASADI_VAR.sym('wrat')
-    Prat = CASADI_VAR.sym('Prat')
+    wrat = GlobalSettings.CASADI_VAR.sym('wrat')
+    Prat = GlobalSettings.CASADI_VAR.sym('Prat')
 
     Trat = 3.7858*Prat/wrat
 
@@ -165,7 +165,7 @@ def advisor_em_pwr_sc():
 
 
 # battery
-def battery_hu(Erat=CASADI_VAR.sym('Erat')):
+def battery_hu(Erat=GlobalSettings.CASADI_VAR.sym('Erat')):
 
     Q = 8280  # amp*s
     C = 51782  # farad
@@ -175,8 +175,8 @@ def battery_hu(Erat=CASADI_VAR.sym('Erat')):
     imin = -35  # amp
     U0 = 3.3  # volts
 
-    SoC = CASADI_VAR.sym('Soc')       # state of charge
-    P = CASADI_VAR.sym('P')           # internal power in watt
+    SoC = GlobalSettings.CASADI_VAR.sym('Soc')       # state of charge
+    P = GlobalSettings.CASADI_VAR.sym('P')           # internal power in watt
 
     n = Erat/(.5*Q**2/C + Q*U0)   # num cells
     mass = m*n                   # total battery mass

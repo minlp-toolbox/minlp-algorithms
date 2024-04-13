@@ -2,7 +2,7 @@
 
 import copy
 from typing import Optional, Union, List, Tuple
-from minlp_algorithms.defines import CASADI_VAR
+from minlp_algorithms.settings import GlobalSettings
 from casadi import inf, vertcat, hessian, Function, DM, reshape, jacobian, vcat, Sparsity, blockcat
 from math import isinf
 from minlp_algorithms.problems import MinlpProblem, MinlpData
@@ -54,7 +54,6 @@ def make_soc_matrix(h, new_h):
         return blockcat(upper_left, upper_right, lower_left, lower_right)
 
 
-
 class Description:
     """Description for Casadi."""
 
@@ -75,14 +74,14 @@ class Description:
         self.lbw = []
         self.ubw = []
         self.discrete = []
-        self.f = CASADI_VAR(0)
+        self.f = GlobalSettings.CASADI_VAR(0)
         self.r = []  # residual for GN hessian computation
         self.check_illconditioned = False
 
     def add_w(
         self,
         lb: Union[float, List[float]],
-        w: CASADI_VAR,
+        w: GlobalSettings.CASADI_VAR,
         ub: Union[float, List[float]],
         w0: Optional[Union[float, List[float]]],
         discrete: Union[bool, List[int]] = False
@@ -108,7 +107,8 @@ class Description:
         self.w0 += w0
         if isinstance(discrete, List):
             if len(discrete) != len(lb):
-                raise Exception("Discrete list doesn't have the same size as lb!")
+                raise Exception(
+                    "Discrete list doesn't have the same size as lb!")
             self.discrete += discrete
         else:
             self.discrete += [1 if discrete else 0] * len(lb)
@@ -122,7 +122,7 @@ class Description:
         ub: Union[float, List[float]],
         w0: Optional[Union[float, List[float]]] = None,
         discrete: Union[bool, List[int]] = False
-    ) -> CASADI_VAR:
+    ) -> GlobalSettings.CASADI_VAR:
         """Create a symbolic variable."""
         nr = count_shape(shape)
 
@@ -132,7 +132,7 @@ class Description:
         idx_list = self.indices[name]
 
         # Create
-        x = CASADI_VAR.sym("%s[%d]" % (name, len(idx_list)), nr)
+        x = GlobalSettings.CASADI_VAR.sym("%s[%d]" % (name, len(idx_list)), nr)
         lb = make_list(lb, nr)
         ub = make_list(ub, nr)
 
@@ -162,7 +162,7 @@ class Description:
         idx_list = self.indices_p[name]
 
         # Create
-        p = CASADI_VAR.sym("%s[%d]" % (name, len(idx_list)), nr)
+        p = GlobalSettings.CASADI_VAR.sym("%s[%d]" % (name, len(idx_list)), nr)
         values = make_list(values, nr)
 
         # Create & Collect
@@ -173,7 +173,7 @@ class Description:
         self.indices_p[name].extend(new_idx)
         return as_shape(p, shape)
 
-    def add_g(self, mini: float, equation: CASADI_VAR, maxi: float,
+    def add_g(self, mini: float, equation: GlobalSettings.CASADI_VAR, maxi: float,
               is_linear=0, is_discrete=0) -> int:
         """
         Add to g.
@@ -201,7 +201,7 @@ class Description:
         self.g_dis += make_list(int(is_discrete), nr)
         return len(self.ubg) - 1
 
-    def add_soc(self, equation: CASADI_VAR):
+    def add_soc(self, equation: GlobalSettings.CASADI_VAR):
         self.h = make_soc_matrix(self.h, equation)
 
     def leq(self, op1, op2, is_linear=0, is_discrete=0):
@@ -224,11 +224,11 @@ class Description:
 
     def sym_bool(
         self, name: str, nr: int = 1, w0=1
-    ) -> CASADI_VAR:
+    ) -> GlobalSettings.CASADI_VAR:
         """Create a symbolic boolean."""
         return self.sym(name, nr, 0, 1, w0=w0, discrete=True)
 
-    def get_gauss_newton_hessian(self) -> CASADI_VAR:
+    def get_gauss_newton_hessian(self) -> GlobalSettings.CASADI_VAR:
         x = vertcat(*self.w)
         if isinstance(self.r, list):
             self.r = vertcat(*self.r)

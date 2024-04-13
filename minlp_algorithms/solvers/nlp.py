@@ -4,7 +4,7 @@ import casadi as ca
 import numpy as np
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     regularize_options
-from minlp_algorithms.defines import CASADI_VAR, Settings
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.utils import to_0d
 
 
@@ -101,7 +101,7 @@ class FeasibilityNlpSolver(SolverClass):
 
         g = []
         self.g_idx = []
-        beta = CASADI_VAR.sym("beta")
+        beta = GlobalSettings.CASADI_VAR.sym("beta")
         for i in range(problem.g.shape[0]):
             if data.lbg[i] == data.ubg[i]:
                 # when lbg == ubg we have an equality constraints, so we need to append it only once
@@ -203,8 +203,8 @@ class FindClosestNlpSolver(SolverClass):
             }, s)
 
         self.idx_x_bin = problem.idx_x_bin
-        x_hat = CASADI_VAR.sym("x_hat", len(self.idx_x_bin))
-        x_best = CASADI_VAR.sym("x_best", len(self.idx_x_bin))
+        x_hat = GlobalSettings.CASADI_VAR.sym("x_hat", len(self.idx_x_bin))
+        x_best = GlobalSettings.CASADI_VAR.sym("x_best", len(self.idx_x_bin))
 
         f = ca.norm_2(problem.x[self.idx_x_bin] - x_hat)**2
         self.solver = ca.nlpsol("nlpsol", "ipopt", {

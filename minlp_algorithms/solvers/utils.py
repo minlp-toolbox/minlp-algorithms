@@ -1,6 +1,6 @@
 import numpy as np
 import casadi as ca
-from minlp_algorithms.defines import Settings
+from minlp_algorithms.settings import Settings
 
 
 def almost_equal(a, b, EPS=1e-5):

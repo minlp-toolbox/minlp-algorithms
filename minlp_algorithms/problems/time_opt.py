@@ -1,7 +1,7 @@
 import numpy as np
 import casadi as ca
-from minlp_algorithms.problems import MinlpProblem, CASADI_VAR, MinlpData, \
-    MetaDataOcp
+from minlp_algorithms.settings import GlobalSettings
+from minlp_algorithms.problems import MetaDataOcp
 from minlp_algorithms.problems.dsc import Description
 from minlp_algorithms.problems.utils import integrate_rk4
 
@@ -14,9 +14,9 @@ def time_opt_car():
     p_des = 500
     v_des = 0.0
 
-    p = CASADI_VAR.sym("p")
-    v = CASADI_VAR.sym("v")
-    t = CASADI_VAR.sym("t")
+    p = GlobalSettings.CASADI_VAR.sym("p")
+    v = GlobalSettings.CASADI_VAR.sym("v")
+    t = GlobalSettings.CASADI_VAR.sym("t")
     x = ca.vcat([p, v, t])
     x_lb = [0, 0, 0]
     x_ub = [ca.inf, v_max, ca.inf]
@@ -24,9 +24,9 @@ def time_opt_car():
     x_discrete = [0, 0, 0]
 
     # Controls
-    a = CASADI_VAR.sym("a")
-    turbo = CASADI_VAR.sym("turbo")  # Boolean
-    reverse = CASADI_VAR.sym("reverse")  # gear
+    a = GlobalSettings.CASADI_VAR.sym("a")
+    turbo = GlobalSettings.CASADI_VAR.sym("turbo")  # Boolean
+    reverse = GlobalSettings.CASADI_VAR.sym("reverse")  # gear
     u = ca.vcat([a, turbo, reverse])
     u_lb = [0, 0, -1]
     u_ub = [10, 1, 1]
@@ -60,7 +60,7 @@ def time_opt_car():
     terminal_cost = ca.Function("T", [x], [t])
 
     # Discretize
-    dt = CASADI_VAR.sym("dt")
+    dt = GlobalSettings.CASADI_VAR.sym("dt")
     dt_lb = 0.0
     dt_ub = 1.0
     F = integrate_rk4(x, u, x_dot, dt)

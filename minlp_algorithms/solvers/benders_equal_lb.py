@@ -21,7 +21,7 @@ import numpy as np
 import casadi as ca
 from minlp_algorithms.solvers.utils import Constraints
 from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, regularize_options
-from minlp_algorithms.defines import CASADI_VAR, Settings
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.solvers.tighten import tighten_bounds_x
 
 
@@ -51,11 +51,11 @@ class BendersEquality(MiSolverClass):
         self.nr_x = problem.x.shape[0]
         self.nr_x_bin = len(problem.idx_x_bin)
         self._x_bin = ca.vcat(
-            [CASADI_VAR.sym("x_benders", 1)
+            [GlobalSettings.CASADI_VAR.sym("x_benders", 1)
              for _ in range(len(problem.idx_x_bin))]
         )
         self._x_nbin = ca.vcat(
-            [CASADI_VAR.sym("x", 1) for _ in range(self.nr_x - self.nr_x_bin)]
+            [GlobalSettings.CASADI_VAR.sym("x", 1) for _ in range(self.nr_x - self.nr_x_bin)]
         )
         j, k = 0, 0
         self._x = []
@@ -176,7 +176,7 @@ class BendersEquality(MiSolverClass):
 
     def solve_benders_eq_lb(self, nlpdata: MinlpData):
         """Solve benders equality to lb problem."""
-        nu = CASADI_VAR.sym("slack", 1)
+        nu = GlobalSettings.CASADI_VAR.sym("slack", 1)
         f = nu + ca.norm_2(self._x_bin - self.nlp_lb_x[self.idx_x_bin]) ** 2
         g = Constraints(0, [], [], [])
         for i in range(self.nr_cuts_benders):

@@ -6,7 +6,7 @@ from typing import Callable
 import casadi as ca
 from subprocess import call
 
-from minlp_algorithms.defines import CACHE_FOLDER
+from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.utils.data import read_json, write_json, load_pickle, save_pickle
 
 logger = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ def compile(input_file, output_file, options=None):
 def cache_data(name, generator_func, *args, **kwargs):
     """Cache data."""
     name = name + "_" + getattr(generator_func, '__name__', 'Unknown')
-    filename = path.join(CACHE_FOLDER, name + ".pkl")
+    filename = path.join(GlobalSettings.CACHE_FOLDER, name + ".pkl")
     if path.exists(filename):
         return load_pickle(filename)
     else:
@@ -66,7 +66,7 @@ class CachedFunction:
 
         self.name = name + "_" + getattr(func, '__name__', 'Unknown')
         if filename is None:
-            self.filename = path.join(CACHE_FOLDER, self.name)
+            self.filename = path.join(GlobalSettings.CACHE_FOLDER, self.name)
         else:
             self.filename = filename
 

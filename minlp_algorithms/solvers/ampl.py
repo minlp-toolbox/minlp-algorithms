@@ -1,5 +1,5 @@
 import casadi as ca
-from minlp_algorithms.defines import Settings
+from minlp_algorithms.settings import Settings
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData
 
 

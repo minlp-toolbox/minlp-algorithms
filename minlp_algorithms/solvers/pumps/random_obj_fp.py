@@ -4,7 +4,7 @@ import casadi as ca
 import numpy as np
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     regularize_options
-from minlp_algorithms.defines import CASADI_VAR, Settings
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.utils import to_0d, logging
 
 logger = logging.getLogger(__name__)
@@ -33,13 +33,13 @@ class RandomDirectionNlpSolver(SolverClass):
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
         self.nr_x_bin = x_bin_var.shape[0]
-        penalty = CASADI_VAR.sym("penalty", self.nr_x_bin)
-        rounded_value = CASADI_VAR.sym("rounded_value", x_bin_var.shape[0])
-        alpha = CASADI_VAR.sym("alpha", 1)
+        penalty = GlobalSettings.CASADI_VAR.sym("penalty", self.nr_x_bin)
+        rounded_value = GlobalSettings.CASADI_VAR.sym("rounded_value", x_bin_var.shape[0])
+        alpha = GlobalSettings.CASADI_VAR.sym("alpha", 1)
         self.alpha = 1.0
         self.alpha_reduction = 0.9
-        obj_val = CASADI_VAR.sym("obj_val", 1)
-        int_error = CASADI_VAR.sym("int_error", 1)
+        obj_val = GlobalSettings.CASADI_VAR.sym("obj_val", 1)
+        int_error = GlobalSettings.CASADI_VAR.sym("int_error", 1)
 
         self.norm = norm
         self.max_rounding_error = x_bin_var.shape[0]

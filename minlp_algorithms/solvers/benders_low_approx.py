@@ -3,10 +3,9 @@ import casadi as ca
 from minlp_algorithms.solvers.utils import get_solutions_pool
 from minlp_algorithms.solvers.benders_mix import BendersTRandMaster, LowerApproximation
 from minlp_algorithms.solvers import Stats, MinlpProblem, MinlpData, regularize_options
-from minlp_algorithms.defines import CASADI_VAR
 from minlp_algorithms.utils import colored
-from minlp_algorithms.problems import check_integer_feasible, check_solution
-from minlp_algorithms.defines import Settings
+from minlp_algorithms.utils.validate import check_integer_feasible, check_solution
+from minlp_algorithms.settings import Settings, GlobalSettings
 from minlp_algorithms.utils.debugtools import CheckNoDuplicate
 import logging
 
@@ -38,7 +37,7 @@ class BendersTRLB(BendersTRandMaster):
         return (self.hess_trust_points_setting <= len(self.values))
 
     def compute_hess_correction(self, nlpdata):
-        correction = CASADI_VAR.sym("correction", 1)
+        correction = GlobalSettings.CASADI_VAR.sym("correction", 1)
         dx = self._x - self.sol_best['x']
         f_k = self.f(self.sol_best['x'], nlpdata.p)
         f_lin = self.grad_f_x(self.sol_best['x'], nlpdata.p)

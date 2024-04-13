@@ -10,9 +10,9 @@ import numpy as np
 from minlp_algorithms.utils import get_control_vector, plot_trajectory, tic, to_0d, toc, \
     make_bounded, setup_logger, logging, colored
 from minlp_algorithms.utils.data import write_json, read_json
-from minlp_algorithms.defines import Settings, IMG_DIR
+from minlp_algorithms.settings import Settings, GlobalSettings
 from minlp_algorithms.problems.overview import PROBLEMS
-from minlp_algorithms.problems import MinlpData, MinlpProblem, MetaDataOcp, check_solution, MetaDataMpc
+from minlp_algorithms.problems import MinlpData, MinlpProblem, MetaDataOcp, MetaDataMpc
 from minlp_algorithms.solvers import MiSolverClass, Stats
 from minlp_algorithms.solvers.nlp import NlpSolver, FeasibilityNlpSolver, FindClosestNlpSolver
 from minlp_algorithms.solvers.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
@@ -27,6 +27,7 @@ from minlp_algorithms.solvers.benders_equal_lb import BendersEquality
 from minlp_algorithms.solvers.milp_tr import milp_tr
 from minlp_algorithms.solvers.benders_low_approx import BendersTRLB
 from minlp_algorithms.utils.debugtools import CheckNoDuplicate
+from minlp_algorithms.utils.validate import check_solution
 
 logger = logging.getLogger(__name__)
 
@@ -745,7 +746,7 @@ if __name__ == "__main__":
 
         uptime = problem.meta.min_uptime
         fig.savefig(
-            f"{IMG_DIR}/ocp_trajectory_{mode}_uptime_{uptime}.pdf", bbox_inches='tight')
+            f"{GlobalSettings.IMG_DIR}/ocp_trajectory_{mode}_uptime_{uptime}.pdf", bbox_inches='tight')
         plt.show()
     elif isinstance(problem.meta, MetaDataMpc):
         problem.meta.plot(data, x_star)

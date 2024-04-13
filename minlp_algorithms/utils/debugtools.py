@@ -1,6 +1,6 @@
 import numpy as np
 from minlp_algorithms.solvers import MinlpProblem, MinlpData
-from minlp_algorithms.defines import Settings
+from minlp_algorithms.settings import Settings
 
 
 class CheckNoDuplicate:

@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 from os import path
 
 from typing import Union
-from minlp_algorithms.defines import CASADI_VAR
-from minlp_algorithms.problems import MinlpProblem, MinlpData, MetaDataMpc
+from minlp_algorithms.settings import GlobalSettings
+from minlp_algorithms.problems import MinlpData, MetaDataMpc, MinlpProblem
 from minlp_algorithms.problems.gearbox.models import insight_50kw_power_jc, \
     advisor_em_pwr_sc, battery_hu
 from minlp_algorithms.problems.dsc import Description
@@ -174,11 +174,11 @@ def create_gearbox(N=10, gearbox_type="gasoline", dt=1.0, switch_cost=False) -> 
     drag_coeff = .35
 
     # temporary variables
-    w = CASADI_VAR.sym('w')
-    P = CASADI_VAR.sym('P')
-    Prat = CASADI_VAR.sym('Prat')
-    Erat = CASADI_VAR.sym('Erat')
-    SoC = CASADI_VAR.sym('SoC')
+    w = GlobalSettings.CASADI_VAR.sym('w')
+    P = GlobalSettings.CASADI_VAR.sym('P')
+    Prat = GlobalSettings.CASADI_VAR.sym('Prat')
+    Erat = GlobalSettings.CASADI_VAR.sym('Erat')
+    SoC = GlobalSettings.CASADI_VAR.sym('SoC')
 
     # ICE
     ICE_wrat = 6000 * np.pi / 30

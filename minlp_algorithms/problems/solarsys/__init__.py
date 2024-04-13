@@ -5,17 +5,15 @@ Solar Thermal Climate System (STCS) at Karsruhe University of Applied Sciences.
 # Adapted by Wim Van Roy, 2023
 """
 
-from datetime import timedelta
 import numpy as np
-from minlp_algorithms.defines import Settings
+from minlp_algorithms.settings import Settings
 from minlp_algorithms.problems import MetaDataOcp
 from minlp_algorithms.problems.solarsys.system import System, ca
 from minlp_algorithms.problems.solarsys.ambient import Ambient, Timing
 from minlp_algorithms.problems.solarsys.simulator import Simulator
-from minlp_algorithms.problems.dsc import Description, CASADI_VAR
-from minlp_algorithms.utils.cache import CachedFunction, cache_data
-from minlp_algorithms.solvers import get_lin_bounds
-from minlp_algorithms.solvers import inspect_problem, set_constraint_types
+from minlp_algorithms.problems.dsc import Description
+from minlp_algorithms.settings import GlobalSettings
+from minlp_algorithms.utils.cache import CachedFunction
 import logging
 
 from minlp_algorithms.utils import convert_to_flat_list, to_0d
@@ -45,7 +43,8 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     logger.debug("Constructing bounds")
     x_min = system.p_op["T"]["min"] * np.ones((n_steps + 1, system.nx))
     x_max = system.p_op["T"]["max"] * np.ones((n_steps+1, system.nx))
-    x_max[:, system.x_index["T_shx_psc"][-1]] = system.p_op["T_sc"]["T_feed_max"]
+    x_max[:, system.x_index["T_shx_psc"][-1]
+          ] = system.p_op["T_sc"]["T_feed_max"]
     x_max[:, system.x_index["T_lts"]] = system.p_op["T_lts"]["max"]
 
     u_min = np.hstack(
@@ -70,13 +69,13 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         ]
     )
     min_up_times = np.asarray(
-                    system.p_op["acm"]["min_up_time"] +
-                    system.p_op["hp"]["min_up_time"]
-                ) -1e-3
+        system.p_op["acm"]["min_up_time"] +
+        system.p_op["hp"]["min_up_time"]
+    ) - 1e-3
     min_down_times = np.asarray(
-                    system.p_op["acm"]["min_down_time"] +
-                    system.p_op["hp"]["min_down_time"]
-                ) -1e-3
+        system.p_op["acm"]["min_down_time"] +
+        system.p_op["hp"]["min_down_time"]
+    ) - 1e-3
 
     logger.debug("Creating basic equations")
     F = system.get_system_dynamics_collocation(collocation_nodes)
@@ -87,12 +86,14 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     v_ppsc_so_vtsc_fcn = CachedFunction("stcs", system.get_v_ppsc_so_vtsc_fcn)
     v_ppsc_so_fcn = CachedFunction("stcs", system.get_v_ppsc_so_fcn)
     mdot_hts_b_max_fcn = CachedFunction("stcs", system.get_mdot_hts_b_max_fcn)
-    electric_power_balance_fcn = CachedFunction("stcs", system.get_electric_power_balance_fcn)
+    electric_power_balance_fcn = CachedFunction(
+        "stcs", system.get_electric_power_balance_fcn)
     F1_fcn = CachedFunction("stcs", system.get_F1_fcn)
     F2_fcn = system.get_F2_fcn()  # CachedFunction("stcs", system.get_F2_fcn)
 
     logger.debug("Create NLP problem")
-    x_k_0 = dsc.add_parameters("x0", system.nx, to_0d(simulator.x_data[0, :]).tolist())
+    x_k_0 = dsc.add_parameters(
+        "x0", system.nx, to_0d(simulator.x_data[0, :]).tolist())
     u_k_prev = None
     tk = ambient.get_t0()
     F1 = []
@@ -108,13 +109,15 @@ def create_stcs_problem(n_steps=None, with_slack=True):
                     lb=-np.inf, ub=np.inf, w0=to_0d(simulator.x_data[k, :]).tolist())
             for j in range(1, collocation_nodes + 1)
         ]
-        x_k_next_0 = dsc.sym("x", system.nx, lb=-ca.inf, ub=ca.inf,  w0=to_0d(simulator.x_data[k+1, :]).tolist())
+        x_k_next_0 = dsc.sym("x", system.nx, lb=-ca.inf, ub=ca.inf,
+                             w0=to_0d(simulator.x_data[k+1, :]).tolist())
 
         # Add new binary controls
         b_k = dsc.sym_bool("b", system.nb)
 
         # Add new continuous controls
-        u_k = dsc.sym("u", system.nu, lb=u_min[k, :], ub=u_max[k, :],  w0=to_0d(simulator.u_data[k, :]).tolist())
+        u_k = dsc.sym("u", system.nu, lb=u_min[k, :], ub=u_max[k, :],  w0=to_0d(
+            simulator.u_data[k, :]).tolist())
 
         if u_k_prev is None:
             u_k_prev = u_k
@@ -165,7 +168,8 @@ def create_stcs_problem(n_steps=None, with_slack=True):
             s_x_k = np.zeros((system.nx,))
 
         # Setup state limits as soft constraints to prevent infeasibility
-        dsc.add_g(x_min[k + 1, :], slacked_state_fcn(x_k_next_0, s_x_k), x_max[k + 1, :])
+        dsc.add_g(x_min[k + 1, :],
+                  slacked_state_fcn(x_k_next_0, s_x_k), x_max[k + 1, :])
 
         # Assure ppsc is running at high speed when collector temperature is high
         s_ppsc_k = dsc.sym("s_ppsc_fpsc", 1, lb=0, ub=1)
@@ -200,7 +204,6 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     # Specify residual for GN Hessian computation
     dsc.r = F1
 
-
     idx_b_2d = np.asarray(dsc.get_indices('b')).T
     w = ca.vertcat(*dsc.w)
 
@@ -209,7 +212,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         for i in range(system.nb):
             uptime = 0
             it = 0
-            for dt in ambient.time_steps[max(0, k) :]:
+            for dt in ambient.time_steps[max(0, k):]:
                 uptime += dt.total_seconds()
                 if uptime < min_up_times[i]:
                     if k != -1:
@@ -223,7 +226,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
                     if k != -1:
                         dsc.leq(- w[idx_k] + w[idx_k_1] - w[idx_k_dt], 0)
                     else:
-                        dsc.leq( w[idx_k_1] - w[idx_k_dt], 0)
+                        dsc.leq(w[idx_k_1] - w[idx_k_dt], 0)
 
                     it += 1
     # Add min downtime
@@ -231,7 +234,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         for i in range(system.nb):
             downtime = 0
             it = 0
-            for dt in ambient.time_steps[max(0, k) :]:
+            for dt in ambient.time_steps[max(0, k):]:
                 downtime += dt.total_seconds()
                 if downtime < min_down_times[i]:
                     if k != -1:
@@ -253,18 +256,23 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     dsc.f = 0.5 * ca.mtimes(F1.T, F1) + F2
     logger.debug("NLP created")
     prob = dsc.get_problem()
-    x_bar = CASADI_VAR.sym("x_bar", prob.x.shape)
+    x_bar = GlobalSettings.CASADI_VAR.sym("x_bar", prob.x.shape)
     fun_F1 = ca.Function("F1", [prob.x, prob.p], [F1])
     fun_F2 = ca.Function("F2", [prob.x, prob.p], [F2])
-    fun_grad_F1 = ca.Function("F1_grad", [prob.x, prob.p], [ca.jacobian(F1, prob.x).T])
-    fun_grad_F2 = ca.Function("F2_grad", [prob.x, prob.p], [ca.jacobian(F2, prob.x).T])
+    fun_grad_F1 = ca.Function("F1_grad", [prob.x, prob.p], [
+                              ca.jacobian(F1, prob.x).T])
+    fun_grad_F2 = ca.Function("F2_grad", [prob.x, prob.p], [
+                              ca.jacobian(F2, prob.x).T])
 
     x = prob.x
     prob.f_qp = ca.Function("F_qp", [x, x_bar, prob.p], [
         0.5 * ca.mtimes(fun_F1(x_bar, prob.p).T, fun_F1(x_bar, prob.p))
-        + ca.mtimes([(x - x_bar).T,  fun_grad_F1(x_bar, prob.p), fun_F1(x_bar, prob.p)])
-        + 0.5 * ca.mtimes([(x - x_bar).T, fun_grad_F1(x_bar, prob.p), fun_grad_F1(x_bar, prob.p).T, (x - x_bar)])
-        + fun_F2(x_bar, prob.p) + ca.mtimes(fun_grad_F2(x_bar, prob.p).T, x - x_bar)
+        + ca.mtimes([(x - x_bar).T,  fun_grad_F1(x_bar, prob.p),
+                    fun_F1(x_bar, prob.p)])
+        + 0.5 * ca.mtimes([(x - x_bar).T, fun_grad_F1(x_bar, prob.p),
+                          fun_grad_F1(x_bar, prob.p).T, (x - x_bar)])
+        + fun_F2(x_bar, prob.p) +
+        ca.mtimes(fun_grad_F2(x_bar, prob.p).T, x - x_bar)
     ])
     meta = MetaDataOcp(
         n_state=system.nx, n_continuous_control=system.nu, n_discrete_control=system.nb,
@@ -276,7 +284,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
         dt=ambient.time_steps,
         min_uptime=min_up_times,
         min_downtime=min_down_times,
-        )
+    )
     prob.meta = meta
     data = dsc.get_data()
     data.x0[prob.idx_x_bin] = to_0d(simulator.b_data).flatten().tolist()
@@ -318,7 +326,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
 
 if __name__ == "__main__":
     from benders_exp.utils import setup_logger, logging
-    from benders_exp.problems import check_solution
+    from minlp_algorithms.utils.validate import check_solution
     from benders_exp.solvers import Stats
     from benders_exp.solvers.nlp import NlpSolver
     from datetime import datetime
@@ -328,7 +336,8 @@ if __name__ == "__main__":
     prob, data = create_stcs_problem()
     s = Settings()
     s.IPOPT_SETTINGS
-    stats = Stats(mode='custom', problem_name='stcs', datetime=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"), data={})
+    stats = Stats(mode='custom', problem_name='stcs',
+                  datetime=datetime.now().strftime("%Y-%m-%d_%H:%M:%S"), data={})
     nlp = NlpSolver(prob, stats, s)
 
     # with open("data/nlpargs_adrian.pickle", 'rb') as f:

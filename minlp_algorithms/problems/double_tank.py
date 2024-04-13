@@ -1,7 +1,8 @@
 """Models with pipes."""
 
 from typing import Union
-from minlp_algorithms.problems import MinlpProblem, CASADI_VAR, MinlpData, \
+from minlp_algorithms.settings import GlobalSettings
+from minlp_algorithms.problems import MinlpProblem, MinlpData, \
     MetaDataOcp
 from minlp_algorithms.problems.dsc import Description
 from minlp_algorithms.problems.utils import integrate_rk4
@@ -31,8 +32,8 @@ def create_double_tank_problem2(p_val=[2, 2.5], single_shooting=False) -> Union[
 
     nx = 2
     nu = 2
-    x = CASADI_VAR.sym('x', nx)  # state
-    u = CASADI_VAR.sym('u', nu)  # control
+    x = GlobalSettings.CASADI_VAR.sym('x', nx)  # state
+    u = GlobalSettings.CASADI_VAR.sym('u', nu)  # control
     x1dot = gamma * u[0] + u[1] - ca.sqrt(x[0] + eps)
     x2dot = ca.sqrt(x[0] + eps) - ca.sqrt(x[1] + eps)
     xdot = ca.vertcat(*[x1dot, x2dot])

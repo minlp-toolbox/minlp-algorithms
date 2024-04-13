@@ -13,7 +13,7 @@ import casadi as ca
 from typing import Tuple
 from copy import deepcopy
 from minlp_algorithms.utils import colored
-from minlp_algorithms.defines import Settings
+from minlp_algorithms.settings import Settings
 from minlp_algorithms.solvers.nlp import NlpSolver
 from minlp_algorithms.solvers import Stats, MinlpProblem, MinlpData
 from minlp_algorithms.solvers.pumps.fp import LinearProjection, ObjectiveLinearProjection

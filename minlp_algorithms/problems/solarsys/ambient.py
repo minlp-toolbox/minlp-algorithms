@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 
-from minlp_algorithms.defines import _DATA_FOLDER
+from minlp_algorithms.settings import GlobalSettings
 import logging
 
 
@@ -49,7 +49,7 @@ class Ambient:
     def _load_forecast_data(self, method="csv"):
         """Load forecast data."""
         self._df_ambient = pd.read_csv(
-            os.path.join(_DATA_FOLDER, "forecast.csv"), index_col=0
+            os.path.join(GlobalSettings.DATA_FOLDER, "forecast.csv"), index_col=0
         )
         self._df_ambient.index = pd.DatetimeIndex(self._df_ambient.index)
         self._time = [idx.timestamp() for idx in self._df_ambient.index]

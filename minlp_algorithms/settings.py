@@ -1,30 +1,70 @@
-"""Global defines."""
+"""Global settings."""
 
 from typing import Any, Dict
 from dataclasses import dataclass, field
 from os import path, makedirs, environ
 import casadi as ca
+from minlp_algorithms.utils.conversion import to_bool
 
 
-def to_bool(val):
-    """String or bool value to bool."""
-    if isinstance(val, bool):
-        return val
-    else:
-        return not (val.lower() in ["0", "false", "false", "no"])
+def create_and_return(folder):
+    if not path.exists(folder):
+        makedirs(folder)
+    return folder
 
 
-CASADI_VAR = ca.MX
-SOURCE_FOLDER = path.dirname(path.abspath(__file__))
-_DATA_FOLDER = path.join(SOURCE_FOLDER, "../data")
-IMG_DIR = path.join(SOURCE_FOLDER, "../results/figures")
-OUT_DIR = path.join(SOURCE_FOLDER, "../results")
-CACHE_FOLDER = path.join(SOURCE_FOLDER, "../data/cache")
-if not path.exists(IMG_DIR):
-    makedirs(IMG_DIR)
+@dataclass
+class _GlobalSettings:
+    _lock: bool = False
+    _CASADI_VAR: Any = ca.MX
+    SOURCE_FOLDER: str = path.dirname(path.abspath(__file__))
+    _DATA_FOLDER: str = path.join(SOURCE_FOLDER, "../data")
+    _IMG_DIR: str = path.join(SOURCE_FOLDER, "../results/figures")
+    _OUT_DIR: str = path.join(SOURCE_FOLDER, "../results")
+    _CACHE_FOLDER: str = path.join(SOURCE_FOLDER, "../data/cache")
 
-if not path.exists(CACHE_FOLDER):
-    makedirs(CACHE_FOLDER)
+    @property
+    def CASADI_VAR(self):
+        self._lock = True
+        return self._CASADI_VAR
+
+    @CASADI_VAR.setter
+    def CASADI_VAR(self, value: Any):
+        if self._lock:
+            raise RuntimeError(
+                "Casadi var already used! You can not change it anymore!"
+            )
+        self._CASADI_VAR = value
+
+    @property
+    def IMG_DIR(self):
+        return create_and_return(self._IMG_DIR)
+
+    @IMG_DIR.setter
+    def IMG_DIR(self, value):
+        """Set image directory."""
+        self._IMG_DIR = value
+
+    @property
+    def OUT_DIR(self):
+        return create_and_return(self._OUT_DIR)
+
+    @OUT_DIR.setter
+    def OUT_DIR(self, value):
+        """Set output dir directory."""
+        self._OUT_DIR = value
+
+    @property
+    def CACHE_FOLDER(self):
+        return create_and_return(self._CACHE_FOLDER)
+
+    @CACHE_FOLDER.setter
+    def CACHE_FOLDER(self, value):
+        """Set output dir directory."""
+        self._CACHE_FOLDER = value
+
+
+GlobalSettings = _GlobalSettings()
 
 
 @dataclass(init=True)

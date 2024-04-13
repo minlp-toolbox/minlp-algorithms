@@ -8,7 +8,7 @@ Solar Thermal Climate System (STCS) at Karsruhe University of Applied Sciences.
 import numpy as np
 import casadi as ca
 
-from minlp_algorithms.problems import CASADI_VAR
+from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.utils.cache import CachedFunction
 from collections import OrderedDict
 import logging
@@ -229,10 +229,10 @@ class System:
 
     def _setup_model_variables(self):
         """Set up variables."""
-        self.x = CASADI_VAR.sym("x", self.nx)
-        self.b = CASADI_VAR.sym("b", self.nb)
-        self.u = CASADI_VAR.sym("u", self.nu)
-        self.c = CASADI_VAR.sym("c", self.nc)
+        self.x = GlobalSettings.CASADI_VAR.sym("x", self.nx)
+        self.b = GlobalSettings.CASADI_VAR.sym("b", self.nb)
+        self.u = GlobalSettings.CASADI_VAR.sym("u", self.nu)
+        self.c = GlobalSettings.CASADI_VAR.sym("c", self.nc)
 
     def get_f_fcn(self):
         """Create solar thermal climate system model."""

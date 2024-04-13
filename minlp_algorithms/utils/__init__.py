@@ -8,7 +8,7 @@ import numpy as np
 import casadi as ca
 import logging
 from time import perf_counter
-from minlp_algorithms.defines import _DATA_FOLDER
+from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.problems import MinlpData, MinlpProblem, MetaDataOcp
 
 logger = logging.getLogger(__name__)
@@ -227,7 +227,6 @@ def plot_trajectory(
     # axs[-1].axhline(model.a_min, linestyle=":", color="k", alpha=0.5)
 
     plt.tight_layout()
-    # fig.savefig(f"{IMG_DIR}/acados_test_loop.pdf", bbox_inches='tight')
     return fig, axs
 
 
@@ -301,7 +300,7 @@ class DebugCallBack(ca.Callback):
     def save(self, x):
         """Save the x variable."""
         self.iter_nr += 1
-        np.save(_DATA_FOLDER + f"/x_{self.name}_{self.iter}", x.full())
+        np.save(GlobalSettings.DATA_FOLDER + f"/x_{self.name}_{self.iter}", x.full())
 
     def eval(self, arg):
         """Evaluate the callback."""

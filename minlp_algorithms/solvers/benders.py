@@ -12,7 +12,7 @@ import numpy as np
 from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, get_idx_linear_bounds_binary_x, regularize_options, \
     get_idx_inverse, extract_bounds
-from minlp_algorithms.defines import Settings, CASADI_VAR
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.utils import to_0d
 import logging
 
@@ -35,7 +35,7 @@ class BendersMasterMILP(MiSolverClass):
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
             {"jit": s.WITH_JIT}
         )
-        self._x = CASADI_VAR.sym("x_bin", self.nr_x_bin)
+        self._x = GlobalSettings.CASADI_VAR.sym("x_bin", self.nr_x_bin)
 
         if with_lin_bounds:
             idx_g_lin = get_idx_linear_bounds_binary_x(problem)
@@ -64,7 +64,7 @@ class BendersMasterMILP(MiSolverClass):
 
         self.idx_x_bin = problem.idx_x_bin
         self.nr_x_bin = len(problem.idx_x_bin)
-        self._nu = CASADI_VAR.sym("nu", 1)
+        self._nu = GlobalSettings.CASADI_VAR.sym("nu", 1)
         self.options["discrete"] = [1] * (self.nr_x_bin + 1)
         self.options["discrete"][-1] = 0
         self.nr_g_orig = problem.g.shape[0]
@@ -208,7 +208,7 @@ class BendersMasterMILP(MiSolverClass):
             x_sol_best = deepcopy(x_sol_best)
             x_sol_best = to_0d(x_sol_best)
 
-        if isinstance(g_k, CASADI_VAR):
+        if isinstance(g_k, GlobalSettings.CASADI_VAR):
             xlim = [0, 4]  # TODO parametric limits
             ylim = [0, 4]  # TODO parametric limits
 
@@ -353,7 +353,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
                                   ca.hessian(problem.f, problem.x)[0]])
 
-        self._x = CASADI_VAR.sym("x_benders", problem.x.numel())
+        self._x = GlobalSettings.CASADI_VAR.sym("x_benders", problem.x.numel())
         self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
             problem, data, self.idx_g_lin, self._x, allow_fail=False
         )

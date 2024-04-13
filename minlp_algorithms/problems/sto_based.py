@@ -1,6 +1,7 @@
 import numpy as np
 import casadi as ca
-from minlp_algorithms.problems import MinlpProblem, CASADI_VAR, MinlpData, \
+from minlp_algorithms.settings import GlobalSettings
+from minlp_algorithms.problems import MinlpProblem, MinlpData, \
     MetaDataOcp
 from minlp_algorithms.problems.dsc import Description
 from minlp_algorithms.problems.utils import integrate_ee, integrate_ie
@@ -11,11 +12,11 @@ def particle_trajectory():
     t_f = 10
     dt = t_f / N
     N_uptime = int(0.5 // dt)
-    t = CASADI_VAR.sym("t")
+    t = GlobalSettings.CASADI_VAR.sym("t")
     r = ca.Function("r", [t], [ca.sin(t) * 0.5 + 1])
 
-    x = CASADI_VAR.sym("x")
-    v = CASADI_VAR.sym("v")
+    x = GlobalSettings.CASADI_VAR.sym("x")
+    v = GlobalSettings.CASADI_VAR.sym("v")
     X = ca.vertcat(x, v)
     X_lb = [-100, -100]
     X_ub = [100, 100]
@@ -23,7 +24,7 @@ def particle_trajectory():
     X_discrete = [0, 0]
 
     # Controls
-    U = CASADI_VAR.sym("u", 3)
+    U = GlobalSettings.CASADI_VAR.sym("u", 3)
     U_lb = [-1, 0, 0]
     U_ub = [1, 1, 1]
     U_discrete = [1, 0, 0]

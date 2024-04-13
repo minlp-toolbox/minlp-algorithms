@@ -1,12 +1,11 @@
 """Overview of all problems."""
 
-from minlp_algorithms.defines import Settings
-from minlp_algorithms.problems import MinlpProblem, CASADI_VAR, MinlpData, \
+from minlp_algorithms.settings import Settings, GlobalSettings
+from minlp_algorithms.problems import MinlpProblem, MinlpData, \
     MetaDataOcp
 import casadi as ca
 import numpy as np
 from minlp_algorithms.problems.dsc import Description
-from minlp_algorithms.solarsys import extract as extract_solarsys
 from minlp_algorithms.solvers import Stats
 from minlp_algorithms.solvers.nlp import NlpSolver
 from minlp_algorithms.problems.utils import integrate_rk4  # integrate_ee
@@ -15,7 +14,7 @@ from minlp_algorithms.problems.solarsys import create_stcs_problem
 from minlp_algorithms.problems.gearbox import create_simple_gearbox, create_gearbox, \
     create_gearbox_int
 from minlp_algorithms.problems.minlp import MINLP_PROBLEMS
-from minlp_algorithms.defines import to_bool
+from minlp_algorithms.settings import to_bool
 from minlp_algorithms.problems.time_opt import time_opt_car
 from minlp_algorithms.problems.sto_based import particle_trajectory
 
@@ -31,8 +30,8 @@ def create_ocp_unstable_system(p_val=[0.9, 0.7]):
     min_uptime = 2  # in time steps
 
     dsc = Description()
-    x = CASADI_VAR.sym('x')  # state
-    u = CASADI_VAR.sym('u')  # control
+    x = GlobalSettings.CASADI_VAR.sym('x')  # state
+    u = GlobalSettings.CASADI_VAR.sym('u')  # control
     Xref = dsc.add_parameters("Xk_ref", 1, p_val[1])
 
     xdot = x ** 3 - u
@@ -94,14 +93,14 @@ def create_ocp_unstable_system(p_val=[0.9, 0.7]):
     s.CONSTRAINT_INT_TOL = 1e-5
     s.MIP_SETTINGS_ALL["gurobi"].update(
         {"gurobi.FeasibilityTol": s.CONSTRAINT_INT_TOL,
-         "gurobi.IntFeasTol": s.CONSTRAINT_INT_TOL,})
+         "gurobi.IntFeasTol": s.CONSTRAINT_INT_TOL, })
     return problem, data, s
 
 
 def create_check_sign_lagrange_problem():
     """Create a problem to check the sign of the multipliers."""
-    x = CASADI_VAR.sym("x")
-    p = CASADI_VAR.sym("p")
+    x = GlobalSettings.CASADI_VAR.sym("x")
+    p = GlobalSettings.CASADI_VAR.sym("p")
 
     problem = MinlpProblem(
         x=x, f=(x - 2)**2, g=ca.vcat([x]), p=p, idx_x_bin=[0])
@@ -119,10 +118,10 @@ def create_dummy_problem(p_val=[1000, 3]):
     This problem corresponds to the tutorial example in the GN-Voronoi paper.
     (apart from the upper bound)
     """
-    x = CASADI_VAR.sym("x", 3)
+    x = GlobalSettings.CASADI_VAR.sym("x", 3)
     x0 = np.array([0, 4, 100])
     idx_x_bin = [0, 1]
-    p = CASADI_VAR.sym("p", 2)
+    p = GlobalSettings.CASADI_VAR.sym("p", 2)
     f = (x[0] - 4.1)**2 + (x[1] - 4.0)**2 + x[2] * p[0]
     g = ca.vertcat(
         x[2],
@@ -141,10 +140,10 @@ def create_dummy_problem(p_val=[1000, 3]):
 
 def create_dummy_problem_2():
     """Create a dummy problem."""
-    x = CASADI_VAR.sym("x", 2)
+    x = GlobalSettings.CASADI_VAR.sym("x", 2)
     x0 = np.array([2, 4])
     idx_x_bin = [0]
-    p = CASADI_VAR.sym("p", 1)
+    p = GlobalSettings.CASADI_VAR.sym("p", 1)
     f = x[0]**2 + x[1]
     g = ca.vertcat(
         x[1],
@@ -163,15 +162,15 @@ def create_dummy_problem_2():
 
 def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
     """Create double pipe problem."""
-    y = CASADI_VAR.sym("y", 1)  # integers
-    z = CASADI_VAR.sym("z", 2)  # continuous
+    y = GlobalSettings.CASADI_VAR.sym("y", 1)  # integers
+    z = GlobalSettings.CASADI_VAR.sym("z", 2)  # continuous
     x0 = np.array([1, 0, 0])
     x = ca.vertcat(*[y, z])
     idx_x_bin = [0]
 
-    alpha = CASADI_VAR.sym("alpha", 2)
-    r = CASADI_VAR.sym("r", 1)
-    gamma = CASADI_VAR.sym("gamma", 1)
+    alpha = GlobalSettings.CASADI_VAR.sym("alpha", 2)
+    r = GlobalSettings.CASADI_VAR.sym("r", 1)
+    gamma = GlobalSettings.CASADI_VAR.sym("gamma", 1)
     p = ca.vertcat(*[alpha, r, gamma])
 
     f = alpha[0] * z[0] + alpha[1] * y[0]
@@ -210,9 +209,9 @@ def create_double_tank_problem(p_val=[2, 2.5]):
 
     nx = 2
     nu = 2
-    x_0 = CASADI_VAR.sym('x0', nx)
-    x = CASADI_VAR.sym('x', nx)  # state
-    u = CASADI_VAR.sym('u', nu)  # control
+    x_0 = GlobalSettings.CASADI_VAR.sym('x0', nx)
+    x = GlobalSettings.CASADI_VAR.sym('x', nx)  # state
+    u = GlobalSettings.CASADI_VAR.sym('u', nu)  # control
     x1dot = scaling_coeff[0]*u[0] + u[1] - ca.sqrt(x[0] + eps)
     x2dot = ca.sqrt(x[0] + eps) - ca.sqrt(x[1] + eps)
     xdot = ca.vertcat(*[x1dot, x2dot])
@@ -237,7 +236,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     Xk = x_0
     p += [Xk]
     for k in range(N):
-        Uk = CASADI_VAR.sym(f"u_{k}", nu)
+        Uk = GlobalSettings.CASADI_VAR.sym(f"u_{k}", nu)
         w += [Uk]
         idx_var += nu
         lbw += [0, 0]
@@ -252,7 +251,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         J += dt * (beta[0] * scaling_coeff[0] * Uk[0] + beta[1] * Uk[1])
 
         # New NLP variable for state at end of interval
-        Xk = CASADI_VAR.sym(f"x_{k+1}", nx)
+        Xk = GlobalSettings.CASADI_VAR.sym(f"x_{k+1}", nx)
         idx_var += nx
         idx_state.append(np.arange(idx_var-nx, idx_var))
         w += [Xk]
@@ -282,11 +281,12 @@ def create_double_tank_problem(p_val=[2, 2.5]):
 
 def counter_example_nonconvexity():
     """Nonconvexity example."""
-    x = CASADI_VAR.sym('x')
-    y = CASADI_VAR.sym('y')
+    x = GlobalSettings.CASADI_VAR.sym('x')
+    y = GlobalSettings.CASADI_VAR.sym('y')
 
     f = ca.atan(x-0.3)**2 + x/10 + x**2/50 + y**2
-    problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=ca.MX([]), p=ca.MX([]), idx_x_bin=[0])
+    problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=ca.MX(
+        []), p=ca.MX([]), idx_x_bin=[0])
     data = MinlpData(x0=np.array([-4, 2]), _lbx=np.array([-5, -5]), _ubx=np.array([5, 5]),
                      _ubg=[], _lbg=[], p=[])
     return problem, data
@@ -294,7 +294,7 @@ def counter_example_nonconvexity():
 
 def create_from_nl_file(file, compiled=True):
     """Load from NL file."""
-    from benders_exp.utils.cache import CachedFunction, cache_data, return_func
+    from benders_exp.utils.cache import CachedFunction, return_func
     import hashlib
     # Create an NLP instance
     nl = ca.NlpBuilder()
@@ -303,8 +303,9 @@ def create_from_nl_file(file, compiled=True):
     nl.import_nl(file, {"verbose": False})
     print(f"Loading MINLP with: {nl.repr()}")
 
-    if not isinstance(nl.x[0], CASADI_VAR):
-        raise Exception(f"Set CASADI_VAR to {type(nl.x[0])} in defines!")
+    if not isinstance(nl.x[0], GlobalSettings.CASADI_VAR):
+        raise Exception(
+            f"Set GlobalSettings.CASADI_VAR to {type(nl.x[0])} in defines!")
 
     idx = np.where(np.array(nl.discrete))
 
@@ -313,8 +314,10 @@ def create_from_nl_file(file, compiled=True):
         x = ca.vcat(nl.x)
         problem = MinlpProblem(
             x=x,
-            f=CachedFunction(f"f_{key}", return_func(ca.Function("f", [x], [nl.f])))(x),
-            g=CachedFunction(f"g_{key}", return_func(ca.Function("g", [x], [ca.vcat(nl.g)])))(x),
+            f=CachedFunction(f"f_{key}", return_func(
+                ca.Function("f", [x], [nl.f])))(x),
+            g=CachedFunction(f"g_{key}", return_func(
+                ca.Function("g", [x], [ca.vcat(nl.g)])))(x),
             idx_x_bin=idx[0].tolist(),
             p=[]
         )
@@ -386,8 +389,8 @@ def create_from_nosnoc(file, compiled=False):
     from os import path
     name = path.basename(file)
     data = load_pickle(file)
-    x = CASADI_VAR.sym("x", data['w_shape'][0])
-    p = CASADI_VAR.sym("p", data['p_shape'][0])
+    x = GlobalSettings.CASADI_VAR.sym("x", data['w_shape'][0])
+    p = GlobalSettings.CASADI_VAR.sym("p", data['p_shape'][0])
     if to_bool(compiled):
         f = CachedFunction(f"{name}_f", return_func(data['f']))(x, p)
         g = CachedFunction(f"{name}_g", return_func(data['g']))(x, p)
@@ -421,16 +424,16 @@ def create_from_nosnoc(file, compiled=False):
 def create_from_sto(file, with_uptime=True):
     """Create a problem from STO."""
     from benders_exp.utils.data import load_pickle
-    from benders_exp.defines import to_bool
+    from benders_exp.utils.conversion import to_bool
     with_uptime = to_bool(with_uptime)
     data = load_pickle(file)
     dt = data['dt']
     N = data['N']
 
     nx = data['lbx'].shape[0] - 1
-    p = CASADI_VAR.sym("p", 1)
+    p = GlobalSettings.CASADI_VAR.sym("p", 1)
     p0 = [dt * N]
-    x = CASADI_VAR.sym("x", nx)
+    x = GlobalSettings.CASADI_VAR.sym("x", nx)
     x0 = data['init'][1:]
     ubx, lbx = data['ubx'][1:], data['lbx'][1:]
     f = data['f'](ca.vertcat(p, x))
@@ -450,22 +453,25 @@ def create_from_sto(file, with_uptime=True):
     if with_uptime:
         for i, (min_up, min_down) in enumerate(zip(min_uptime[:-1], min_downtime[:-1])):
             if min_up > 1 or min_down > 1:
-                switch = CASADI_VAR.sym(f"switch_x{i}", N)
+                switch = GlobalSettings.CASADI_VAR.sym(f"switch_x{i}", N)
                 switches.append(switch)
                 for idxt in range(N-1):
-                    constraints_eq.append((x[ub_idx_c[idxt, i]] + switch[idxt]) - x[ub_idx_c[idxt+1, i]])
+                    constraints_eq.append(
+                        (x[ub_idx_c[idxt, i]] + switch[idxt]) - x[ub_idx_c[idxt+1, i]])
 
                 if min_up > 1:
                     for idxt in range(N-1):
                         for idxt2 in range(idxt+1, min(N, idxt+min_up)):
                             # switch < x -> 0 < x - switch
-                            constraints_leq.append(x[ub_idx_c[idxt2, i]] - switch[idxt])
+                            constraints_leq.append(
+                                x[ub_idx_c[idxt2, i]] - switch[idxt])
 
                 if min_down > 1:
                     for idxt in range(N-1):
                         for idxt2 in range(idxt+1, min(N, idxt+min_down)):
                             # 1 + switch < 1 - x -> 0 < 1 - x - switch - 1
-                            constraints_leq.append(x[ub_idx_c[idxt2, i]] + switch[idxt])
+                            constraints_leq.append(
+                                x[ub_idx_c[idxt2, i]] + switch[idxt])
     # Add to problem!
     nr_switches = len(switches)
     switches = ca.vcat(switches)
@@ -478,7 +484,8 @@ def create_from_sto(file, with_uptime=True):
         ]
         ub_idx_c = np.hstack((ub_idx_c, np.array(idx_switches).T))
         min_uptime = min_uptime[:-1] + [0] * nr_switches + [min_uptime[-1]]
-        min_downtime = min_downtime[:-1] + [0] * nr_switches + [min_downtime[-1]]
+        min_downtime = min_downtime[:-1] + [0] * \
+            nr_switches + [min_downtime[-1]]
 
     ub_idx_c = ub_idx_c.reshape((-1,))
     x_total = ca.vertcat(x, switches)
@@ -487,8 +494,10 @@ def create_from_sto(file, with_uptime=True):
     ubx = ca.vertcat(ubx, np.ones(switches.shape))
     x0 = ca.vertcat(x0, np.zeros(switches.shape))
     x0[idx_x_bin] = np.round(x0[idx_x_bin])
-    lbg = ca.vertcat(data['lbg'], np.zeros(constraints_eq.shape), np.zeros(constraints_leq.shape))
-    ubg = ca.vertcat(data['ubg'], np.zeros(constraints_eq.shape), ca.inf * np.ones(constraints_leq.shape))
+    lbg = ca.vertcat(data['lbg'], np.zeros(
+        constraints_eq.shape), np.zeros(constraints_leq.shape))
+    ubg = ca.vertcat(data['ubg'], np.zeros(
+        constraints_eq.shape), ca.inf * np.ones(constraints_leq.shape))
 
     problem = MinlpProblem(
         x=x_total, p=p, f=f, g=g,
@@ -520,16 +529,15 @@ def create_from_sto(file, with_uptime=True):
     )
     return problem, data
 
+
 def create_from_nlp(file):
     """Create a problem from nlp."""
     from benders_exp.utils.data import load_pickle
-    from os import path
 
-    name = path.basename(file)
     data = load_pickle(file)
 
-    x = CASADI_VAR.sym("x", data['nx'])
-    p = CASADI_VAR.sym("p", data['np'])
+    x = GlobalSettings.CASADI_VAR.sym("x", data['nx'])
+    p = GlobalSettings.CASADI_VAR.sym("p", data['np'])
     f = data['f_fun'](x)
     g = data['g_fun'](x)
     idx_x_bin = data['idx_x_bin']
@@ -548,11 +556,11 @@ def create_from_nlp(file):
     )
     return problem, data
 
+
 PROBLEMS = {
     "sign_check": create_check_sign_lagrange_problem,
     "dummy": create_dummy_problem,
     "dummy2": create_dummy_problem_2,
-    "orig": extract_solarsys,
     "doublepipe": create_double_pipe_problem,
     "doubletank": create_double_tank_problem,
     "doubletank2": create_double_tank_problem2,
@@ -598,7 +606,8 @@ if __name__ == '__main__':
         state = np.vstack([meta.initial_state, state])
         control = to_0d(x_star)[
             meta.idx_control].reshape(-1, meta.n_continuous_control)
-        fig, axs = plot_trajectory(to_0d(x_star), state, control, meta, title='problem name')
+        fig, axs = plot_trajectory(
+            to_0d(x_star), state, control, meta, title='problem name')
         plt.show()
 
     # grad_f = ca.Function('grad_f', [prob.x, prob.p], [ca.gradient(prob.f, prob.x)])

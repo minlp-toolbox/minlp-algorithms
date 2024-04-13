@@ -4,7 +4,7 @@ import casadi as ca
 import numpy as np
 from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
-from minlp_algorithms.defines import Settings, CASADI_VAR
+from minlp_algorithms.settings import GlobalSettings, Settings
 
 
 class OuterApproxMILP(MiSolverClass):
@@ -50,7 +50,7 @@ class OuterApproxMILP(MiSolverClass):
         self.nr_x = problem.x.shape[0]
         self.nr_g_orig = problem.g.shape[0]
         # Last one is alpha
-        self._x = CASADI_VAR.sym("x", self.nr_x + 1)
+        self._x = GlobalSettings.CASADI_VAR.sym("x", self.nr_x + 1)
         self._g = np.array([])
         self._lbg = []
         self._ubg = []
@@ -140,7 +140,7 @@ class OuterApproxMILPImproved(MiSolverClass):
 
         self.nr_x = problem.x.shape[0]
         # Last one is alpha
-        self._x = CASADI_VAR.sym("x", self.nr_x + 1)
+        self._x = GlobalSettings.CASADI_VAR.sym("x", self.nr_x + 1)
         _, self._g, self._lbg, self._ubg = extract_bounds(
             problem, data, self.idx_g_lin, self._x[:-1], allow_fail=False
         )

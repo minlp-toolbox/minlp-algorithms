@@ -6,8 +6,7 @@ data to speed up the calculations and meta data.
 """
 
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Callable
-from minlp_algorithms.defines import CASADI_VAR
+from typing import List, Dict, Optional, Callable, Any
 import casadi as ca
 
 
@@ -51,22 +50,47 @@ class MetaDataMpc(MetaData):
 
 @dataclass
 class MinlpProblem:
-    """Minlp problem description."""
+    """
+    Minlp problem description.
 
-    f: CASADI_VAR
-    g: CASADI_VAR
-    x: CASADI_VAR
-    p: CASADI_VAR
+    The variables and equations should be defined
+    using the GlobaLSettings.CASADI_VAR.
+
+    You need to at least fill in f, g, x, p and idx_x_bin. Note that if
+    your hessian is not positive semi-definite, you might want to set the flag
+    to avoid computational problems.
+    """
+    # Casadi objective expression (1x1)
+    f: Any
+    # Casadi constraints expression (1xM)
+    g: Any
+    # Casadi variables (1xN)
+    x: Any
+    # Casadi parameters
+    p: Any
+    # Indices of the integer variables
     idx_x_bin: List[float]
-
-    h: Optional[CASADI_VAR] = None  # for soc-type constraints
-    gn_hessian: Optional[CASADI_VAR] = None
-    idx_g_lin: Optional[List[int]] = None
-    idx_g_lin_bin: Optional[List[int]] = None
-    idx_g_conv: Optional[List[int]] = None
-    idx_g_other: Optional[List[int]] = None
-    precompiled_nlp: Optional[str] = None
-
+    # Flag if the hessian is not positive semi-definite
     hessian_not_psd: bool = False
-    f_qp: Optional[CASADI_VAR] = None
+
+    # SOC-type constraints
+    h: Optional[Any] = None
+
+    # Guass-Newton Hessian (NXN)
+    gn_hessian: Optional[Any] = None
+    # Indices of the linear constraints
+    idx_g_lin: Optional[List[int]] = None
+    # Indices of the linear integer constraints
+    idx_g_lin_bin: Optional[List[int]] = None
+    # Indices of the convex constraints
+    idx_g_conv: Optional[List[int]] = None
+    # Indices of the constraints that do not belong to any other category
+    idx_g_other: Optional[List[int]] = None
+
+    # A precompiled NLP of the problem formulation
+    precompiled_nlp: Optional[str] = None
+    # Quadratic form or approximation of the objective function
+    f_qp: Optional[Any] = None
+
+    # Meta data of the problem
     meta: MetaData = MetaData()

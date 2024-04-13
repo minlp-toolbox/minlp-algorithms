@@ -4,7 +4,7 @@ import numpy as np
 import casadi as ca
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     regularize_options
-from minlp_algorithms.defines import CASADI_VAR, Settings
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.utils import to_0d, logging
 
 logger = logging.getLogger(__name__)
@@ -29,8 +29,8 @@ class LinearProjection(SolverClass):
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
         self.nr_x_bin = x_bin_var.shape[0]
-        rounded_value = CASADI_VAR.sym("rounded_value", self.nr_x_bin)
-        slack_variables = CASADI_VAR.sym("slack", self.nr_x_bin)
+        rounded_value = GlobalSettings.CASADI_VAR.sym("rounded_value", self.nr_x_bin)
+        slack_variables = GlobalSettings.CASADI_VAR.sym("slack", self.nr_x_bin)
 
         penalty_term = ca.sum1(slack_variables)
         g = ca.vertcat(
@@ -97,11 +97,11 @@ class ObjectiveLinearProjection(SolverClass):
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
         self.nr_x_bin = x_bin_var.shape[0]
-        rounded_value = CASADI_VAR.sym("rounded_value", self.nr_x_bin)
-        slack_variables = CASADI_VAR.sym("slack", self.nr_x_bin)
-        alpha = CASADI_VAR.sym("alpha", 1)
-        int_error = CASADI_VAR.sym("int_error", 1)
-        obj_val = CASADI_VAR.sym("obj_val", 1)
+        rounded_value = GlobalSettings.CASADI_VAR.sym("rounded_value", self.nr_x_bin)
+        slack_variables = GlobalSettings.CASADI_VAR.sym("slack", self.nr_x_bin)
+        alpha = GlobalSettings.CASADI_VAR.sym("alpha", 1)
+        int_error = GlobalSettings.CASADI_VAR.sym("int_error", 1)
+        obj_val = GlobalSettings.CASADI_VAR.sym("obj_val", 1)
         self.alpha = 1.0
         self.alpha_reduction = 0.9
 

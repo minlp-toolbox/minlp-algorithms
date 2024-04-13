@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
-from minlp_algorithms.defines import CASADI_VAR, Settings
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.utils import to_0d
 
 
@@ -75,7 +75,7 @@ class VoronoiTrustRegionMILP(MiSolverClass):
             )], {"jit": s.WITH_JIT}
         )
 
-        self._x = CASADI_VAR.sym("x_voronoi", problem.x.numel())
+        self._x = GlobalSettings.CASADI_VAR.sym("x_voronoi", problem.x.numel())
         self.idx_x_bin = problem.idx_x_bin
         self.nr_g_orig = problem.g.shape[0]
         self.nr_x_orig = problem.x.shape[0]
@@ -218,7 +218,7 @@ class VoronoiTrustRegionMILP(MiSolverClass):
 
     def visualize_trust_region(self, g_k, x_bin):
         """Visualize voronoi trust region in 2d."""
-        if isinstance(g_k, CASADI_VAR):
+        if isinstance(g_k, GlobalSettings.CASADI_VAR):
             xlim = [0, 4]  # TODO parametric limits
             ylim = [0, 4]  # TODO parametric limits
 
