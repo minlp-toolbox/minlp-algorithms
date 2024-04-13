@@ -5,7 +5,7 @@ import datetime
 import casadi as ca
 import numpy as np
 from typing import Tuple
-from minlp_algorithms.solvers.nlp import NlpSolver
+from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData
 from minlp_algorithms.settings import Settings
 from minlp_algorithms.utils import to_0d, toc, logging

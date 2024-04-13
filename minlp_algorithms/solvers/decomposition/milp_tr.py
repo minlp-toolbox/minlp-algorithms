@@ -18,7 +18,7 @@ from typing import Tuple
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, regularize_options
 from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.solvers import get_idx_inverse
-from minlp_algorithms.solvers.nlp import NlpSolver
+from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
 from minlp_algorithms.utils import colored
 from minlp_algorithms.utils import toc, logging
 

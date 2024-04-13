@@ -325,10 +325,10 @@ def create_stcs_problem(n_steps=None, with_slack=True):
 
 
 if __name__ == "__main__":
-    from benders_exp.utils import setup_logger, logging
+    from minlp_algorithms.utils import setup_logger, logging
     from minlp_algorithms.utils.validate import check_solution
-    from benders_exp.solvers import Stats
-    from benders_exp.solvers.nlp import NlpSolver
+    from minlp_algorithms.stats import Stats
+    from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
     from datetime import datetime
     import pickle
 

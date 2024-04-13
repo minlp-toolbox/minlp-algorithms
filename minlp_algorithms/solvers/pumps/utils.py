@@ -1,6 +1,6 @@
 import numpy as np
 from random import randint, random
-from minlp_algorithms.solvers import MinlpData
+from minlp_algorithms.data import MinlpData
 from minlp_algorithms.utils import to_0d, logging
 from copy import deepcopy
 

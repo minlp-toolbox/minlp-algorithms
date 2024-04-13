@@ -7,7 +7,6 @@ import casadi as ca
 import numpy as np
 from minlp_algorithms.problems.dsc import Description
 from minlp_algorithms.solvers import Stats
-from minlp_algorithms.solvers.nlp import NlpSolver
 from minlp_algorithms.problems.utils import integrate_rk4  # integrate_ee
 from minlp_algorithms.problems.double_tank import create_double_tank_problem2
 from minlp_algorithms.problems.solarsys import create_stcs_problem
@@ -294,7 +293,7 @@ def counter_example_nonconvexity():
 
 def create_from_nl_file(file, compiled=True):
     """Load from NL file."""
-    from benders_exp.utils.cache import CachedFunction, return_func
+    from minlp_algorithms.utils.cache import CachedFunction, return_func
     import hashlib
     # Create an NLP instance
     nl = ca.NlpBuilder()
@@ -338,7 +337,7 @@ def create_from_nl_file(file, compiled=True):
                      _lbg=np.array(nl.g_lb),
                      _ubg=np.array(nl.g_ub), p=[])
 
-    from benders_exp.solvers import inspect_problem, set_constraint_types
+    from minlp_algorithms.solvers import inspect_problem, set_constraint_types
     set_constraint_types(problem, *inspect_problem(problem, data))
     s = Settings()
 
@@ -383,9 +382,9 @@ def reduce_list(data):
 
 def create_from_nosnoc(file, compiled=False):
     """Create a problem from nosnoc."""
-    from benders_exp.utils.data import load_pickle
-    from benders_exp.utils.cache import CachedFunction, cache_data, return_func
-    from benders_exp.solvers import get_lin_bounds
+    from minlp_algorithms.utils.data import load_pickle
+    from minlp_algorithms.utils.cache import CachedFunction, cache_data, return_func
+    from minlp_algorithms.solvers import get_lin_bounds
     from os import path
     name = path.basename(file)
     data = load_pickle(file)
@@ -423,8 +422,8 @@ def create_from_nosnoc(file, compiled=False):
 
 def create_from_sto(file, with_uptime=True):
     """Create a problem from STO."""
-    from benders_exp.utils.data import load_pickle
-    from benders_exp.utils.conversion import to_bool
+    from minlp_algorithms.utils.data import load_pickle
+    from minlp_algorithms.utils.conversion import to_bool
     with_uptime = to_bool(with_uptime)
     data = load_pickle(file)
     dt = data['dt']
@@ -532,7 +531,7 @@ def create_from_sto(file, with_uptime=True):
 
 def create_from_nlp(file):
     """Create a problem from nlp."""
-    from benders_exp.utils.data import load_pickle
+    from minlp_algorithms.utils.data import load_pickle
 
     data = load_pickle(file)
 
@@ -581,9 +580,10 @@ PROBLEMS.update(MINLP_PROBLEMS)
 
 
 if __name__ == '__main__':
-    from benders_exp.utils import to_0d, plot_trajectory
+    from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
+    from minlp_algorithms.utils import to_0d, plot_trajectory
     import matplotlib.pyplot as plt
-    from benders_exp.solvers.voronoi import VoronoiTrustRegionMILP
+    from minlp_algorithms.solvers.voronoi import VoronoiTrustRegionMILP
 
     stats = Stats({})
     prob, data = create_ocp_unstable_system()

@@ -319,7 +319,7 @@ class Simulator(System):
 if __name__ == "__main__":
     from datetime import timedelta
     from ambient import Ambient
-    from benders_exp.utils import setup_logger, logging
+    from minlp_algorithms.utils import setup_logger, logging
     import matplotlib.pyplot as plt
 
     setup_logger(logging.DEBUG)

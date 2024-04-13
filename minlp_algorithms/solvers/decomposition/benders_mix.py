@@ -4,7 +4,7 @@ import casadi as ca
 from minlp_algorithms.solvers import Stats, MinlpProblem, MinlpData
 from minlp_algorithms.utils import colored
 from minlp_algorithms.settings import GlobalSettings, Settings
-from minlp_algorithms.solvers.benders import BendersMasterMILP
+from minlp_algorithms.solvers.decomposition.benders import BendersMasterMILP
 from minlp_algorithms.solvers.utils import Constraints, get_solutions_pool, any_equal
 from minlp_algorithms.solvers.tighten import tighten_bounds_x
 from enum import Enum

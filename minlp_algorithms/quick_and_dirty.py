@@ -14,18 +14,20 @@ from minlp_algorithms.settings import Settings, GlobalSettings
 from minlp_algorithms.problems.overview import PROBLEMS
 from minlp_algorithms.problems import MinlpData, MinlpProblem, MetaDataOcp, MetaDataMpc
 from minlp_algorithms.solvers import MiSolverClass, Stats
-from minlp_algorithms.solvers.nlp import NlpSolver, FeasibilityNlpSolver, FindClosestNlpSolver
-from minlp_algorithms.solvers.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
-from minlp_algorithms.solvers.benders_mix import BendersTRandMaster
-from minlp_algorithms.solvers.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
-from minlp_algorithms.solvers.bonmin import BonminSolver
-from minlp_algorithms.solvers.voronoi import VoronoiTrustRegionMILP
+from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
+from minlp_algorithms.solvers.subsolvers.fnlp import FeasibilityNlpSolver
+from minlp_algorithms.solvers.subsolvers.fnlp_closest import FindClosestNlpSolver
+from minlp_algorithms.solvers.decomposition.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
+from minlp_algorithms.solvers.decomposition.benders_mix import BendersTRandMaster
+from minlp_algorithms.solvers.decomposition.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
+from minlp_algorithms.solvers.external.bonmin import BonminSolver
+from minlp_algorithms.solvers.decomposition.voronoi import VoronoiTrustRegionMILP
 from minlp_algorithms.solvers.pumps import random_direction_rounding_algorithm, random_objective_feasibility_pump, \
     feasibility_pump, objective_feasibility_pump
-from minlp_algorithms.solvers.cia import cia_decomposition_algorithm
-from minlp_algorithms.solvers.benders_equal_lb import BendersEquality
-from minlp_algorithms.solvers.milp_tr import milp_tr
-from minlp_algorithms.solvers.benders_low_approx import BendersTRLB
+from minlp_algorithms.solvers.approximation.cia import cia_decomposition_algorithm
+from minlp_algorithms.solvers.decomposition.benders_equal_lb import BendersEquality
+from minlp_algorithms.solvers.decomposition.milp_tr import milp_tr
+from minlp_algorithms.solvers.decomposition.benders_low_approx import BendersTRLB
 from minlp_algorithms.utils.debugtools import CheckNoDuplicate
 from minlp_algorithms.utils.validate import check_solution
 

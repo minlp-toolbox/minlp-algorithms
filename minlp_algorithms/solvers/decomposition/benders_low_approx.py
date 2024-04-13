@@ -1,7 +1,7 @@
 import numpy as np
 import casadi as ca
 from minlp_algorithms.solvers.utils import get_solutions_pool
-from minlp_algorithms.solvers.benders_mix import BendersTRandMaster, LowerApproximation
+from minlp_algorithms.solvers.decomposition.benders_mix import BendersTRandMaster, LowerApproximation
 from minlp_algorithms.solvers import Stats, MinlpProblem, MinlpData, regularize_options
 from minlp_algorithms.utils import colored
 from minlp_algorithms.utils.validate import check_integer_feasible, check_solution

@@ -14,8 +14,10 @@ from typing import Tuple
 from copy import deepcopy
 from minlp_algorithms.utils import colored
 from minlp_algorithms.settings import Settings
-from minlp_algorithms.solvers.nlp import NlpSolver
-from minlp_algorithms.solvers import Stats, MinlpProblem, MinlpData
+from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
+from minlp_algorithms.stats import Stats
+from minlp_algorithms.data import MinlpData
+from minlp_algorithms.problem import MinlpProblem
 from minlp_algorithms.solvers.pumps.fp import LinearProjection, ObjectiveLinearProjection
 from minlp_algorithms.solvers.pumps.utils import integer_error, create_rounded_data, \
     perturbe_x, any_equal, random_perturbe_x
