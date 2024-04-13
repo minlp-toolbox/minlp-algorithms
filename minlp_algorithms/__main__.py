@@ -4,8 +4,8 @@
 from sys import argv
 from shutil import copyfile
 from argparse import ArgumentParser
+from minlp_algorithms.runner import runner, batch_runner
 from minlp_algorithms.utils import setup_logger, logging
-from minlp_algorithms.quick_and_dirty import batch_nl_runner
 import argcomplete
 
 
@@ -44,13 +44,9 @@ def main(args):
         copyfile(parsed.nlfile, parsed.target)
         print(f"File copied to {parsed.target}")
     elif parsed.command == "batch":
-        batch_nl_runner(parsed.algorithm, parsed.target, parsed.nlfiles)
+        batch_runner(parsed.algorithm, parsed.target, parsed.nlfiles)
     elif parsed.command == "run":
-        print("TO DO")
-        print(parsed.solver)
-        print(parsed.problem_name)
-        print(parsed.save)
-        print(parsed.args)
+        runner(parsed.solver, parsed.problem_name, parsed.save, parsed.args)
     else:
         parser.print_help()
 
