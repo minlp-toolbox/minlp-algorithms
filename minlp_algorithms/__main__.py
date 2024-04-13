@@ -26,8 +26,8 @@ def main(args):
     parser_run = subparser.add_parser("run", help="Copy NL files")
     parser_run.add_argument("solver")
     parser_run.add_argument("problem_name")
-    parser_run.add_argument("--save")
-    parser_run.add_argument("--args")
+    parser_run.add_argument("--save", default=None, type=str)
+    parser_run.add_argument("--args", default=None, nargs="*", type=str)
     parser_copy = subparser.add_parser("copy", help="Copy NL files")
     parser_copy.add_argument("target")
     parser_copy.add_argument("solution")
@@ -45,6 +45,12 @@ def main(args):
         print(f"File copied to {parsed.target}")
     elif parsed.command == "batch":
         batch_nl_runner(parsed.algorithm, parsed.target, parsed.nlfiles)
+    elif parsed.command == "run":
+        print("TO DO")
+        print(parsed.solver)
+        print(parsed.problem_name)
+        print(parsed.save)
+        print(parsed.args)
     else:
         parser.print_help()
 

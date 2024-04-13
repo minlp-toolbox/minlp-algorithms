@@ -5,15 +5,12 @@ Bender cuts are based on the principle of decomposing the problem into two
 parts where the main part is only solving the integer variables.
 """
 
-from copy import deepcopy
-import matplotlib.pyplot as plt
 import casadi as ca
 import numpy as np
 from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, get_idx_linear_bounds_binary_x, regularize_options, \
     get_idx_inverse, extract_bounds
 from minlp_algorithms.settings import GlobalSettings, Settings
-from minlp_algorithms.utils import to_0d
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,26 +24,35 @@ class BendersMasterMILP(MiSolverClass):
         """Create benders master MILP."""
         super(BendersMasterMILP, self).__init___(problem, stats, s)
         self.setup_common(problem, s)
-        if s.WITH_PLOT:
-            self.setup_plot()
-
         self.jac_g_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
             [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
             {"jit": s.WITH_JIT}
         )
         self._x = GlobalSettings.CASADI_VAR.sym("x_bin", self.nr_x_bin)
+        self.problem = problem
 
         if with_lin_bounds:
-            idx_g_lin = get_idx_linear_bounds_binary_x(problem)
+            self.idx_g_lin = get_idx_linear_bounds_binary_x(problem)
             self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
-                problem, data, idx_g_lin, self._x, problem.idx_x_bin
+                problem, data, self.idx_g_lin, self._x, problem.idx_x_bin
+            )
+        else:
+            self.idx_g_lin = np.array([])
+            self.nr_g, self._g, self._lbg, self._ubg = 0, [], [], []
+
+        self.cut_id = 0
+
+    def reset(self, data):
+        """Reset."""
+        if self.idx_g_lin.numel() > 0:
+            self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
+                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_bin
             )
         else:
             self.nr_g, self._g, self._lbg, self._ubg = 0, [], [], []
 
         self.cut_id = 0
-        self.visualized_cuts = []
 
     def setup_common(self, problem: MinlpProblem, s):
         """Set up common data."""
@@ -129,11 +135,6 @@ class BendersMasterMILP(MiSolverClass):
         self._lbg.append(-ca.inf)
         self.nr_g += 1
 
-        if self.settings.WITH_PLOT:
-            self.visualize_trust_region(self._x[self.idx_x_bin], self._nu,
-                                        x_sol_current=x_bin_star,
-                                        x_sol_best=x_bin_star)
-
         self.solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", self.settings.MIP_SOLVER, {
             "f": self._nu, "g": self._g,
             "x": ca.vertcat(self._x, self._nu),
@@ -153,95 +154,6 @@ class BendersMasterMILP(MiSolverClass):
         nlpdata.solved, stats = self.collect_stats("BENDERS-MILP")
         del self.solver
         return nlpdata
-
-    def setup_3d_cut_plot(self, problem: MinlpProblem, data: MinlpData):
-        """Set up 3d plot."""
-        self.fig = plt.figure()
-        self.ax = self.fig.add_subplot(111, projection='3d')
-        self.ax.set_xlim(data.lbx[problem.idx_x_bin]
-                         [0], data.ubx[problem.idx_x_bin][0])
-        self.ax.set_xticks(range(int(data.lbx[problem.idx_x_bin][0]), int(
-            data.ubx[problem.idx_x_bin][0]) + 1))
-        self.ax.set_ylim(data.lbx[problem.idx_x_bin]
-                         [1], data.ubx[problem.idx_x_bin][1])
-        self.ax.set_yticks(range(int(data.lbx[problem.idx_x_bin][1]), int(
-            data.ubx[problem.idx_x_bin][1]) + 1))
-
-    def setup_plot(self):
-        """Set up plot."""
-        self.fig = plt.figure()
-
-    def visualize_cut(self, g_k, x_bin, nu, nu_val=0):
-        """Visualize cut."""
-        self.cut_id += 1
-        xx, yy = np.meshgrid(range(10), range(10))
-        cut = ca.Function("t", [x_bin, nu], [g_k])
-        z = np.zeros(xx.shape)
-        for i in range(10):
-            for j in range(10):
-                z[i, j] = cut(ca.vertcat(xx[i, j], yy[i, j]),
-                              nu_val).full()[0, 0]
-
-        self.visualized_cuts.append(
-            self.ax.plot_surface(
-                xx, yy, z, alpha=0.2, label="Cut %d" % self.cut_id
-            )
-        )
-        # HACK:
-        for surf in self.visualized_cuts:
-            surf._edgecolors2d = surf._edgecolor3d
-            surf._facecolors2d = surf._facecolor3d
-        # Legend
-        self.ax.legend()
-        self.ax.axes.set_zlim3d(bottom=-1e5, top=0)
-
-        plt.show(block=False)
-        plt.pause(1)
-
-    def visualize_trust_region(self, x_bin, nu, nu_val=0, x_sol_current=None, x_sol_best=None):
-        """Visualize trust region."""
-        g_k = self._g[-self.cut_id:]
-        if x_sol_current is not None:
-            x_sol_current = deepcopy(x_sol_current)
-            x_sol_current = to_0d(x_sol_current)
-        if x_sol_best is not None:
-            x_sol_best = deepcopy(x_sol_best)
-            x_sol_best = to_0d(x_sol_best)
-
-        if isinstance(g_k, GlobalSettings.CASADI_VAR):
-            xlim = [0, 4]  # TODO parametric limits
-            ylim = [0, 4]  # TODO parametric limits
-
-            self.ax = self.fig.add_subplot(3, 4, self.cut_id)
-            self.ax.grid(linestyle='--', linewidth=1)
-            self.ax.set_xlim(xlim[0]-0.5, xlim[1]+0.5)
-            self.ax.set_xticks(range(int(xlim[0]), int(xlim[1]) + 1))
-            self.ax.set_ylim(ylim[0]-0.5, ylim[1]+0.5)
-            self.ax.set_yticks(range(int(ylim[0]), int(ylim[1]) + 1))
-
-            points = np.linspace(-1, 5, 100)
-            xx, yy = np.meshgrid(points, points)
-            feasible = np.ones(xx.shape, dtype=bool)
-            for c in range(g_k.shape[0]):
-                cut = ca.Function("t", [x_bin, nu], [g_k[c]])
-                feasible_c = np.ones(xx.shape, dtype=bool)
-                for i in range(points.shape[0]):
-                    for j in range(points.shape[0]):
-                        feasible_c[i, j] = cut(ca.vertcat(
-                            xx[i, j], yy[i, j]), nu_val).full()[0, 0] < 0
-                feasible = feasible & feasible_c
-            self.ax.imshow(~feasible, cmap=plt.cm.binary, alpha=0.5,
-                           origin="lower",
-                           extent=[xlim[0]-1, xlim[1]+1, ylim[0]-1, ylim[1]+1]
-                           )
-            if x_sol_best is not None:
-                self.ax.scatter(x_sol_best[0], x_sol_best[1], c='tab:orange')
-                if not np.allclose(x_sol_best, x_sol_current):
-                    self.ax.scatter(
-                        x_sol_current[0], x_sol_current[1], c='tab:blue')
-
-            plt.show(block=False)
-            plt.pause(1)
 
 
 class BendersMasterMIQP(BendersMasterMILP):
@@ -273,11 +185,6 @@ class BendersMasterMIQP(BendersMasterMILP):
         self._ubg.append(0)
         self._lbg.append(-ca.inf)
         self.nr_g += 1
-
-        if self.settings.WITH_PLOT:
-            self.visualize_trust_region(self._x[self.idx_x_bin], self._nu,
-                                        x_sol_best=x_bin_star,
-                                        x_sol_current=x_bin_star)
 
         dx = self._x - x_bin_star
         self.solver = ca.qpsol(f"benders_qp{self.nr_g}", self.settings.MIP_SOLVER, {
@@ -392,11 +299,6 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         # Should be at least 1e-4 better and 1e-4 from the constraint bound!
         self._ubg = ca.vertcat(self._ubg, 0)  # -1e-4)
         self.nr_g += 1
-
-        if self.settings.WITH_PLOT:
-            self.visualize_trust_region(self._x[self.idx_x_bin], self._nu, nu_val=self.y_N_val,
-                                        x_sol_best=self.x_sol_best[self.idx_x_bin],
-                                        x_sol_current=x_sol_prev[self.idx_x_bin])
 
         dx = self._x - self.x_sol_best
 
