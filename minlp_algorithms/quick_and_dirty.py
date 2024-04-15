@@ -17,23 +17,25 @@ from minlp_algorithms.solvers import MiSolverClass, Stats
 from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
 from minlp_algorithms.solvers.subsolvers.fnlp import FeasibilityNlpSolver
 from minlp_algorithms.solvers.subsolvers.fnlp_closest import FindClosestNlpSolver
-from minlp_algorithms.solvers.decomposition.benders import BendersMasterMILP, BendersTrustRegionMIP, BendersMasterMIQP
-from minlp_algorithms.solvers.decomposition.benders_mix import BendersTRandMaster
-from minlp_algorithms.solvers.decomposition.outer_approx import OuterApproxMILP, OuterApproxMILPImproved
+from minlp_algorithms.solvers.decomposition.benders_master import BendersMasterMILP, BendersTrustRegionMIP, \
+        BendersMasterMIQP
+from minlp_algorithms.solvers.decomposition.sequential_benders_trustregion_master import BendersTRandMaster
+from minlp_algorithms.solvers.decomposition.oa_master import OuterApproxMILP, OuterApproxMILPImproved
 from minlp_algorithms.solvers.external.bonmin import BonminSolver
-from minlp_algorithms.solvers.decomposition.voronoi import VoronoiTrustRegionMILP
+from minlp_algorithms.solvers.decomposition.voronoi_master import VoronoiTrustRegionMILP
 from minlp_algorithms.solvers.pumps import random_direction_rounding_algorithm, random_objective_feasibility_pump, \
     feasibility_pump, objective_feasibility_pump
 from minlp_algorithms.solvers.approximation.cia import cia_decomposition_algorithm
-from minlp_algorithms.solvers.decomposition.benders_equal_lb import BendersEquality
-from minlp_algorithms.solvers.decomposition.milp_tr import milp_tr
-from minlp_algorithms.solvers.decomposition.benders_low_approx import BendersTRLB
+from minlp_algorithms.solvers.milp_tr import milp_tr
+from minlp_algorithms.solvers.decomposition.benders_lbqp_master import BendersTRLB
 from minlp_algorithms.utils.debugtools import CheckNoDuplicate
 from minlp_algorithms.utils.validate import check_solution
+from minlp_algorithms.solvers.utils import get_termination_condition
 
 logger = logging.getLogger(__name__)
 
 
+# TODO: Already moved
 def update_best_solutions(data, itr, ub, x_star, best_iter, s: Settings):
     """Update best solutions,"""
     if np.any(data.solved_all):
@@ -53,6 +55,7 @@ def update_best_solutions(data, itr, ub, x_star, best_iter, s: Settings):
     return ub, x_star, best_iter
 
 
+# TODO: Already moved
 def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
                   master_problem: MiSolverClass, termination_condition: Callable[..., bool],
                   first_relaxed=False) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
@@ -108,79 +111,7 @@ def base_strategy(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Setti
     return problem, data, x_star
 
 
-def get_termination_condition(termination_type, problem: MinlpProblem, data: MinlpData, s: Settings):
-    """
-    Get termination condition.
-
-    :param termination_type: String of the termination type (gradient, std or equality)
-    :param problem: problem
-    :param data: data
-    :return: callable that returns true if the termination condition holds
-    """
-    def max_time(ret, s, stats):
-        done = False
-        if s.TIME_LIMIT_SOLVER_ONLY:
-            done = (stats["t_solver_total"] > s.TIME_LIMIT or toc() > s.TIME_LIMIT * 3)
-        else:
-            done = (toc() > s.TIME_LIMIT)
-
-        if done:
-            logging.info("Terminated - TIME LIMIT")
-            return True
-        return ret
-
-    if termination_type == 'gradient':
-        idx_x_bin = problem.idx_x_bin
-        f_fn = ca.Function("f", [problem.x, problem.p], [
-                           problem.f], {"jit": s.WITH_JIT})
-        grad_f_fn = ca.Function("gradient_f_x", [problem.x, problem.p], [ca.gradient(problem.f, problem.x)],
-                                {"jit": s.WITH_JIT})
-
-        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
-            ret = to_0d(
-                f_fn(x_current, data.p)
-                + grad_f_fn(x_current, data.p)[idx_x_bin].T @ (
-                    x_current[idx_x_bin] - x_best[idx_x_bin])
-                - f_fn(x_best, data.p)
-            ) >= 0
-            if ret:
-                logging.info("Terminated - gradient ok")
-            return max_time(ret, s, stats)
-    elif termination_type == 'equality':
-        idx_x_bin = problem.idx_x_bin
-
-        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
-            if isinstance(x_best, list):
-                for x in x_best:
-                    if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS):
-                        logging.info(f"Terminated - all close within {s.EPS}")
-                        return True
-                return max_time(False, s, stats)
-            else:
-                ret = np.allclose(
-                    x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS)
-                if ret:
-                    logging.info(f"Terminated - all close within {s.EPS}")
-                return max_time(ret, s, stats)
-
-    elif termination_type == 'std':
-        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
-            tol_abs = max((abs(lb) + abs(ub)) *
-                          s.MINLP_TOLERANCE / 2, s.MINLP_TOLERANCE_ABS)
-            ret = (lb + tol_abs - ub) >= 0
-            if ret:
-                logging.info(
-                    f"Terminated: {lb} >= {ub} - {tol_abs} ({tol_abs})")
-            else:
-                logging.info(
-                    f"Not Terminated: {lb} <= {ub} - {tol_abs} ({tol_abs})")
-            return max_time(ret, s, stats)
-    else:
-        raise AttributeError(
-            f"Invalid type of termination condition, you set '{termination_type}' but the only option is 'std'!")
-    return func
-
-
+# TODO: Already moved
 def benders_algorithm(problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
                       with_qp: bool = False, termination_type: str = 'std') -> Tuple[MinlpProblem, MinlpData, ca.DM]:
     """
@@ -280,28 +211,6 @@ def benders_constrained_milp(
     )
     toc()
     return base_strategy(problem, data, stats, s, benders_tr_master, termination_condition, first_relaxed=first_relaxed)
-
-
-def benders_equality(
-    problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
-    termination_type: str = 'equality'
-) -> Tuple[MinlpProblem, MinlpData, ca.DM]:
-    """
-    Create and run benders equality algorithm.
-
-    parameters:
-        - termination_type:
-            - gradient: based on local linearization
-            - equality: the binaries of the last solution coincides with the ones of the best solution
-            - std: based on lower and upper bound
-    """
-    logger.info("Setup Idea MIQP solver...")
-    benders_tr_master = BendersEquality(problem, data, stats, s)
-    termination_condition = get_termination_condition(
-        termination_type, problem, data, s
-    )
-    toc()
-    return base_strategy(problem, data, stats, s, benders_tr_master, termination_condition)
 
 
 def benders_trm_lp(
@@ -560,7 +469,6 @@ SOLVER_MODES = {
     "oa": outer_approx_algorithm,
     "oai": outer_approx_algorithm_improved,
     "bonmin": bonmin,
-    "benderseq": benders_equality,
     # B-BB is a NLP-based branch-and-bound algorithm
     "bonmin-bb": lambda p, d, st, s: bonmin(p, d, st, s, "B-BB"),
     # B-Hyb is a hybrid outer-approximation based branch-and-cut algorithm
@@ -583,6 +491,7 @@ SOLVER_MODES = {
 }
 
 
+# TODO: Already moved
 def run_problem(mode_name, problem_name, stats, args, s=None) -> Union[MinlpProblem, MinlpData, ca.DM]:
     """Run a problem and return the results."""
     if mode_name not in SOLVER_MODES:
@@ -602,7 +511,6 @@ def run_problem(mode_name, problem_name, stats, args, s=None) -> Union[MinlpProb
         logger.info("Using custom settings")
         problem, data, s = output
 
-
     if problem == "orig":
         new_inf = 1e5
     else:
@@ -616,6 +524,7 @@ def run_problem(mode_name, problem_name, stats, args, s=None) -> Union[MinlpProb
     return SOLVER_MODES[mode_name](problem, data, stats, s), s
 
 
+# TODO: Already moved
 def batch_nl_runner(mode_name, target, nl_files):
     """Run a batch of problems."""
     from os import makedirs
@@ -730,6 +639,7 @@ if __name__ == "__main__":
 
     print(f"Objective value: {data.obj_val}")
 
+    # TODO: Plot not yet moved!
     print(x_star)
     if isinstance(problem.meta, MetaDataOcp):
         meta = problem.meta

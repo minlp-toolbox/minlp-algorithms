@@ -3,8 +3,11 @@ from minlp_algorithms.stats import Stats
 from minlp_algorithms.settings import Settings
 from minlp_algorithms.problem import MinlpProblem
 from minlp_algorithms.data import MinlpData
+from minlp_algorithms.solvers.decomposition.benders import GeneralizedBenders, GeneralizedBendersQP
 
 SOLVER_MODES = {
+    "benders": GeneralizedBenders,
+    "bendersqp": GeneralizedBendersQP,
 }
 
 
@@ -14,7 +17,8 @@ class MinlpSolver(MiSolverClass):
     def __init__(
         self, name,
         problem: MinlpProblem, data: MinlpData, stats: Stats = None,
-        settings: Settings = None, problem_name = "generic"
+        settings: Settings = None, problem_name: str = "generic",
+        *args
     ):
         if stats is None:
             stats = Stats(name, problem_name, "generic")
@@ -23,14 +27,15 @@ class MinlpSolver(MiSolverClass):
 
         self.stats = stats
         self.settings = settings
-        super(MinlpSolver, self).__init___(problem, stats, stats, settings)
+        super(MinlpSolver, self).__init___(problem, stats, settings)
 
         # Create actual solver
         if name in SOLVER_MODES:
-            # TODO
-            self._subsolver = None
-            # Create solver class
-            pass
+            self._subsolver = SOLVER_MODES[name](
+                problem, data, stats, settings, *args
+            )
+        else:
+            raise Exception(f"Solver mode {name} not implemented!")
 
     def solve(self, nlpdata: MinlpData, *args, **kwargs) -> MinlpData:
         """Solve the problem."""

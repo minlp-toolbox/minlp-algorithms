@@ -66,6 +66,24 @@ class SolverClass(ABC):
 
 class MiSolverClass(SolverClass):
 
+    def update_best_solutions(self, data, itr, ub, x_star, best_iter, settings):
+        """Update best solutions,"""
+        if np.any(data.solved_all):
+            for i, success in enumerate(data.solved_all):
+                obj_val = float(data.prev_solutions[i]['f'])
+                if success:
+                    if obj_val + settings.EPS < ub:
+                        logger.info(f"Decreased UB from {ub} to {obj_val}")
+                        ub = obj_val
+                        x_star = data.prev_solutions[i]['x']
+                        data.best_solutions.append(x_star)
+                        best_iter = itr
+                    elif obj_val - settings.EPS < ub:
+                        data.best_solutions.append(
+                            data.prev_solutions[i]['x']
+                        )
+        return ub, x_star, best_iter
+
     @abstractmethod
     def solve(self, nlpdata: MinlpData, relaxed: bool = False) -> MinlpData:
         """Solve the problem."""

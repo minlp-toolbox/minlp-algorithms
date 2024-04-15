@@ -4,7 +4,6 @@ from typing import Any, Dict
 from dataclasses import dataclass, field
 from os import path, makedirs, environ
 import casadi as ca
-from minlp_algorithms.utils.conversion import to_bool
 
 
 def create_and_return(folder):
@@ -69,6 +68,8 @@ GlobalSettings = _GlobalSettings()
 
 @dataclass(init=True)
 class Settings:
+    from minlp_algorithms.utils.conversion import to_bool
+
     TIME_LIMIT: float = ca.inf  # 60.0
     TIME_LIMIT_SOLVER_ONLY: bool = False
     WITH_JIT: bool = False

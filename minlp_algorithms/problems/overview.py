@@ -13,7 +13,7 @@ from minlp_algorithms.problems.solarsys import create_stcs_problem
 from minlp_algorithms.problems.gearbox import create_simple_gearbox, create_gearbox, \
     create_gearbox_int
 from minlp_algorithms.problems.minlp import MINLP_PROBLEMS
-from minlp_algorithms.settings import to_bool
+from minlp_algorithms.utils.conversion import to_bool
 from minlp_algorithms.problems.time_opt import time_opt_car
 from minlp_algorithms.problems.sto_based import particle_trajectory
 

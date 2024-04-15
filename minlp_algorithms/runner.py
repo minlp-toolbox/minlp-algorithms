@@ -75,6 +75,9 @@ def runner(solver_name, problem_name, target_file, args):
         raise Exception(f"No {problem_name=}, available: {PROBLEMS.keys()}")
 
     logger.info(f"Load problem {problem_name}")
+    if args is None:
+        args = []
+
     output = PROBLEMS[problem_name](*args)
     if len(output) == 2:
         problem, data = output
@@ -91,13 +94,13 @@ def runner(solver_name, problem_name, target_file, args):
     make_bounded(problem, data, new_inf=new_inf)
 
     if len(problem.idx_x_bin) == 0:
-        mode_name = "relaxed"
+        solver_name = "relaxed"
 
     solver = MinlpSolver(
-        problem_name, problem, data, settings, problem_name=problem_name
+        solver_name, problem, data, settings=settings, problem_name=problem_name
     )
 
-    logger.info(f"Start mode {mode_name}")
+    logger.info(f"Start mode {solver_name}")
     data = solver.solve(data)
     solved, stats = solver.collect_stats()
 

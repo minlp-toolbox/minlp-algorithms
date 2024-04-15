@@ -23,7 +23,7 @@ def main(args):
         help="""for argument information use:
                                       <command-name> -h""",
     )
-    parser_run = subparser.add_parser("run", help="Copy NL files")
+    parser_run = subparser.add_parser("run", help="Run a pre-defined problem")
     parser_run.add_argument("solver")
     parser_run.add_argument("problem_name")
     parser_run.add_argument("--save", default=None, type=str)

@@ -1,6 +1,10 @@
 import numpy as np
 import casadi as ca
 from minlp_algorithms.settings import Settings
+from minlp_algorithms.data import MinlpData
+from minlp_algorithms.problem import MinlpProblem
+from minlp_algorithms.stats import Stats
+from minlp_algorithms.utils import toc, logging, to_0d
 
 
 def almost_equal(a, b, EPS=1e-5):
@@ -110,3 +114,76 @@ def get_solutions_pool(nlpdata, success, stats, s: Settings, solution, idx_x_bin
         nlpdata.solved_all = [success]
 
     return nlpdata
+
+
+def get_termination_condition(termination_type, problem: MinlpProblem, data: MinlpData, s: Settings):
+    """
+    Get termination condition.
+
+    :param termination_type: String of the termination type (gradient, std or equality)
+    :param problem: problem
+    :param data: data
+    :return: callable that returns true if the termination condition holds
+    """
+    def max_time(ret, s, stats):
+        done = False
+        if s.TIME_LIMIT_SOLVER_ONLY:
+            done = (stats["t_solver_total"] > s.TIME_LIMIT or toc() > s.TIME_LIMIT * 3)
+        else:
+            done = (toc() > s.TIME_LIMIT)
+
+        if done:
+            logging.info("Terminated - TIME LIMIT")
+            return True
+        return ret
+
+    if termination_type == 'gradient':
+        idx_x_bin = problem.idx_x_bin
+        f_fn = ca.Function("f", [problem.x, problem.p], [
+                           problem.f], {"jit": s.WITH_JIT})
+        grad_f_fn = ca.Function("gradient_f_x", [problem.x, problem.p], [ca.gradient(problem.f, problem.x)],
+                                {"jit": s.WITH_JIT})
+
+        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
+            ret = to_0d(
+                f_fn(x_current, data.p)
+                + grad_f_fn(x_current, data.p)[idx_x_bin].T @ (
+                    x_current[idx_x_bin] - x_best[idx_x_bin])
+                - f_fn(x_best, data.p)
+            ) >= 0
+            if ret:
+                logging.info("Terminated - gradient ok")
+            return max_time(ret, s, stats)
+    elif termination_type == 'equality':
+        idx_x_bin = problem.idx_x_bin
+
+        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
+            if isinstance(x_best, list):
+                for x in x_best:
+                    if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS):
+                        logging.info(f"Terminated - all close within {s.EPS}")
+                        return True
+                return max_time(False, s, stats)
+            else:
+                ret = np.allclose(
+                    x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS)
+                if ret:
+                    logging.info(f"Terminated - all close within {s.EPS}")
+                return max_time(ret, s, stats)
+
+    elif termination_type == 'std':
+        def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
+            tol_abs = max((abs(lb) + abs(ub)) *
+                          s.MINLP_TOLERANCE / 2, s.MINLP_TOLERANCE_ABS)
+            ret = (lb + tol_abs - ub) >= 0
+            if ret:
+                logging.info(
+                    f"Terminated: {lb} >= {ub} - {tol_abs} ({tol_abs})")
+            else:
+                logging.info(
+                    f"Not Terminated: {lb} <= {ub} - {tol_abs} ({tol_abs})")
+            return max_time(ret, s, stats)
+    else:
+        raise AttributeError(
+            f"Invalid type of termination condition, you set '{termination_type}' but the only option is 'std'!")
+    return func
