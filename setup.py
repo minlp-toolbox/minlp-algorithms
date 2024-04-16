@@ -18,6 +18,7 @@ setup(
         "timeout-decorator",
         "tox",
         "colored",
-        "seaborn"
+        "seaborn",
+        "argcomplete",
     ]
 )
