@@ -6,7 +6,7 @@ import numpy as np
 from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
 from minlp_algorithms.settings import GlobalSettings, Settings
-from minlp_algorithms.utils import to_0d
+from minlp_algorithms.utils.conversion import to_0d
 
 
 class VoronoiTrustRegionMILP(MiSolverClass):

@@ -16,7 +16,7 @@ from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.utils.cache import CachedFunction
 import logging
 
-from minlp_algorithms.utils import convert_to_flat_list, to_0d
+from minlp_algorithms.utils.conversion import to_0d, convert_to_flat_list
 
 logger = logging.getLogger(__name__)
 

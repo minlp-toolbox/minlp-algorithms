@@ -581,7 +581,8 @@ PROBLEMS.update(MINLP_PROBLEMS)
 
 if __name__ == '__main__':
     from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
-    from minlp_algorithms.utils import to_0d, plot_trajectory
+    from minlp_algorithms.utils import plot_trajectory
+    from minlp_algorithms.utils.conversion import to_0d
     import matplotlib.pyplot as plt
     from minlp_algorithms.solvers.voronoi import VoronoiTrustRegionMILP
 

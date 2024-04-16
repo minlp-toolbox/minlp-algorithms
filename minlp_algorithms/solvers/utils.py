@@ -4,7 +4,8 @@ from minlp_algorithms.settings import Settings
 from minlp_algorithms.data import MinlpData
 from minlp_algorithms.problem import MinlpProblem
 from minlp_algorithms.stats import Stats
-from minlp_algorithms.utils import toc, logging, to_0d
+from minlp_algorithms.utils import toc, logging
+from minlp_algorithms.utils.conversion import to_0d
 
 
 def almost_equal(a, b, EPS=1e-5):

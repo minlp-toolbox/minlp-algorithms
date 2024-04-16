@@ -4,7 +4,8 @@ from datetime import datetime
 from dataclasses import dataclass, field
 import os
 from typing import Dict, List
-from minlp_algorithms.utils import to_0d, toc
+from minlp_algorithms.utils import toc
+from minlp_algorithms.utils.conversion import to_0d
 from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.utils.data import save_pickle
 

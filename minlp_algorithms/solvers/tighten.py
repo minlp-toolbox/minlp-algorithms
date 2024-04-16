@@ -1,5 +1,5 @@
 import numpy as np
-from minlp_algorithms.utils import to_0d
+from minlp_algorithms.utils.conversion import to_0d
 from minlp_algorithms.solvers.utils import Constraints
 from minlp_algorithms.problems import MinlpData
 import logging

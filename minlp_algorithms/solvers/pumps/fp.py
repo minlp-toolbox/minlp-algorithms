@@ -5,7 +5,8 @@ import casadi as ca
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     regularize_options
 from minlp_algorithms.settings import GlobalSettings, Settings
-from minlp_algorithms.utils import to_0d, logging
+from minlp_algorithms.utils import logging
+from minlp_algorithms.utils.conversion import to_0d
 
 logger = logging.getLogger(__name__)
 

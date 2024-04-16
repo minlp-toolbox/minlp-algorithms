@@ -8,7 +8,7 @@ import logging
 from minlp_algorithms.problems.solarsys.system import System, ca
 from minlp_algorithms.problems.solarsys.ambient import Ambient, Timing
 from minlp_algorithms.utils.cache import CachedFunction
-from minlp_algorithms.utils import convert_to_flat_list
+from minlp_algorithms.utils.conversion import convert_to_flat_list
 
 
 logger = logging.getLogger(__name__)

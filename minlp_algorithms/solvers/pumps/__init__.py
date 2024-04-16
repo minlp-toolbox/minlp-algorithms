@@ -22,7 +22,8 @@ from minlp_algorithms.solvers.pumps.fp import LinearProjection, ObjectiveLinearP
 from minlp_algorithms.solvers.pumps.utils import integer_error, create_rounded_data, \
     perturbe_x, any_equal, random_perturbe_x
 from minlp_algorithms.solvers.pumps.random_obj_fp import RandomDirectionNlpSolver
-from minlp_algorithms.utils import to_0d, toc, logging
+from minlp_algorithms.utils import toc, logging
+from minlp_algorithms.utils.conversion import to_0d
 
 
 logger = logging.getLogger(__name__)

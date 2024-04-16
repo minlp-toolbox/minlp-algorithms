@@ -1,7 +1,8 @@
 import numpy as np
 from random import randint, random
 from minlp_algorithms.data import MinlpData
-from minlp_algorithms.utils import to_0d, logging
+from minlp_algorithms.utils import logging
+from minlp_algorithms.utils.conversion import to_0d
 from copy import deepcopy
 
 logger = logging.getLogger(__name__)

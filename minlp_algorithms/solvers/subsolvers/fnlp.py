@@ -5,7 +5,7 @@ import numpy as np
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     regularize_options
 from minlp_algorithms.settings import GlobalSettings, Settings
-from minlp_algorithms.utils import to_0d
+from minlp_algorithms.utils.conversion import to_0d
 
 
 class FeasibilityNlpSolver(SolverClass):

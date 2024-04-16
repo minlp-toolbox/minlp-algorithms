@@ -7,8 +7,9 @@ from sys import argv
 from typing import Callable, Tuple, Union
 import casadi as ca
 import numpy as np
-from minlp_algorithms.utils import get_control_vector, plot_trajectory, tic, to_0d, toc, \
+from minlp_algorithms.utils import get_control_vector, plot_trajectory, tic, toc, \
     make_bounded, setup_logger, logging, colored
+from minlp_algorithms.utils.conversion import to_0d
 from minlp_algorithms.utils.data import write_json, read_json
 from minlp_algorithms.settings import Settings, GlobalSettings
 from minlp_algorithms.problems.overview import PROBLEMS

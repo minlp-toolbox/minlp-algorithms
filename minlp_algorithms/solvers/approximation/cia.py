@@ -8,7 +8,8 @@ from typing import Tuple
 from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData
 from minlp_algorithms.settings import Settings
-from minlp_algorithms.utils import to_0d, toc, logging
+from minlp_algorithms.utils import toc, logging
+from minlp_algorithms.utils.conversion import to_0d
 try:
     from pycombina import BinApprox, CombinaBnB
 except Exception:
