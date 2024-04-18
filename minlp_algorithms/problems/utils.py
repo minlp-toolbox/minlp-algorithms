@@ -18,8 +18,6 @@ def integrate_rk4(x: GS.CASADI_VAR, u: GS.CASADI_VAR, x_dot: GS.CASADI_VAR,
     dt: integration time
     m_steps: number of integration steps per interval
     """
-    if m_steps > 1:
-        dt = dt / m_steps
 
     f = ca.Function("f", [x, u], [x_dot])
     X0 = GS.CASADI_VAR.sym("X0", x.shape[0])
@@ -29,12 +27,13 @@ def integrate_rk4(x: GS.CASADI_VAR, u: GS.CASADI_VAR, x_dot: GS.CASADI_VAR,
         DT = GS.CASADI_VAR.sym("DT")
     else:
         DT = dt
+    dt_scaled = DT / m_steps
     for _ in range(m_steps):
         k1 = f(X, U)
-        k2 = f(X + DT / 2 * k1, U)
-        k3 = f(X + DT / 2 * k2, U)
-        k4 = f(X + DT * k3, U)
-        X = X + DT / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        k2 = f(X + dt_scaled / 2 * k1, U)
+        k3 = f(X + dt_scaled / 2 * k2, U)
+        k4 = f(X + dt_scaled * k3, U)
+        X += dt_scaled / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
 
     if isinstance(dt, GS.CASADI_VAR):
         return ca.Function("I_rk4", [X0, U, DT], [X], ["x0", "u", "dt"], ["xf"])
@@ -53,8 +52,6 @@ def integrate_ee(x: GS.CASADI_VAR, u: GS.CASADI_VAR, x_dot: GS.CASADI_VAR,
     dt: integration time
     m_steps: number of integration steps per interval
     """
-    if m_steps > 1:
-        dt = dt / m_steps
 
     f = ca.Function("f", [x, u], [x_dot])
     X0 = GS.CASADI_VAR.sym("X0", x.shape[0])
@@ -66,14 +63,15 @@ def integrate_ee(x: GS.CASADI_VAR, u: GS.CASADI_VAR, x_dot: GS.CASADI_VAR,
         DT = dt
     for _ in range(m_steps):
         k1 = f(X, U)
-        X = X + DT * k1
+        X += DT * k1 / m_steps
     if isinstance(dt, GS.CASADI_VAR):
         return ca.Function("I_ee", [X0, U, DT], [X], ["x0", "u", "dt"], ["xf"])
     else:
         return ca.Function("I_ee", [X0, U], [X], ["x0", "u"], ["xf"])
 
 
-def integrate_ie(x: GS.CASADI_VAR, u: GS.CASADI_VAR, x_dot: GS.CASADI_VAR, dt: Union[float, GS.CASADI_VAR]):
+def integrate_ie(x: GS.CASADI_VAR, u: GS.CASADI_VAR, x_dot: GS.CASADI_VAR,
+                 dt: Union[float, GS.CASADI_VAR], m_steps: int = 1):
     """Integrate Implicit Euler."""
     f = ca.Function("f", [x, u], [x_dot])
     X0 = GS.CASADI_VAR.sym("X0", x.shape[0])
@@ -83,9 +81,11 @@ def integrate_ie(x: GS.CASADI_VAR, u: GS.CASADI_VAR, x_dot: GS.CASADI_VAR, dt: U
         DT = GS.CASADI_VAR.sym("DT")
     else:
         DT = dt
-    f = X0 + DT * f(Xk, U) - Xk
+    X = X0
+    for _ in range(m_steps):
+        X += DT * f(Xk, U) / m_steps
+    f = X - Xk
     if isinstance(dt, GS.CASADI_VAR):
-        return ca.Function("I_ie", [X0, U, Xk, DT], [f],
-                           ["x0",  "u", "x1", "dt"], ["xf"])
+        return ca.Function("I_ie", [X0, U, Xk, DT], [f], ["x0",  "u", "x1", "dt"], ["xf"])
     else:
         return ca.Function("I_ie", [X0, U, Xk], [f], ["x0", "u", "x1"], ["xf"])
