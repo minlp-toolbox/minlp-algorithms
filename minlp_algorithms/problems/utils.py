@@ -83,7 +83,7 @@ def integrate_ie(x: GS.CASADI_VAR, u: GS.CASADI_VAR, x_dot: GS.CASADI_VAR,
         DT = dt
     X = X0
     for _ in range(m_steps):
-        X += DT * f(Xk, U) / m_steps
+        X += DT * f(X, U) / m_steps
     f = X - Xk
     if isinstance(dt, GS.CASADI_VAR):
         return ca.Function("I_ie", [X0, U, Xk, DT], [f], ["x0",  "u", "x1", "dt"], ["xf"])
