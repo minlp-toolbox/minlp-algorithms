@@ -94,6 +94,11 @@ class Settings:
     ALPHA_KRONQVIST: float = 0.5
     # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
 
+    PUMP_MAX_STEP_IMPROVEMENTS = 5
+    PUMP_MAX_ITER = 1000
+    PUMP_MAX_TRY = 10
+    PARALLEL_SOLUTIONS = 5
+
     AMPL_EXPORT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})
     IPOPT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {
         "ipopt.linear_solver": "ma27",

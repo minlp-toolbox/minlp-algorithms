@@ -1,3 +1,5 @@
+"""Utilities for pump algorithms."""
+
 import numpy as np
 from random import randint, random
 from minlp_algorithms.data import MinlpData
@@ -22,10 +24,10 @@ def integer_error(x_int, norm=1):
 def create_rounded_data(data: MinlpData, idx_x_bin):
     for i in range(data.nr_sols):
         # Round the continuous solution
-        x_var = to_0d(data.prev_solutions[i]['x'])
+        x_var = to_0d(data.prev_solutions[i]["x"])
         x_var[idx_x_bin] = np.round(x_var[idx_x_bin])
         datarounded = deepcopy(data)
-        datarounded.prev_solutions[i]['x'] = x_var
+        datarounded.prev_solutions[i]["x"] = x_var
     return datarounded
 
 
@@ -41,12 +43,11 @@ def perturbe_x(x_current, idx_x_bin):
     """
     Perturbe x as described in:
 
-        Bertacco, L., Fischetti, M., & Lodi, A. (2007). A feasibility pump
-        heuristic for general mixed-integer problems. Discrete Optimization,
-        4(1), 63-76.
+        Bertacco, L., Fischetti, M., & Lodi, A. (2007). A feasibility pump heuristic for general mixed-integer
+        problems. Discrete Optimization, 4(1), 63-76.
 
-    For TT integer variables with largest integer difference, round in the other
-    direction if the fractional difference is large than 0.02.
+    For TT integer variables with largest integer difference, round in the other direction if the fractional difference
+    is large than 0.02.
     """
     N = len(idx_x_bin)
     T = N / 10  # TunedParameter
@@ -75,9 +76,8 @@ def random_perturbe_x(x_current, idx_x_bin):
     """
     Random perturbation of x as described in:
 
-        Bertacco, L., Fischetti, M., & Lodi, A. (2007). A feasibility pump
-        heuristic for general mixed-integer problems. Discrete Optimization,
-        4(1), 63-76.
+        Bertacco, L., Fischetti, M., & Lodi, A. (2007). A feasibility pump heuristic for general mixed-integer problems.
+        Discrete Optimization, 4(1), 63-76.
     """
     N = len(idx_x_bin)
     random_range = [-0.3, 0.7]

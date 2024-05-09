@@ -21,7 +21,9 @@ class GenericDecomposition(MiSolverClass):
         first_relaxed: bool = True
     ):
         """Generic decomposition algorithm."""
-        super(GenericDecomposition, self).__init___(problem, stats, settings)
+        super(GenericDecomposition, self).__init___(
+            problem, data, stats, settings
+        )
         self.termination_condition = get_termination_condition(
             termination_type, problem, data, settings
         )
@@ -36,27 +38,25 @@ class GenericDecomposition(MiSolverClass):
         """Solve the problem."""
         logger.info("Solver initialized.")
         # Benders algorithm
-        lb = -ca.inf
-        ub = ca.inf
         feasible = True
-        best_iter = -1
         x_star = np.nan * np.empty(data.x0.shape[0])
         x_hat = np.nan * np.empty(data.x0.shape[0])
 
         if self.first_relaxed:
             data = self.nlp.solve(data)
+            self.stats['lb'] = data.obj_val
             data = self.master.solve(data, integers_relaxed=True)
             breakpoint()
 
-        while (not self.termination_condition(self.stats, self.settings, lb, ub, x_star, x_hat)) and feasible:
+        while (not self.termination_condition(
+            self.stats, self.settings, self.stats['lb'], self.stats['ub'], x_star, x_hat
+        )) and feasible:
             # Solve NLP(y^k)
             data = self.nlp.solve(data, set_x_bin=True)
             prev_feasible = data.solved
 
             # Is there a feasible success?
-            ub, x_star, best_iter = self.update_best_solutions(
-                data, self.stats['iter_nr'], ub, x_star, best_iter, self.settings
-            )
+            x_star = self.update_best_solutions(data)
 
             # Is there any infeasible?
             if not np.all(data.solved_all):
@@ -67,15 +67,14 @@ class GenericDecomposition(MiSolverClass):
             # Solve master^k and set lower bound:
             data = self.master.solve(data, prev_feasible=prev_feasible)
             feasible = data.solved
-            lb = data.obj_val
+            self.stats['lb'] = max(data.obj_val, self.stats['lb'])
             x_hat = data.x_sol
             logger.debug(f"x_hat = {to_0d(x_hat).tolist()}")
-            logger.debug(f"{ub=}, {lb=}\n")
-            breakpoint()
+            logger.debug(f"{self.stats['ub']=}, {self.stats['lb']=}\n")
             self.stats['iter_nr'] += 1
 
         self.stats['total_time_calc'] = toc(reset=True)
-        data.prev_solution = {'x': x_star, 'f': ub}
+        data.prev_solution = {'x': x_star, 'f': self.stats['ub']}
         return data
 
     def reset(self, nlpdata: MinlpData):

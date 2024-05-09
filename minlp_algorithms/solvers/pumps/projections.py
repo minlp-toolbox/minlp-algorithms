@@ -2,8 +2,7 @@
 
 import numpy as np
 import casadi as ca
-from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
-    regularize_options
+from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, regularize_options
 from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.utils import logging
 from minlp_algorithms.utils.conversion import to_0d
@@ -15,22 +14,20 @@ class LinearProjection(SolverClass):
     """
     Create NLP solver.
 
-    This solver solves an NLP problem. This is either relaxed or
-    the binaries are fixed.
-    The NLP aims to satisfy original constraint in g and
-    minimize the distance of relaxed x_bin from their rounded value in
-    L1-norm. The rounding procedure follows a rule.
+    This solver solves an NLP problem. This is either relaxed or the binaries are fixed.  The NLP aims to satisfy
+    original constraint in g and minimize the distance of relaxed x_bin from their rounded value in L1-norm. The
+    rounding procedure follows a rule.
     """
 
     def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
-        """Create NLP problem."""
         super(LinearProjection, self).__init___(problem, stats, s)
         options = regularize_options(s.IPOPT_SETTINGS, {"jit": s.WITH_JIT, "ipopt.max_iter": 5000}, s)
 
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
         self.nr_x_bin = x_bin_var.shape[0]
-        rounded_value = GlobalSettings.CASADI_VAR.sym("rounded_value", self.nr_x_bin)
+        rounded_value = GlobalSettings.CASADI_VAR.sym(
+            "rounded_value", self.nr_x_bin)
         slack_variables = GlobalSettings.CASADI_VAR.sym("slack", self.nr_x_bin)
 
         penalty_term = ca.sum1(slack_variables)
@@ -45,24 +42,24 @@ class LinearProjection(SolverClass):
             "f": penalty_term,
             "g": g,
             "x": ca.vertcat(problem.x, slack_variables),
-            "p": ca.vertcat(problem.p, rounded_value)
+            "p": ca.vertcat(problem.p, rounded_value),
         }, options)
 
     def solve(self, nlpdata: MinlpData, **kwargs) -> MinlpData:
-        """Solve NLP."""
         success_out = []
         sols_out = []
         for sol in nlpdata.solutions_all:
             lbx = nlpdata.lbx
             ubx = nlpdata.ubx
 
-            x_bin_var = to_0d(sol['x'][self.idx_x_bin])
+            x_bin_var = to_0d(sol["x"][self.idx_x_bin])
             new_sol = self.solver(
                 x0=ca.vertcat(nlpdata.x0, np.zeros(self.nr_x_bin)),
                 lbx=ca.vertcat(lbx, np.zeros(self.nr_x_bin)),
                 ubx=ca.vertcat(ubx, ca.inf * np.ones(self.nr_x_bin)),
                 lbg=ca.vertcat(nlpdata.lbg, np.zeros(2 * self.nr_x_bin)),
-                ubg=ca.vertcat(nlpdata.ubg, ca.inf * np.ones(2 * self.nr_x_bin)),
+                ubg=ca.vertcat(nlpdata.ubg, ca.inf *
+                               np.ones(2 * self.nr_x_bin)),
                 p=ca.vertcat(nlpdata.p, x_bin_var)
             )
 
@@ -81,24 +78,21 @@ class ObjectiveLinearProjection(SolverClass):
     """
     Create NLP solver.
 
-    This solver solves an NLP problem. This is either relaxed or
-    the binaries are fixed.
-    The NLP aims to satisfy original constraint in g and
-    minimize a linear combination of the original objective and the
-    he distance of relaxed x_bin from their rounded value in
-    L1-norm. The rounding procedure follows a rule and the weight of
-    the L1-norm term in the objective is increased during iterations.
+    This solver solves an NLP problem. This is either relaxed or the binaries are fixed. The NLP aims to satisfy
+    original constraint in g and minimize a linear combination of the original objective and the distance of relaxed
+    x_bin from their rounded value in L1-norm. The rounding procedure follows a rule and the weight of the L1-norm
+    term in the objective is increased during iterations.
     """
 
     def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
-        """Create NLP problem."""
         super(ObjectiveLinearProjection, self).__init___(problem, stats, s)
         options = regularize_options(s.IPOPT_SETTINGS, {}, s)
 
         self.idx_x_bin = problem.idx_x_bin
         x_bin_var = problem.x[self.idx_x_bin]
         self.nr_x_bin = x_bin_var.shape[0]
-        rounded_value = GlobalSettings.CASADI_VAR.sym("rounded_value", self.nr_x_bin)
+        rounded_value = GlobalSettings.CASADI_VAR.sym(
+            "rounded_value", self.nr_x_bin)
         slack_variables = GlobalSettings.CASADI_VAR.sym("slack", self.nr_x_bin)
         alpha = GlobalSettings.CASADI_VAR.sym("alpha", 1)
         int_error = GlobalSettings.CASADI_VAR.sym("int_error", 1)
@@ -119,11 +113,10 @@ class ObjectiveLinearProjection(SolverClass):
             "f": alpha / obj_val * problem.f + (1 - alpha) / int_error * penalty_term,
             "g": g,
             "x": ca.vertcat(problem.x, slack_variables),
-            "p": ca.vertcat(problem.p, rounded_value, alpha, int_error, obj_val)
+            "p": ca.vertcat(problem.p, rounded_value, alpha, int_error, obj_val),
         }, options)
 
     def solve(self, nlpdata: MinlpData, int_error, obj_val) -> MinlpData:
-        """Solve NLP."""
         success_out = []
         sols_out = []
         logger.info(f"Solving objective FP with alpha {self.alpha}")
@@ -131,16 +124,16 @@ class ObjectiveLinearProjection(SolverClass):
             lbx = nlpdata.lbx
             ubx = nlpdata.ubx
 
-            x_bin_var = to_0d(sol['x'][self.idx_x_bin])
+            x_bin_var = to_0d(sol["x"][self.idx_x_bin])
             new_sol = self.solver(
                 x0=ca.vertcat(nlpdata.x0, np.zeros(self.nr_x_bin)),
                 lbx=ca.vertcat(lbx, np.zeros(self.nr_x_bin)),
                 ubx=ca.vertcat(ubx, ca.inf * np.ones(self.nr_x_bin)),
                 lbg=ca.vertcat(nlpdata.lbg, np.zeros(2 * self.nr_x_bin)),
-                ubg=ca.vertcat(nlpdata.ubg, ca.inf * np.ones(2 * self.nr_x_bin)),
+                ubg=ca.vertcat(nlpdata.ubg, ca.inf *
+                               np.ones(2 * self.nr_x_bin)),
                 p=ca.vertcat(nlpdata.p, x_bin_var, np.array(
-                    [self.alpha, int_error, obj_val]
-                ))
+                    [self.alpha, int_error, obj_val])),
             )
 
             success, _ = self.collect_stats("OFP")

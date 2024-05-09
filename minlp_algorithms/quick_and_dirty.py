@@ -24,7 +24,7 @@ from minlp_algorithms.solvers.decomposition.sequential_benders_trustregion_maste
 from minlp_algorithms.solvers.decomposition.oa_master import OuterApproxMILP, OuterApproxMILPImproved
 from minlp_algorithms.solvers.external.bonmin import BonminSolver
 from minlp_algorithms.solvers.decomposition.voronoi_master import VoronoiTrustRegionMILP
-from minlp_algorithms.solvers.pumps import random_direction_rounding_algorithm, random_objective_feasibility_pump, \
+from benders_exp.solvers.pumps import random_objective_feasibility_pump, \
     feasibility_pump, objective_feasibility_pump
 from minlp_algorithms.solvers.approximation.cia import cia_decomposition_algorithm
 from minlp_algorithms.solvers.milp_tr import milp_tr
@@ -483,9 +483,6 @@ SOLVER_MODES = {
     "voronoi_tr": lambda p, d, st, s: voronoi_tr_algorithm(p, d, st, s, termination_type='equality'),
     "relaxed": relaxed,
     "ampl": export_ampl,
-    "rofp": random_direction_rounding_algorithm,
-    "fp": feasibility_pump,
-    "ofp": objective_feasibility_pump,
     "cia": cia_decomposition_algorithm,
     "milp_tr": milp_tr,
     "test": test

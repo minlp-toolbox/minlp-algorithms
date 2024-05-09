@@ -67,23 +67,32 @@ class SolverClass(ABC):
 
 class MiSolverClass(SolverClass):
 
-    def update_best_solutions(self, data, itr, ub, x_star, best_iter, settings):
+    def __init__(self, problem, data, stats, settings):
+        """Create a generic MiSolverClass."""
+        SolverClass.__init___(self, problem, stats, settings)
+        self.stats['lb'] = -ca.inf
+        self.stats['ub'] = ca.inf
+        self.stats['iter_nr'] = 0
+        self.stats['best_iter'] = -1
+
+    def update_best_solutions(self, data):
         """Update best solutions,"""
         if np.any(data.solved_all):
             for i, success in enumerate(data.solved_all):
                 obj_val = float(data.prev_solutions[i]['f'])
                 if success:
-                    if obj_val + settings.EPS < ub:
-                        logger.info(f"Decreased UB from {ub} to {obj_val}")
-                        ub = obj_val
+                    if obj_val + self.settings.EPS < self.stats['ub']:
+                        logger.info(f"Decreased UB from {self.stats['ub']} to {obj_val}")
+                        self.stats['ub'] = obj_val
                         x_star = data.prev_solutions[i]['x']
                         data.best_solutions.append(x_star)
-                        best_iter = itr
-                    elif obj_val - settings.EPS < ub:
+                        self.stats['best_iter'] = self.stats['iter_nr']
+                    elif obj_val - self.settings.EPS < self.stats['ub']:
                         data.best_solutions.append(
                             data.prev_solutions[i]['x']
                         )
-        return ub, x_star, best_iter
+        if len(data.best_solutions) > 0:
+            return data.best_solutions[-1]
 
     @abstractmethod
     def solve(self, nlpdata: MinlpData) -> MinlpData:
