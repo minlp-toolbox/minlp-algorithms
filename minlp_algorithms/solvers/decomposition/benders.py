@@ -29,7 +29,7 @@ class GeneralizedBendersQP(GenericDecomposition):
     """Generalized Benders with an additional hessian in the cost function."""
 
     def __init__(
-        self, 
+        self,
         problem: MinlpProblem, data: MinlpData, stats: Stats,
         settings: Settings = None,
         termination_type="std",
@@ -40,6 +40,6 @@ class GeneralizedBendersQP(GenericDecomposition):
         GenericDecomposition.__init__(
             self, problem, data, stats, settings,
             master, fnlp, termination_type,
-            first_relaxed=False
+            first_relaxed=True
         )
         stats['total_time_loading'] = toc(reset=True)

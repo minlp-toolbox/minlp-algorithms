@@ -5,8 +5,8 @@ import numpy as np
 from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, Settings
 from minlp_algorithms.solvers.utils import get_termination_condition
 from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
-from minlp_algorithms.utils import logging, toc
-
+from minlp_algorithms.utils import colored, logging, toc
+from minlp_algorithms.utils.conversion import to_0d
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ class GenericDecomposition(MiSolverClass):
         self,
         problem: MinlpProblem, data: MinlpData,
         stats: Stats, settings: Settings,
-        master, fnlp, termination_type="std",
+        master: MiSolverClass, fnlp: NlpSolver, termination_type: str = "std",
         first_relaxed: bool = True
     ):
         """Generic decomposition algorithm."""
@@ -45,7 +45,8 @@ class GenericDecomposition(MiSolverClass):
 
         if self.first_relaxed:
             data = self.nlp.solve(data)
-            data = self.master.solve(data, relaxed=True)
+            data = self.master.solve(data, integers_relaxed=True)
+            breakpoint()
 
         while (not self.termination_condition(self.stats, self.settings, lb, ub, x_star, x_hat)) and feasible:
             # Solve NLP(y^k)
@@ -61,15 +62,16 @@ class GenericDecomposition(MiSolverClass):
             if not np.all(data.solved_all):
                 # Solve NLPF(y^k)
                 data = self.fnlp.solve(data)
-                logger.info("Infeasibility problem solved")
+                logger.info(colored("Feasibility NLP solved.", "yellow"))
 
             # Solve master^k and set lower bound:
             data = self.master.solve(data, prev_feasible=prev_feasible)
             feasible = data.solved
             lb = data.obj_val
             x_hat = data.x_sol
-            logger.debug(f"\n{x_hat=}")
+            logger.debug(f"x_hat = {to_0d(x_hat).tolist()}")
             logger.debug(f"{ub=}, {lb=}\n")
+            breakpoint()
             self.stats['iter_nr'] += 1
 
         self.stats['total_time_calc'] = toc(reset=True)

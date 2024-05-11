@@ -4,10 +4,19 @@ from minlp_algorithms.settings import Settings
 from minlp_algorithms.problem import MinlpProblem
 from minlp_algorithms.data import MinlpData
 from minlp_algorithms.solvers.decomposition.benders import GeneralizedBenders, GeneralizedBendersQP
+from minlp_algorithms.solvers.decomposition.outer_approximation import OuterApproximation, OuterApproximationQP, OuterApproximationImproved, OuterApproximationQPImproved
+from minlp_algorithms.solvers.decomposition.sequential_voronoi_based_miqp import SequentialVoronoiMIQP
+from minlp_algorithms.solvers.decomposition.sequential_benders_based_miqp import SequentialBendersMIQP
 
 SOLVER_MODES = {
-    "benders": GeneralizedBenders,
-    "bendersqp": GeneralizedBendersQP,
+    "gbd": GeneralizedBenders,
+    "gbd-qp": GeneralizedBendersQP,
+    "oa": OuterApproximation,
+    "oa-qp": OuterApproximationQP,
+    "oa-i": OuterApproximationImproved,
+    "oa-qp-i": OuterApproximationQPImproved,
+    "s-v-miqp": SequentialVoronoiMIQP,
+    "s-b-miqp": SequentialBendersMIQP,
 }
 
 
