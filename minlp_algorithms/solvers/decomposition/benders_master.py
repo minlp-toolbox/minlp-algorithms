@@ -71,10 +71,10 @@ class BendersMasterMILP(MiSolverClass):
         self.idx_x_bin = problem.idx_x_bin
         self.nr_x_bin = len(problem.idx_x_bin)
         self._nu = GlobalSettings.CASADI_VAR.sym("nu", 1)
-        self.options["discrete"] = [1] * (self.nr_x_bin + 1)
-        self.options["discrete"][-1] = 0
         self.nr_g_orig = problem.g.shape[0]
         self.nr_x_orig = problem.x.shape[0]
+        self.options["discrete"] = [
+            1 if i in self.idx_x_bin else 0 for i in range(self.nr_x_orig)]
 
     def _generate_cut_equation(self, x, x_sol, x_sol_sub_set, lam_g, lam_x, p, lbg, ubg, prev_feasible):
         r"""
@@ -102,7 +102,6 @@ class BendersMasterMILP(MiSolverClass):
         :return: g_k the new cutting plane (should be > 0)
         """
         if prev_feasible:
-            # TODO: understand why need the minus!
             lambda_k = -lam_x[self.idx_x_bin]
             f_k = self.f(x_sol, p)
             g_k = (
@@ -120,20 +119,21 @@ class BendersMasterMILP(MiSolverClass):
 
         return g_k
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
         """solve."""
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
-        g_k = self._generate_cut_equation(
-            self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
-            nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
-            nlpdata.lbg, nlpdata.ubg, prev_feasible
-        )
-        self.cut_id += 1
+        if not integers_relaxed:
+            g_k = self._generate_cut_equation(
+                self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
+                nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
+                nlpdata.lbg, nlpdata.ubg, prev_feasible
+            )
+            self.cut_id += 1
 
-        self._g = ca.vertcat(self._g, g_k)
-        self._ubg.append(0)
-        self._lbg.append(-ca.inf)
-        self.nr_g += 1
+            self._g = ca.vertcat(self._g, g_k)
+            self._ubg.append(0)
+            self._lbg.append(-ca.inf)
+            self.nr_g += 1
 
         solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", self.settings.MIP_SOLVER, {
             "f": self._nu, "g": self._g,
@@ -143,6 +143,7 @@ class BendersMasterMILP(MiSolverClass):
         # This solver solves only to the binary variables (_x)!
         solution = solver(
             x0=ca.vertcat(x_bin_star, nlpdata.obj_val),
+            # NOTE harmonize lb with OA, here -1e5, in OA -1e8
             lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -1e5),
             ubx=ca.vertcat(nlpdata.ubx[self.idx_x_bin], ca.inf),
             lbg=ca.vertcat(*self._lbg), ubg=ca.vertcat(*self._ubg)
@@ -169,21 +170,22 @@ class BendersMasterMIQP(BendersMasterMILP):
             {"jit": self.settings.WITH_JIT}
         )
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
         """solve."""
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
-        g_k = self._generate_cut_equation(
-            self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
-            nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
-            nlpdata.lbg, nlpdata.ubg, prev_feasible
-        )
-        self.cut_id += 1
+        if not integers_relaxed:
+            g_k = self._generate_cut_equation(
+                self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
+                nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
+                nlpdata.lbg, nlpdata.ubg, prev_feasible
+            )
+            self.cut_id += 1
+            self._g = ca.vertcat(self._g, g_k)
+            self._ubg.append(0)
+            self._lbg.append(-ca.inf)
+            self.nr_g += 1
 
         f_hess = self.f_hess_bin(nlpdata.x_sol[:self.nr_x_orig], nlpdata.p)
-        self._g = ca.vertcat(self._g, g_k)
-        self._ubg.append(0)
-        self._lbg.append(-ca.inf)
-        self.nr_g += 1
 
         dx = self._x - x_bin_star
         solver = ca.qpsol(f"benders_qp{self.nr_g}", self.settings.MIP_SOLVER, {
@@ -203,7 +205,6 @@ class BendersMasterMIQP(BendersMasterMILP):
         if obj > solution['f']:
             raise Exception("Possible thougth mistake!")
         solution['f'] = obj
-
         x_full = nlpdata.x_sol.full()[:self.nr_x_orig]
         x_full[self.idx_x_bin] = solution['x'][:-1]
         solution['x'] = x_full

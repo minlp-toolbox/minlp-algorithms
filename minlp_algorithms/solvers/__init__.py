@@ -49,7 +49,8 @@ class SolverClass(ABC):
         elif "t_wall_total" in stats:
             t_wall = stats["t_wall_total"]
         else:
-            logger.info(colored(f"t_wall_total not found for {algo_name}", "red"))
+            logger.info(
+                colored(f"t_wall_total not found for {algo_name}", "red"))
             t_wall = sum(
                 [v for k, v in stats.items() if "t_wall" in k]
             )
@@ -85,7 +86,7 @@ class MiSolverClass(SolverClass):
         return ub, x_star, best_iter
 
     @abstractmethod
-    def solve(self, nlpdata: MinlpData, relaxed: bool = False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve the problem."""
 
     @abstractmethod

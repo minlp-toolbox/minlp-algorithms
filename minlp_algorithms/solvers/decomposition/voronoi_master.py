@@ -1,15 +1,19 @@
 """Set of solvers based on Voronoi trust region."""
 
+import logging
 import casadi as ca
 import matplotlib.pyplot as plt
 import numpy as np
 from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
 from minlp_algorithms.settings import GlobalSettings, Settings
+from minlp_algorithms.utils import colored
 from minlp_algorithms.utils.conversion import to_0d
 
+logger = logging.getLogger(__name__)
 
-class VoronoiTrustRegionMILP(MiSolverClass):
+
+class VoronoiTrustRegionMIQP(MiSolverClass):
     r"""
     Voronoi trust region problem.
 
@@ -18,7 +22,7 @@ class VoronoiTrustRegionMILP(MiSolverClass):
         s.t. lb < g(x)
 
     It constructs the following problem:
-        min f(x) + \nabla f(x) (x-x^i)
+        min f(x) + \nabla f(x) (x-x^i) + 0.5  (x-x^i)' (\nabla^2 f(x)) (x-x^i)
         s.t.
             lb \leq g(x) + \nabla  g(x) (x-x^i)
             NLPF constraints
@@ -26,10 +30,8 @@ class VoronoiTrustRegionMILP(MiSolverClass):
     """
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
-        """Improved outer approximation."""
-        super(VoronoiTrustRegionMILP, self).__init___(problem, stats, s)
-        if s.WITH_PLOT:
-            self.setup_plot()
+        """Create sequential Voronoi master problem."""
+        super(VoronoiTrustRegionMIQP, self).__init___(problem, stats, s)
         self.options = regularize_options(s.MIP_SETTINGS, {}, s)
 
         self.f = ca.Function(
@@ -43,8 +45,8 @@ class VoronoiTrustRegionMILP(MiSolverClass):
             )], {"jit": s.WITH_JIT}
         )
         if problem.gn_hessian is not None:
-            self.f_hess = ca.Function("gn_hess_f_x", [problem.x, problem.p], [
-                ca.hessian(problem.f, problem.x)[0]])
+            self.f_hess = ca.Function(
+                "gn_hess_f_x", [problem.x, problem.p], [problem.gn_hessian])
         else:
             self.f_hess = ca.Function("hess_f_x", [problem.x, problem.p], [
                 ca.hessian(problem.f, problem.x)[0]])
@@ -78,14 +80,14 @@ class VoronoiTrustRegionMILP(MiSolverClass):
         self._x = GlobalSettings.CASADI_VAR.sym("x_voronoi", problem.x.numel())
         self.idx_x_bin = problem.idx_x_bin
         self.nr_g_orig = problem.g.shape[0]
-        self.nr_x_orig = problem.x.shape[0]
+        self.nr_x = problem.x.shape[0]
         # Copy the linear constraints in g
         self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
             problem, data, self.idx_g_lin, self._x, allow_fail=False
         )
 
-        self.options["discrete"] = [1 if elm in problem.idx_x_bin else 0
-                                    for elm in range(self._x.shape[0])]
+        self.options["discrete"] = [
+            1 if i in self.idx_x_bin else 0 for i in range(self.nr_x)]
 
         # Initialization for algorithm iterates
         self.ub = 1e15  # UB
@@ -98,23 +100,22 @@ class VoronoiTrustRegionMILP(MiSolverClass):
 
         self.cut_id = 0
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=False, relaxed=False) -> MinlpData:
-        """Solve."""
-        if relaxed:
-            raise NotImplementedError()
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=True, integers_relaxed=False) -> MinlpData:
+        """Solve sequential Voronoi master problem (MIQP)."""
         # Update with the lowest upperbound and the corresponding best solution:
         if nlpdata.x_sol.shape[0] == 1:
             x_sol = to_0d(nlpdata.x_sol)[np.newaxis]
         else:
-            x_sol = to_0d(nlpdata.x_sol)[:self.nr_x_orig]
+            x_sol = to_0d(nlpdata.x_sol)[:self.nr_x]
         self.x_sol_list.append(x_sol)
-        self.feasible_x_sol_list.append(prev_feasible)
-        if prev_feasible:
+        self.feasible_x_sol_list.append(*nlpdata.solved_all)
+        if prev_feasible and (not integers_relaxed):
             if nlpdata.obj_val < self.ub:
                 self.ub = nlpdata.obj_val
                 # TODO: a surrogate for counting iterates, it's a bit clutter
                 self.idx_best_x_sol = len(self.x_sol_list) - 1
-                print(f"NEW BOUND {self.ub}")
+                logger.info(
+                    colored(f"New upperbound: {self.ub}", color='green'))
         else:
             g_k, lbg_k, ubg_k = self._generate_infeasible_cut(
                 self._x, x_sol, nlpdata.lam_g_sol, nlpdata.p)
@@ -127,9 +128,6 @@ class VoronoiTrustRegionMILP(MiSolverClass):
         # Create a new voronoi cut
         g_voronoi, lbg_voronoi, ubg_voronoi = self._generate_voronoi_tr(
             self._x[self.idx_x_bin], nlpdata.p)
-
-        if self.settings.WITH_PLOT:
-            self.visualize_trust_region(g_voronoi, self._x[self.idx_x_bin])
 
         dx = self._x - x_sol_best
 
@@ -146,7 +144,7 @@ class VoronoiTrustRegionMILP(MiSolverClass):
             jac_g = self.jac_g_nonlin(x_sol_best, nlpdata.p)
         else:
             g_lin = to_0d(g_lin)
-            jac_g = np.zeros((0, self.nr_x_orig))
+            jac_g = np.zeros((0, self.nr_x))
 
         g = ca.vertcat(
             self._g,
@@ -165,20 +163,27 @@ class VoronoiTrustRegionMILP(MiSolverClass):
         )
         self.nr_g = ubg.numel()
 
-        self.solver = ca.qpsol(
+        solver = ca.qpsol(
             f"voronoi_tr_milp_with_{self.nr_g}_constraints", self.settings.MIP_SOLVER, {
                 "f": f, "g": g, "x": self._x,
             }, self.options)
 
-        nlpdata.prev_solution = self.solver(
-            x0=x_sol_best,
-            lbx=nlpdata.lbx, ubx=nlpdata.ubx,
-            lbg=lbg, ubg=ubg,
-        )
+        nlpdata.prev_solution = solver(
+            x0=x_sol_best, lbx=nlpdata.lbx, ubx=nlpdata.ubx, lbg=lbg, ubg=ubg)
 
-        nlpdata.solved, stats = self.collect_stats("VTR-MILP")
-        del self.solver
+        nlpdata.solved, stats = self.collect_stats("VTR-MIQP", solver)
         return nlpdata
+
+    def reset(self, data):  # TODO: to update, just copy paste from outer approx
+        """Reset."""
+        if self.idx_g_lin.numel() > 0:
+            self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
+                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_bin
+            )
+        else:
+            self.nr_g, self._g, self._lbg, self._ubg = 0, [], [], []
+
+        self.cut_id = 0
 
     def _generate_infeasible_cut(self, x, x_sol, lam_g, p):
         """Generate infeasibility cut."""
@@ -211,46 +216,3 @@ class VoronoiTrustRegionMILP(MiSolverClass):
                 ubg_k.append(0)
 
         return ca.vcat(g_k), lbg_k, ubg_k
-
-    def setup_plot(self):
-        """Set up plot."""
-        self.fig = plt.figure()
-
-    def visualize_trust_region(self, g_k, x_bin):
-        """Visualize voronoi trust region in 2d."""
-        if isinstance(g_k, GlobalSettings.CASADI_VAR):
-            xlim = [0, 4]  # TODO parametric limits
-            ylim = [0, 4]  # TODO parametric limits
-
-            self.cut_id += 1
-            self.ax = self.fig.add_subplot(3, 3, self.cut_id)
-            self.ax.grid(linestyle='--', linewidth=1)
-            self.ax.set_xlim(xlim[0]-0.5, xlim[1]+0.5)
-            self.ax.set_xticks(range(int(xlim[0]), int(xlim[1]) + 1))
-            self.ax.set_ylim(ylim[0]-0.5, ylim[1]+0.5)
-            self.ax.set_yticks(range(int(ylim[0]), int(ylim[1]) + 1))
-
-            points = np.linspace(-1, 5, 100)
-            xx, yy = np.meshgrid(points, points)
-            feasible = np.ones(xx.shape, dtype=bool)
-            for c in range(g_k.shape[0]):
-                cut = ca.Function("t", [x_bin], [g_k[c]])
-                feasible_c = np.ones(xx.shape, dtype=bool)
-                for i in range(points.shape[0]):
-                    for j in range(points.shape[0]):
-                        feasible_c[i, j] = cut(ca.vertcat(
-                            xx[i, j], yy[i, j])).full()[0, 0] < 0
-                feasible = feasible & feasible_c
-            self.ax.imshow(~feasible, cmap=plt.cm.binary, alpha=0.5,
-                           origin="lower",
-                           extent=[xlim[0]-1, xlim[1]+1, ylim[0]-1, ylim[1]+1])
-
-            for i, x_sol in enumerate(self.x_sol_list):
-                if i == self.idx_best_x_sol:
-                    color = 'tab:orange'
-                else:
-                    color = 'tab:blue'
-                self.ax.scatter(x_sol[0], x_sol[1], c=color)
-
-            plt.show(block=False)
-            plt.pause(1)

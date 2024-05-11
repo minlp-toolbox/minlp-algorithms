@@ -117,23 +117,20 @@ def create_dummy_problem(p_val=[1000, 3]):
     This problem corresponds to the tutorial example in the GN-Voronoi paper.
     (apart from the upper bound)
     """
-    x = GlobalSettings.CASADI_VAR.sym("x", 3)
+    opti = Description()
     x0 = np.array([0, 4, 100])
-    idx_x_bin = [0, 1]
-    p = GlobalSettings.CASADI_VAR.sym("p", 2)
-    f = (x[0] - 4.1)**2 + (x[1] - 4.0)**2 + x[2] * p[0]
-    g = ca.vertcat(
-        x[2],
-        -(x[0]**2 + x[1]**2 - x[2] - p[1]**2)
-    )
-    ubg = np.array([ca.inf, ca.inf])
-    lbg = np.array([0, 0])
     lbx = np.array([0, 0, 0])
     ubx = np.array([4, 4, np.inf])
-
-    problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
-    data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
-                     _ubg=ubg, _lbg=lbg, p=p_val)
+    x = opti.sym("x", shape=3, lb=lbx, ub=ubx, w0=x0, discrete=[1, 1, 0])
+    # idx_x_bin = [0, 1]
+    p = opti.add_parameters("p", shape=2, values=p_val)
+    opti.f = (x[0] - 4.1)**2 + (x[1] - 4.0)**2 + x[2] * p[0]
+    ubg = np.array([ca.inf, ca.inf])
+    lbg = np.array([0, 0])
+    opti.add_g(lbg, ca.vertcat(
+        x[2], -(x[0]**2 + x[1]**2 - x[2] - p[1]**2)), ubg, is_linear=1)
+    problem = opti.get_problem()
+    data = opti.get_data()
     return problem, data
 
 
