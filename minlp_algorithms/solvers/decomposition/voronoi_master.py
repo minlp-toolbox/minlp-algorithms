@@ -2,9 +2,8 @@
 
 import logging
 import casadi as ca
-import matplotlib.pyplot as plt
 import numpy as np
-from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
+from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, regularize_options, get_idx_inverse, extract_bounds
 from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.utils import colored
@@ -13,7 +12,7 @@ from minlp_algorithms.utils.conversion import to_0d
 logger = logging.getLogger(__name__)
 
 
-class VoronoiTrustRegionMIQP(MiSolverClass):
+class VoronoiTrustRegionMIQP(SolverClass):
     r"""
     Voronoi trust region problem.
 
@@ -98,30 +97,36 @@ class VoronoiTrustRegionMIQP(MiSolverClass):
         self.idx_best_x_sol = 0
         self.feasible_x_sol_list = []
 
-        self.cut_id = 0
-
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=True, integers_relaxed=False) -> MinlpData:
-        """Solve sequential Voronoi master problem (MIQP)."""
-        # Update with the lowest upperbound and the corresponding best solution:
-        if nlpdata.x_sol.shape[0] == 1:
-            x_sol = to_0d(nlpdata.x_sol)[np.newaxis]
+    def add_solution(self, nlpdata, solved, solution, is_relaxed=False):
+        """Add a cut."""
+        x_sol = solution['x']
+        obj_val = float(solution['f'])
+        if x_sol.shape[0] == 1:
+            x_sol = to_0d(x_sol)[np.newaxis]
         else:
-            x_sol = to_0d(nlpdata.x_sol)[:self.nr_x]
+            x_sol = to_0d(x_sol)[:self.nr_x]
+
         self.x_sol_list.append(x_sol)
-        self.feasible_x_sol_list.append(*nlpdata.solved_all)
-        if prev_feasible and (not integers_relaxed):
-            if nlpdata.obj_val < self.ub:
-                self.ub = nlpdata.obj_val
+        self.feasible_x_sol_list.append(solved)
+        if solved and (not is_relaxed):
+            if obj_val < self.ub:
+                self.ub = obj_val
                 # TODO: a surrogate for counting iterates, it's a bit clutter
                 self.idx_best_x_sol = len(self.x_sol_list) - 1
                 logger.info(
                     colored(f"New upperbound: {self.ub}", color='green'))
         else:
             g_k, lbg_k, ubg_k = self._generate_infeasible_cut(
-                self._x, x_sol, nlpdata.lam_g_sol, nlpdata.p)
+                self._x, x_sol, solution['lam_g'], nlpdata.p)
             self._g = ca.vertcat(self._g, g_k)
             self._lbg = ca.vertcat(self._lbg, lbg_k)
             self._ubg = ca.vertcat(self._ubg, ubg_k)
+
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=True, is_relaxed=False) -> MinlpData:
+        """Solve sequential Voronoi master problem (MIQP)."""
+        # Update with the lowest upperbound and the corresponding best solution:
+        for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
+            self.add_solution(nlpdata, solved, solution)
 
         x_sol_best = self.x_sol_list[self.idx_best_x_sol]
 
@@ -174,16 +179,22 @@ class VoronoiTrustRegionMIQP(MiSolverClass):
         nlpdata.solved, stats = self.collect_stats("VTR-MIQP", solver)
         return nlpdata
 
-    def reset(self, data):  # TODO: to update, just copy paste from outer approx
+    def reset(self, nlpdata: MinlpData):  # TODO: to update, just copy paste from outer approx
         """Reset."""
         if self.idx_g_lin.numel() > 0:
             self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
-                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_bin
+                self.problem, nlpdata, self.idx_g_lin, self._x, self.problem.idx_x_bin
             )
         else:
             self.nr_g, self._g, self._lbg, self._ubg = 0, [], [], []
 
-        self.cut_id = 0
+    def warmstart(self, nlpdata: MinlpData):
+        """Warmstart algorithm."""
+        relaxed = self.stats.relaxed
+        if relaxed:
+            self.add_solution(nlpdata, True, relaxed.solutions_all[0], True)
+        for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
+            self.add_solution(nlpdata, solved, solution)
 
     def _generate_infeasible_cut(self, x, x_sol, lam_g, p):
         """Generate infeasibility cut."""
