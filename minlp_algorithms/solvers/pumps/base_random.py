@@ -30,19 +30,20 @@ class PumpBaseRandom(MiSolverClass):
 
     def solve(self, nlpdata: MinlpData, relaxed: bool = False) -> MinlpData:
         """Solve the problem."""
+        if self.stats.relaxed is None:
+            if not relaxed:
+                nlpdata = self.nlp.solve(nlpdata)
+            self.stats.relaxed = nlpdata
+        else:
+            nlpdata = self.stats.relaxed
+
         logger.info("Solver initialized.")
-        feasible_solutions = []
-        best_solution = None
         last_restart = 0
         self.stats["best_iter"] = -1
         done = False
         best_obj = ca.inf
         lb = nlpdata.obj_val
         prev_int_error = ca.inf
-        if relaxed:
-            relaxed_solution = deepcopy(nlpdata)
-        else:
-            relaxed_solution = self.nlp.solve(nlpdata)
 
         while not done:
             logger.info(f"Starting iteration: {self.stats['iter_nr']}")
@@ -58,12 +59,7 @@ class PumpBaseRandom(MiSolverClass):
                         f"NLP f={datarounded.obj_val:.3e} (iter {self.stats['iter_nr']}) "
                         f"vs old f={best_obj:.3e} (itr {self.stats['best_iter']})"
                     )
-                    feasible_solutions.append(datarounded._sol)
-                    if best_obj > datarounded.obj_val:
-                        best_obj = datarounded.obj_val
-                        colored(f"New best f={best_obj:.3e} found in iter={self.stats['iter_nr']}", "green")
-                        self.stats["best_iter"] = self.stats["iter_nr"]
-                        best_solution = datarounded._sol
+                    self.update_best_solutions(datarounded)
                 else:
                     colored("Infeasible")
             else:
@@ -83,24 +79,25 @@ class PumpBaseRandom(MiSolverClass):
             retry = self.stats["iter_nr"] - last_restart > self.settings.PUMP_MAX_TRY and prev_int_error < int_error
             prev_int_error = int_error
             if not nlpdata.solved or retry:
-                if len(feasible_solutions) > 0:
+                if len(self.best_solutions) > 0:
                     done = True
                 else:
                     last_restart = self.stats["iter_nr"]
                     self.pump.alpha = 1.0
                     # If progress is frozen (unsolvable), try to fix it!
-                    nlpdata = self.pump.solve(deepcopy(relaxed_solution))
+                    nlpdata = self.pump.solve(self.stats.relaxed)
                     logger.info(f"Current random NLP (restoration): f={random_obj_f:.3e}")
             if self.stats["iter_nr"] > self.settings.PUMP_MAX_ITER:
-                if len(feasible_solutions) > 0:
+                if len(self.best_solutions) > 0:
                     done = True
                 else:
-                    return nlpdata
+                    return self.get_best_solutions(nlpdata)
 
-        # Construct nlpdata again!
-        nlpdata.prev_solutions = [best_solution] + feasible_solutions
-        nlpdata.solved_all = [True for _ in range(len(feasible_solutions) + 1)]
-        return nlpdata
+        return self.get_best_solutions(nlpdata)
 
     def reset(self, nlpdata: MinlpData):
         """Reset problem data."""
+
+    def warmstart(self, nlpdata: MinlpData):
+        """Warmstart."""
+        self.update_best_solutions(nlpdata)

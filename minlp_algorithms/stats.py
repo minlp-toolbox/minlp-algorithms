@@ -1,18 +1,29 @@
 """Statistics class."""
 
+from copy import deepcopy
 from datetime import datetime
 from dataclasses import dataclass, field
 import os
-from typing import Dict, List
+from typing import Dict, List, Optional
 from minlp_algorithms.utils import toc
 from minlp_algorithms.utils.conversion import to_0d
 from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.utils.data import save_pickle
+from minlp_algorithms.data import MinlpData
 
 
 @dataclass()
 class Stats:
-    """Collect stats."""
+    """
+    Collecting statsistics
+
+
+    There are some shared properties between the algorithms:
+        iter_nr: Number of iterations performed
+        lb: Lower bound value
+        ub: Upper bound value
+        relaxed: Relaxed solution
+    """
 
     mode: str
     problem_name: str
@@ -25,6 +36,7 @@ class Stats:
     _full_stats_to_pickle: List = field(
         default_factory=lambda: []
     )
+    _relaxed: Optional[MinlpData] = None
 
     def __getitem__(self, key):
         """Get attribute."""
@@ -35,6 +47,16 @@ class Stats:
     def __setitem__(self, key, value):
         """Set item."""
         self.data[key] = value
+
+    @property
+    def relaxed(self):
+        """Relaxed value."""
+        return deepcopy(self._relaxed)
+
+    @relaxed.setter
+    def relaxed(self, value):
+        """Set relaxed value."""
+        self._relaxed = deepcopy(value)
 
     def print(self):
         """Print statistics."""

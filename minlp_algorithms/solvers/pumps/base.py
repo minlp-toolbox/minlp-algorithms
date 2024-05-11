@@ -1,5 +1,6 @@
 """Base algorithm for feasibility pumps."""
 
+from copy import deepcopy
 from minlp_algorithms.settings import Settings
 from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
 from minlp_algorithms.stats import Stats
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 class PumpBase(MiSolverClass):
+
     def __init__(
         self,
         problem: MinlpProblem,
@@ -34,8 +36,12 @@ class PumpBase(MiSolverClass):
 
     def solve(self, nlpdata: MinlpData, relaxed: bool = False) -> MinlpData:
         """Solve the problem."""
-        if not relaxed:
-            nlpdata = self.nlp.solve(nlpdata)
+        if self.stats.relaxed is None:
+            if not relaxed:
+                nlpdata = self.nlp.solve(nlpdata)
+            self.stats.relaxed = nlpdata
+        else:
+            nlpdata = self.stats.relaxed
 
         relaxed_value = nlpdata.obj_val
         prev_x = []
@@ -71,17 +77,20 @@ class PumpBase(MiSolverClass):
             # Added heuristic, not present in the original implementation
             if distances[-1] < self.settings.CONSTRAINT_INT_TOL:
                 datarounded = self.nlp.solve(create_rounded_data(data, self.idx_x_bin), True)
-                if datarounded.solved:
-                    self.update_best_solutions(datarounded)
-                    self.stats["total_time_calc"] += toc(reset=True)
-                    return datarounded
+                if self.update_best_solutions(datarounded):
+                    return self.get_best_solutions(datarounded)
 
             self.stats["iter_nr"] += 1
             logger.info(f"Iteration {self.stats['iter_nr']} finished")
 
         self.stats["total_time_calc"] += toc(reset=True)
         data = self.nlp.solve(data, True)
-        return data
+        self.update_best_solutions(data)
+        return self.get_best_solutions(data)
 
     def reset(self, nlpdata: MinlpData):
         """Reset problem data."""
+
+    def warmstart(self, nlpdata: MinlpData):
+        """Warmstart."""
+        self.update_best_solutions(nlpdata)

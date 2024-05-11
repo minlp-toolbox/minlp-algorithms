@@ -1,8 +1,8 @@
 import numpy as np
 import casadi as ca
 from minlp_algorithms.solvers.utils import get_solutions_pool
-from minlp_algorithms.solvers.decomposition.sequential_benders_trustregion_master import \
-        BendersTRandMaster, LowerApproximation
+from minlp_algorithms.solvers.decomposition.sequential_benders_master import \
+    BendersRegionMasters, LowerApproximation
 from minlp_algorithms.solvers import Stats, MinlpProblem, MinlpData, regularize_options
 from minlp_algorithms.utils import colored
 from minlp_algorithms.utils.validate import check_integer_feasible, check_solution
@@ -13,7 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class BendersTRLB(BendersTRandMaster):
+class BendersTRLB(BendersRegionMasters):
     """
     A benders trust region with corrections on the hessian.
 
@@ -78,7 +78,8 @@ class BendersTRLB(BendersTRandMaster):
             for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
                 # check if new best solution found
                 try:
-                    nonzero = np.count_nonzero((sol['x'][:self.nr_x_orig] - self.sol_best['x'])[self.idx_x_bin])
+                    nonzero = np.count_nonzero(
+                        (sol['x'][:self.nr_x_orig] - self.sol_best['x'])[self.idx_x_bin])
                 except TypeError:
                     colored(sol['x'])
                     nonzero = -1
@@ -96,7 +97,8 @@ class BendersTRLB(BendersTRandMaster):
                         # Correct hessian correction because new point!
                         self.hess_correction = 2.0
 
-                    colored(f"Regular Cut {float(sol['f']):.3f} - {nonzero}", "blue")
+                    colored(
+                        f"Regular Cut {float(sol['f']):.3f} - {nonzero}", "blue")
                 else:
                     colored(f"Infeasibility Cut nonzero {nonzero}", "blue")
                     self._add_infeasibility_cut(sol, nlpdata)
@@ -137,8 +139,10 @@ class BendersTRLB(BendersTRandMaster):
         ) + self.g_lowerapprox + self.g_infeasible + self.g_lowerapprox_oa
 
         if self.settings.WITH_DEBUG and self.sol_best is not None:
-            check_integer_feasible(self.idx_x_bin, self.sol_best['x'], self.settings, throws=False)
-            check_solution(self.problem, self.sol_best, self.sol_best['x'], self.settings, throws=False)
+            check_integer_feasible(
+                self.idx_x_bin, self.sol_best['x'], self.settings, throws=False)
+            check_solution(self.problem, self.sol_best,
+                           self.sol_best['x'], self.settings, throws=False)
 
         self.solver = ca.qpsol(
             f"benders_constraint_{self.g_lowerapprox.nr}", self.settings.MIP_SOLVER, {
@@ -156,7 +160,8 @@ class BendersTRLB(BendersTRandMaster):
         )
         nlpdata.prev_solutions = [solution]
         success, stats = self.collect_stats("TR-MILP")
-        logger.info(f"SOLVED TR-MIQP with ub {constraint} - {correction=} {success=}")
+        logger.info(
+            f"SOLVED TR-MIQP with ub {constraint} - {correction=} {success=}")
         del self.solver
         return solution, success, stats
 
@@ -167,12 +172,14 @@ class BendersTRLB(BendersTRandMaster):
         else:
             MIPGap = 0.01
         # constraint = self.y_N_val * (1 - MIPGap)
-        constraint = (self.y_N_val + min(self.internal_lb, self.y_N_val - MIPGap)) / 2
+        constraint = (self.y_N_val + min(self.internal_lb,
+                      self.y_N_val - MIPGap)) / 2
         self.options['gurobi.MIPGap'] = MIPGap
         solution, success, stats = self._solve_miqp(nlpdata, 1.0, constraint)
         if not success or solution['f'] > self.y_N_val:
             correction = self.hess_correction if self.trust_hessian() else 0
-            solution, success, stats = self._solve_miqp(nlpdata, correction, self.y_N_val - MIPGap)
+            solution, success, stats = self._solve_miqp(
+                nlpdata, correction, self.y_N_val - MIPGap)
             if success:
                 self.internal_lb = solution['f']
                 colored(f"Trusted lb to {self.internal_lb}", "green")
@@ -183,6 +190,7 @@ class BendersTRLB(BendersTRandMaster):
             nlpdata = get_solutions_pool(nlpdata, success, stats, self.settings,
                                          solution, self.idx_x_bin)
         else:
-            nlpdata.prev_solutions = [{"x": self.sol_best['x'], "f": self.y_N_val}]
+            nlpdata.prev_solutions = [
+                {"x": self.sol_best['x'], "f": self.y_N_val}]
 
         return nlpdata

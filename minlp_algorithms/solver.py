@@ -25,6 +25,14 @@ SOLVER_MODES = {
 }
 
 
+def as_list(item, nr):
+    """Make list if it is not a list yet."""
+    if isinstance(item, list):
+        return item
+    else:
+        return [item] * nr
+
+
 class MinlpSolver(MiSolverClass):
     """Polysolver loading the required subsolver and solving the problem."""
 
@@ -45,9 +53,20 @@ class MinlpSolver(MiSolverClass):
 
         # Create actual solver
         if name in SOLVER_MODES:
-            self._subsolver = SOLVER_MODES[name](
+            self._subsolvers = [SOLVER_MODES[name](
                 problem, data, stats, settings, *args
-            )
+            )]
+            return
+        elif "+" in name:
+            names = name.split("+")
+            for name in names:
+                if name not in SOLVER_MODES:
+                    raise Exception(f"Subsolver {name} does not exists")
+            self._subsolvers = [
+                SOLVER_MODES[subname](
+                    problem, data, stats, setting, *args
+                ) for subname, setting in zip(names, as_list(settings, len(names)))
+            ]
         else:
             raise Exception(
                 f"Solver mode {name} not implemented, options are:"
@@ -56,12 +75,21 @@ class MinlpSolver(MiSolverClass):
 
     def solve(self, nlpdata: MinlpData, *args, **kwargs) -> MinlpData:
         """Solve the problem."""
-        return self._subsolver.solve(nlpdata, *args, **kwargs)
+        nlpdata = self._subsolvers[0].solve(nlpdata, *args, **kwargs)
+        for subsolver in self._subsolvers[1:]:
+            subsolver.warmstart(nlpdata)
+            nlpdata = subsolver.solve(nlpdata, *args, **kwargs)
+
+        return nlpdata
 
     def reset(self, nlpdata: MinlpData):
         """Reset the results."""
-        self._subsolver.reset()
-        self.stats.data = {}
+        [subsolver.reset() for subsolver in self._subsolvers]
+        self.stats.reset()
+
+    def warmstart(self, nlpdata: MinlpData):
+        """Warmstart."""
+        self._subsolver[0].warmstart(nlpdata)
 
     def collect_stats(self):
         """Return the statistics."""

@@ -7,7 +7,7 @@ from sys import argv
 from typing import Callable, Tuple, Union
 import casadi as ca
 import numpy as np
-from minlp_algorithms.utils import get_control_vector, plot_trajectory, tic, toc, \
+from minlp_algorithms.utils import plot_trajectory, tic, toc, \
     make_bounded, setup_logger, logging, colored
 from minlp_algorithms.utils.conversion import to_0d
 from minlp_algorithms.utils.data import write_json, read_json
@@ -20,7 +20,7 @@ from minlp_algorithms.solvers.subsolvers.fnlp import FeasibilityNlpSolver
 from minlp_algorithms.solvers.subsolvers.fnlp_closest import FindClosestNlpSolver
 from minlp_algorithms.solvers.decomposition.benders_master import BendersMasterMILP, BendersTrustRegionMIP, \
         BendersMasterMIQP
-from minlp_algorithms.solvers.decomposition.sequential_benders_trustregion_master import BendersTRandMaster
+from minlp_algorithms.solvers.decomposition.sequential_benders_master import BendersTRandMaster
 from minlp_algorithms.solvers.decomposition.oa_master import OuterApproxMILP, OuterApproxMILPImproved
 from minlp_algorithms.solvers.external.bonmin import BonminSolver
 from minlp_algorithms.solvers.decomposition.voronoi_master import VoronoiTrustRegionMILP
@@ -643,7 +643,6 @@ if __name__ == "__main__":
         meta = problem.meta
         state = to_0d(x_star)[meta.idx_state].reshape(-1, meta.n_state)
         state = np.vstack([meta.initial_state, state])
-        control = get_control_vector(problem, data)
         fig, axs = plot_trajectory(
             to_0d(x_star), state, control, meta, title=problem_name)
 

@@ -33,13 +33,13 @@ class GenericDecomposition(MiSolverClass):
         self.settings = settings
         self.stats = stats
         self.first_relaxed = first_relaxed
+        self.x_star = np.nan * np.empty(data.x0.shape[0])
 
     def solve(self, data: MinlpData, *args, **kwargs) -> MinlpData:
         """Solve the problem."""
         logger.info("Solver initialized.")
         # Benders algorithm
         feasible = True
-        x_star = np.nan * np.empty(data.x0.shape[0])
         x_hat = np.nan * np.empty(data.x0.shape[0])
 
         if self.first_relaxed:
@@ -48,14 +48,14 @@ class GenericDecomposition(MiSolverClass):
             data = self.master.solve(data, integers_relaxed=True)
 
         while (not self.termination_condition(
-            self.stats, self.settings, self.stats['lb'], self.stats['ub'], x_star, x_hat
+            self.stats, self.settings, self.stats['lb'], self.stats['ub'], self.x_star, x_hat
         )) and feasible:
             # Solve NLP(y^k)
             data = self.nlp.solve(data, set_x_bin=True)
             prev_feasible = data.solved
 
             # Is there a feasible success?
-            x_star = self.update_best_solutions(data)
+            self.x_star = self.update_best_solutions(data)
 
             # Is there any infeasible?
             if not np.all(data.solved_all):
@@ -73,9 +73,16 @@ class GenericDecomposition(MiSolverClass):
             self.stats['iter_nr'] += 1
 
         self.stats['total_time_calc'] = toc(reset=True)
-        data.prev_solution = {'x': x_star, 'f': self.stats['ub']}
-        return data
+        return self.get_best_solutions(data)
 
     def reset(self, nlpdata: MinlpData):
         """Reset Solvers."""
-        self.master.reset()
+        self.x_star = np.nan * np.empty(nlpdata.x0.shape[0])
+        self.master.reset(nlpdata)
+        nlpdata.best_solutions = []
+
+    def warmstart(self, nlpdata: MinlpData):
+        """Warmstart procedure."""
+        if solved:
+            self.x_star = self.update_best_solutions(nlpdata)
+            self.master.warmstart(nlpdata)
