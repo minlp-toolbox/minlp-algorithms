@@ -97,7 +97,7 @@ class VoronoiTrustRegionMIQP(SolverClass):
         self.idx_best_x_sol = 0
         self.feasible_x_sol_list = []
 
-    def add_solution(self, nlpdata, solved, solution, is_relaxed=False):
+    def add_solution(self, nlpdata, solved, solution, integers_relaxed=False):
         """Add a cut."""
         x_sol = solution['x']
         obj_val = float(solution['f'])
@@ -108,7 +108,7 @@ class VoronoiTrustRegionMIQP(SolverClass):
 
         self.x_sol_list.append(x_sol)
         self.feasible_x_sol_list.append(solved)
-        if solved and (not is_relaxed):
+        if solved and (not integers_relaxed):
             if obj_val < self.ub:
                 self.ub = obj_val
                 # TODO: a surrogate for counting iterates, it's a bit clutter
@@ -122,7 +122,7 @@ class VoronoiTrustRegionMIQP(SolverClass):
             self._lbg = ca.vertcat(self._lbg, lbg_k)
             self._ubg = ca.vertcat(self._ubg, ubg_k)
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=True, is_relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, prev_feasible=True, is_qp=True, integers_relaxed=False) -> MinlpData:
         """Solve sequential Voronoi master problem (MIQP)."""
         # Update with the lowest upperbound and the corresponding best solution:
         for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):

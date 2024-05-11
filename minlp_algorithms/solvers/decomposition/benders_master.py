@@ -141,12 +141,12 @@ class BendersMasterMILP(SolverClass):
         self._lbg.append(-ca.inf)
         self.nr_g += 1
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """solve."""
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
         if not integers_relaxed:
             self.add_cut(
-                nlpdata, nlpdata.x_sol, nlpdata.lam_g_sol, nlpdata.lam_x_sol, prev_feasible
+                nlpdata, nlpdata.x_sol, nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.solved
             )
 
         solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", self.settings.MIP_SOLVER, {
@@ -184,14 +184,14 @@ class BendersMasterMIQP(BendersMasterMILP):
             {"jit": self.settings.WITH_JIT}
         )
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """solve."""
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
         if not integers_relaxed:
             g_k = self._generate_cut_equation(
                 self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
                 nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
-                nlpdata.lbg, nlpdata.ubg, prev_feasible
+                nlpdata.lbg, nlpdata.ubg, nlpdata.solved
             )
             self.cut_id += 1
             self._g = ca.vertcat(self._g, g_k)
@@ -287,12 +287,12 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         self.best_data = None
         self.x_sol_best = data.x0
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, relaxed=False) -> MinlpData:
         """Solve."""
         # Update with the lowest upperbound and the corresponding best solution:
         if relaxed:
             self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
-        elif nlpdata.obj_val < self.y_N_val and prev_feasible:
+        elif nlpdata.obj_val < self.y_N_val and nlpdata.solved:
             self.y_N_val = nlpdata.obj_val
             self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
             self.best_data = nlpdata._sol
@@ -303,7 +303,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         g_k = self._generate_cut_equation(
             self._x[self.idx_x_bin], x_sol_prev, x_sol_prev[self.idx_x_bin],
             nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
-            nlpdata.lbg, nlpdata.ubg, prev_feasible
+            nlpdata.lbg, nlpdata.ubg, nlpdata.solved
         )
         self.cut_id += 1
 

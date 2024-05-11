@@ -61,7 +61,7 @@ class BendersTRLB(BendersRegionMasters):
             self.hess_correction = float(sol['x'])
             colored(f"Hessian correction to {self.hess_correction}")
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=False, relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, relaxed=False) -> MinlpData:
         """Solve."""
         new_hessian_updates = 0
         for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):

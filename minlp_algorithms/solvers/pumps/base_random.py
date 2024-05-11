@@ -28,10 +28,10 @@ class PumpBaseRandom(MiSolverClass):
             nlp = NlpSolver(problem, stats, settings)
         self.nlp = nlp
 
-    def solve(self, nlpdata: MinlpData, relaxed: bool = False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, integers_relaxed: bool = False) -> MinlpData:
         """Solve the problem."""
         if self.stats.relaxed is None:
-            if not relaxed:
+            if not integers_relaxed:
                 nlpdata = self.nlp.solve(nlpdata)
             self.stats.relaxed = nlpdata
         else:

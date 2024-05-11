@@ -52,7 +52,6 @@ class GenericDecomposition(MiSolverClass):
         )) and feasible:
             # Solve NLP(y^k)
             data = self.nlp.solve(data, set_x_bin=True)
-            prev_feasible = data.solved
 
             # Is there a feasible success?
             self.update_best_solutions(data)
@@ -64,7 +63,7 @@ class GenericDecomposition(MiSolverClass):
                 logger.info(colored("Feasibility NLP solved.", "yellow"))
 
             # Solve master^k and set lower bound:
-            data = self.master.solve(data, prev_feasible=prev_feasible)
+            data = self.master.solve(data)
             feasible = data.solved
             self.stats['lb'] = max(data.obj_val, self.stats['lb'])
             x_hat = data.x_sol

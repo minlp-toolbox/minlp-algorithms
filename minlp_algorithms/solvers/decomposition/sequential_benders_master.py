@@ -447,8 +447,8 @@ class BendersRegionMasters(BendersMasterMILP):
                     f"Expected Range lb={self.internal_lb}  ub={self.y_N_val}")
 
     def update_relaxed_solution(self, nlpdata: MinlpData):
-        for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
-            if prev_feasible:
+        for solved, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
+            if solved:
                 # check if new best solution found
                 if np.isinf(self.internal_lb) or self.internal_lb > float(sol['f']):
                     # self.sol_best['x'] = sol['x'][:self.nr_x_orig]  # warm start with relaxed solution
@@ -541,18 +541,17 @@ class BendersRegionMasters(BendersMasterMILP):
         self.early_benders = False
         colored(f"New upper bound: {self.y_N_val}", "green")
 
-    def solve(self, nlpdata: MinlpData, integers_relaxed=False, prev_feasible=True) -> MinlpData:
-        # NOTE prev_feasible argument needed only for compatibility with Generic Decomposition.
-        """Solve."""
+    def add_solutions(self, nlpdata: MinlpData, integers_relaxed=False):
+        """Add solutions."""
         if integers_relaxed:
             self.update_relaxed_solution(nlpdata)
         else:
             needs_trust_region_update = False
-            for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
+            for solved, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
                 # check if new best solution found
                 nonzero = np.count_nonzero(
                     (sol['x'][:self.nr_x_orig] - self.sol_best['x'])[self.idx_x_bin])
-                if prev_feasible:
+                if solved:
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
                     self._lowerapprox_oa(sol['x'], nlpdata)
                     needs_trust_region_update = True
@@ -588,7 +587,12 @@ class BendersRegionMasters(BendersMasterMILP):
 
             if needs_trust_region_update:
                 self._gradient_amplification()
-        self.update_options(integers_relaxed)
+
+    def solve(self, nlpdata: MinlpData, is_relaxed=False) -> MinlpData:
+        """Solve."""
+        self.add_solutions(nlpdata, is_relaxed)
+
+        self.update_options(is_relaxed)
         if self._with_lb_milp:
             return self._solve_mix(nlpdata)
         else:
