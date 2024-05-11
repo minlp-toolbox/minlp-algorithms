@@ -7,6 +7,8 @@ from minlp_algorithms.solvers.decomposition.base import GenericDecomposition
 from minlp_algorithms.solvers.decomposition.benders_master import BendersMasterMILP, BendersMasterMIQP
 from minlp_algorithms.solvers.decomposition.oa_master import OuterApproxMILP, OuterApproxMIQP, \
         OuterApproxMILPImproved, OuterApproxMIQPImproved
+from minlp_algorithms.solvers.decomposition.voronoi_master import VoronoiTrustRegionMIQP
+from minlp_algorithms.solvers.decomposition.sequential_benders_master import BendersRegionMasters
 
 
 class GeneralizedBenders(GenericDecomposition):
@@ -123,5 +125,41 @@ class OuterApproximationQPImproved(GenericDecomposition):
             self, problem, data, stats, settings,
             master, fnlp, termination_type,
             first_relaxed=False
+        )
+        stats['total_time_loading'] = toc(reset=True)
+
+
+class SequentialVoronoiMIQP(GenericDecomposition):
+    """Generalized Benders."""
+
+    def __init__(
+        self, problem: MinlpProblem, data: MinlpData, stats: Stats,
+        settings: Settings, termination_type="equality",
+    ):
+        """Generic decomposition algorithm."""
+        master = VoronoiTrustRegionMIQP(problem, data, stats, settings)
+        fnlp = FeasibilityNlpSolver(problem, data, stats, settings)
+        GenericDecomposition.__init__(
+            self, problem, data, stats, settings,
+            master, fnlp, termination_type,
+            first_relaxed=False
+        )
+        stats['total_time_loading'] = toc(reset=True)
+
+
+class SequentialBendersMIQP(GenericDecomposition):
+    """Generalized Benders."""
+
+    def __init__(
+        self, problem: MinlpProblem, data: MinlpData, stats: Stats,
+        settings: Settings, termination_type="std",
+    ):
+        """Generic decomposition algorithm."""
+        master = BendersRegionMasters(problem, data, stats, settings)
+        fnlp = FindClosestNlpSolver(problem, stats, settings)
+        GenericDecomposition.__init__(
+            self, problem, data, stats, settings,
+            master, fnlp, termination_type,
+            first_relaxed=True
         )
         stats['total_time_loading'] = toc(reset=True)
