@@ -13,7 +13,7 @@ class FindClosestNlpSolver(SolverClass):
 
     def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create NLP problem."""
-        super(FindClosestNlpSolver, self).__init___(problem, stats, s)
+        super(FindClosestNlpSolver, self).__init__(problem, stats, s)
         options = regularize_options(
             s.IPOPT_SETTINGS, {
                 "ipopt.mu_strategy": "adaptive",

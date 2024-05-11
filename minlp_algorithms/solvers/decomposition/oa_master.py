@@ -27,7 +27,7 @@ class OuterApproxMILP(MiSolverClass):
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, with_lin_bounds=True):
         """Create the outer approximation master problem."""
-        super(OuterApproxMILP, self).__init___(problem, stats, s)
+        super(OuterApproxMILP, self).__init__(problem, data, stats, s)
         self.setup_common(problem, s)
         # Last variable is alpha for epigraph reformulation
         self._x = GlobalSettings.CASADI_VAR.sym("x", self.nr_x)

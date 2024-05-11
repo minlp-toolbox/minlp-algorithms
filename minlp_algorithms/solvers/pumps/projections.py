@@ -20,7 +20,7 @@ class LinearProjection(SolverClass):
     """
 
     def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
-        super(LinearProjection, self).__init___(problem, stats, s)
+        super(LinearProjection, self).__init__(problem, stats, s)
         options = regularize_options(s.IPOPT_SETTINGS, {"jit": s.WITH_JIT, "ipopt.max_iter": 5000}, s)
 
         self.idx_x_bin = problem.idx_x_bin
@@ -85,7 +85,7 @@ class ObjectiveLinearProjection(SolverClass):
     """
 
     def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
-        super(ObjectiveLinearProjection, self).__init___(problem, stats, s)
+        super(ObjectiveLinearProjection, self).__init__(problem, stats, s)
         options = regularize_options(s.IPOPT_SETTINGS, {}, s)
 
         self.idx_x_bin = problem.idx_x_bin

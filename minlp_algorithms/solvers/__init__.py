@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class SolverClass(ABC):
     """Create solver class."""
 
-    def __init___(self, problem: MinlpProblem, stats: Stats, s: Settings):
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create a solver class."""
         self.settings = s
         self.stats = stats
@@ -69,7 +69,7 @@ class MiSolverClass(SolverClass):
 
     def __init__(self, problem, data, stats, settings):
         """Create a generic MiSolverClass."""
-        SolverClass.__init___(self, problem, stats, settings)
+        SolverClass.__init__(self, problem, stats, settings)
         self.stats['lb'] = -ca.inf
         self.stats['ub'] = ca.inf
         self.stats['iter_nr'] = 0

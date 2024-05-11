@@ -41,7 +41,7 @@ class MinlpSolver(MiSolverClass):
 
         self.stats = stats
         self.settings = settings
-        super(MinlpSolver, self).__init___(problem, stats, settings)
+        super(MinlpSolver, self).__init__(problem, data, stats, settings)
 
         # Create actual solver
         if name in SOLVER_MODES:
@@ -49,7 +49,10 @@ class MinlpSolver(MiSolverClass):
                 problem, data, stats, settings, *args
             )
         else:
-            raise Exception(f"Solver mode {name} not implemented!")
+            raise Exception(
+                f"Solver mode {name} not implemented, options are:"
+                + ", ".join(SOLVER_MODES.keys())
+            )
 
     def solve(self, nlpdata: MinlpData, *args, **kwargs) -> MinlpData:
         """Solve the problem."""

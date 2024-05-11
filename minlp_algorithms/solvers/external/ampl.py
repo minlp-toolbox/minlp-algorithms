@@ -11,7 +11,7 @@ class AmplSolver(SolverClass):
 
         :param algo_type: Algorithm type, options: B-BB, B-OA, B-QG, or B-Hyb
         """
-        super(AmplSolver, self).__init___(problem, stats, s)
+        super(AmplSolver, self).__init__(problem, stats, s)
         options = s.AMPL_EXPORT_SETTINGS.copy()
         options.update({
             "solver": "python3 -m minlp_algorithms copy /tmp/out.nl"

@@ -21,7 +21,7 @@ class GenericDecomposition(MiSolverClass):
         first_relaxed: bool = True
     ):
         """Generic decomposition algorithm."""
-        super(GenericDecomposition, self).__init___(
+        super(GenericDecomposition, self).__init__(
             problem, data, stats, settings
         )
         self.termination_condition = get_termination_condition(
@@ -46,7 +46,6 @@ class GenericDecomposition(MiSolverClass):
             data = self.nlp.solve(data)
             self.stats['lb'] = data.obj_val
             data = self.master.solve(data, integers_relaxed=True)
-            breakpoint()
 
         while (not self.termination_condition(
             self.stats, self.settings, self.stats['lb'], self.stats['ub'], x_star, x_hat

@@ -102,13 +102,13 @@ def compute_infeasibility(g, lbg, ubg):
 class BendersRegionMasters(BendersMasterMILP):
     """Mixing the idea from Moritz with a slightly altered version of benders masters."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, with_benders_master=True, early_exit=False):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
+                 with_benders_master=True, early_exit=False):
         """Create the benders constraint MILP."""
         super(BendersRegionMasters, self).__init__(
             problem, data, stats, s, with_lin_bounds=False)
         # Settings
         self.alpha_kronqvist = s.ALPHA_KRONQVIST
-        self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
         self.trust_region_feasibility_rho = s.RHO_AMPLIFICATION
 
         if s.WITH_DEBUG:

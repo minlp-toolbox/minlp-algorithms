@@ -14,7 +14,7 @@ class BonminSolver(SolverClass):
 
         :param algo_type: Algorithm type, options: B-BB, B-OA, B-QG, or B-Hyb
         """
-        super(BonminSolver, self).__init___(problem, stats, s)
+        super(BonminSolver, self).__init__(problem, stats, s)
         options = regularize_options(s.BONMIN_SETTINGS, {}, s)
 
         self.nr_x = problem.x.shape[0]

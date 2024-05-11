@@ -21,7 +21,7 @@ class RandomDirectionProjection(SolverClass):
     """
 
     def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings, norm=2, penalty_scaling=0.5):
-        super(RandomDirectionProjection, self).__init___(problem, stats, s)
+        super(RandomDirectionProjection, self).__init__(problem, stats, s)
         options = regularize_options(
             s.IPOPT_SETTINGS, {"jit": s.WITH_JIT, "ipopt.max_iter": 5000}, s)
         self.penalty_scaling = penalty_scaling

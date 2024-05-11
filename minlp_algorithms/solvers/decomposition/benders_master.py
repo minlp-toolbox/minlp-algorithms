@@ -22,7 +22,7 @@ class BendersMasterMILP(MiSolverClass):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats,
                  s: Settings, with_lin_bounds=True):
         """Create benders master MILP."""
-        super(BendersMasterMILP, self).__init___(problem, stats, s)
+        super(BendersMasterMILP, self).__init__(problem, data, stats, s)
         self.setup_common(problem, s)
         self.jac_g_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],

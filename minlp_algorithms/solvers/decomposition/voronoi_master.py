@@ -31,7 +31,7 @@ class VoronoiTrustRegionMIQP(MiSolverClass):
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
         """Create sequential Voronoi master problem."""
-        super(VoronoiTrustRegionMIQP, self).__init___(problem, stats, s)
+        super(VoronoiTrustRegionMIQP, self).__init__(problem, stats, s)
         self.options = regularize_options(s.MIP_SETTINGS, {}, s)
 
         self.f = ca.Function(

@@ -90,7 +90,7 @@ class PycombinaSolver(SolverClass):
 
     def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create NLP problem."""
-        super(PycombinaSolver, self).__init___(problem, stats, s)
+        super(PycombinaSolver, self).__init__(problem, stats, s)
         self.idx_x_bin = problem.idx_x_bin
         self.meta = copy.deepcopy(problem.meta)
 
