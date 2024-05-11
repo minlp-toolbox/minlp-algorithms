@@ -3,10 +3,11 @@
 from minlp_algorithms.utils import toc
 from minlp_algorithms.solvers import Stats, MinlpProblem, MinlpData, Settings
 from minlp_algorithms.solvers.subsolvers.fnlp import FeasibilityNlpSolver
+from minlp_algorithms.solvers.subsolvers.fnlp_closest import FindClosestNlpSolver
 from minlp_algorithms.solvers.decomposition.base import GenericDecomposition
 from minlp_algorithms.solvers.decomposition.benders_master import BendersMasterMILP, BendersMasterMIQP
 from minlp_algorithms.solvers.decomposition.oa_master import OuterApproxMILP, OuterApproxMIQP, \
-        OuterApproxMILPImproved, OuterApproxMIQPImproved
+    OuterApproxMILPImproved, OuterApproxMIQPImproved
 from minlp_algorithms.solvers.decomposition.voronoi_master import VoronoiTrustRegionMIQP
 from minlp_algorithms.solvers.decomposition.sequential_benders_master import BendersRegionMasters
 
