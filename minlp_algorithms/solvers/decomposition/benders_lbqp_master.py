@@ -1,3 +1,5 @@
+# TODO: To refactor or to remove!
+
 import numpy as np
 import casadi as ca
 from minlp_algorithms.solvers.utils import get_solutions_pool
