@@ -27,15 +27,13 @@ class OuterApproxMILP(SolverClass):
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, with_lin_bounds=True):
         """Create the outer approximation master problem."""
-        super(OuterApproxMILP, self).__init__(problem, data, stats, s)
+        super(OuterApproxMILP, self).__init__(problem, stats, s)
         self.setup_common(problem, s)
         # Last variable is alpha for epigraph reformulation
         self._x = GlobalSettings.CASADI_VAR.sym("x", self.nr_x)
         self._alpha = GlobalSettings.CASADI_VAR.sym("alpha")
         self.problem = problem
-        self._g = np.array([])
-        self._lbg = []
-        self._ubg = []
+        OuterApproxMILP.reset(self, data)
 
     def setup_common(self, problem: MinlpProblem, s: Settings):
         """Set up common data"""
@@ -90,7 +88,7 @@ class OuterApproxMILP(SolverClass):
         self._lbg.append(nlpdata.lbg)
         self._ubg.append(nlpdata.ubg)
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """Solve the outer approximation master problem (MILP)."""
         for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
             self.add_solution(nlpdata, solved, solution, integers_relaxed)
@@ -115,16 +113,11 @@ class OuterApproxMILP(SolverClass):
         nlpdata.solved, stats = self.collect_stats("OA-MILP", solver)
         return nlpdata
 
-    def reset(self, data):
-        """Reset internal data."""
-        if self.idx_g_lin.numel() > 0:
-            self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
-                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_bin
-            )
-        else:
-            self.nr_g, self._g, self._lbg, self._ubg = 0, [], [], []
-
-        self.cut_id = 0
+    def reset(self, nlpdata: MinlpData):
+        """Reset this problem."""
+        self._g = np.array([])
+        self._lbg = []
+        self._ubg = []
 
     def warmstart(self, nlpdata: MinlpData):
         """Warmstart cuts."""
@@ -157,7 +150,7 @@ class OuterApproxMIQP(OuterApproxMILP):
             raise AttributeError(
                 "Available Hessian types: 'f' for standard objective Hessian, 'lag' for Hessian of the Lagrangian")
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """Solve the quadratic outer approximation master problem (MIQP)."""
         for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
             self.add_solution(nlpdata, solved, solution, integers_relaxed)
@@ -216,12 +209,18 @@ class OuterApproxMILPImproved(OuterApproxMILP):
                 problem.g[self.idx_g_nonlin], problem.x
             )], {"jit": s.WITH_JIT}
         )
+        self.reset(data)
 
-        _, self._g, self._lbg, self._ubg = extract_bounds(
-            problem, data, self.idx_g_lin, self._x, allow_fail=False
-        )
+    def reset(self, data):
+        """Reset internal data."""
+        if self.idx_g_lin.shape[0] > 0:
+            _, self._g, self._lbg, self._ubg = extract_bounds(
+                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_bin
+            )
+        else:
+            _, self._g, self._lbg, self._ubg = 0, [], [], []
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """Solve the improved outer approximation master problem (MILP)."""
         for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
             self.add_solution(nlpdata, solved, solution, integers_relaxed)
@@ -289,12 +288,18 @@ class OuterApproxMIQPImproved(OuterApproxMILP):
                 problem.g[self.idx_g_nonlin], problem.x
             )], {"jit": s.WITH_JIT}
         )
+        self.reset(data)
 
-        _, self._g, self._lbg, self._ubg = extract_bounds(
-            problem, data, self.idx_g_lin, self._x, allow_fail=False
-        )
+    def reset(self, data):
+        """Reset internal data."""
+        if self.idx_g_lin.shape[0] > 0:
+            _, self._g, self._lbg, self._ubg = extract_bounds(
+                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_bin
+            )
+        else:
+            _, self._g, self._lbg, self._ubg = 0, [], [], []
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """Solve the improved quadratic outer approximation master problem (MIQP)."""
         for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
             self.add_solution(nlpdata, solved, solution, integers_relaxed)

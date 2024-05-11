@@ -142,10 +142,6 @@ class BendersRegionMasters(BendersMasterMILP):
 
         self._x = GlobalSettings.CASADI_VAR.sym("x_benders", problem.x.numel())
         self._x_bin = self._x[problem.idx_x_bin]
-        self.g_lowerapprox = LowerApproximation(self._x_bin, self._nu)
-        self.g_lowerapprox_oa = LowerApproximation(self._x, self._nu)
-        self.g_infeasible = LowerApproximation(self._x_bin, 0)
-        self.g_infeasible_oa = LowerApproximation(self._x, 0)
         self.idx_g_conv = problem.idx_g_conv
 
         self.options.update({"discrete": [
@@ -158,18 +154,10 @@ class BendersRegionMasters(BendersMasterMILP):
         self.mipgap_miqp = s.BRMIQP_GAP
         self.mipgap_milp = s.LBMILP_GAP
         self.options_master['gurobi.MIPGap'] = self.mipgap_milp
-
-        self.internal_lb = -ca.inf
-        self.sol_best_feasible = False
-        self.obj_inf_sol = ca.inf
-        self.sol_best = data._sol  # take a point as initialization
-        self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
+        self.early_exit = early_exit
         self._with_lb_milp = with_benders_master
         self.hessian_not_psd = problem.hessian_not_psd
-        self.with_oa_conv_cuts = True
-        self.trust_region_fails = False
-        self.early_exit = early_exit
-        self.early_lb_milp = False
+        self.reset(data)
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
@@ -588,12 +576,35 @@ class BendersRegionMasters(BendersMasterMILP):
             if needs_trust_region_update:
                 self._gradient_amplification()
 
-    def solve(self, nlpdata: MinlpData, is_relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """Solve."""
-        self.add_solutions(nlpdata, is_relaxed)
+        self.add_solutions(nlpdata, integers_relaxed)
 
-        self.update_options(is_relaxed)
+        self.update_options(integers_relaxed)
         if self._with_lb_milp:
             return self._solve_mix(nlpdata)
         else:
             return self._solve_tr_only(nlpdata)
+
+    def reset(self, nlpdata: MinlpData):
+        """Reset data."""
+        self.g_lowerapprox = LowerApproximation(self._x_bin, self._nu)
+        self.g_lowerapprox_oa = LowerApproximation(self._x, self._nu)
+        self.g_infeasible = LowerApproximation(self._x_bin, 0)
+        self.g_infeasible_oa = LowerApproximation(self._x, 0)
+        self.internal_lb = -ca.inf
+        self.sol_best_feasible = False
+        self.obj_inf_sol = ca.inf
+        self.sol_best = nlpdata._sol  # take a point as initialization
+        self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
+        self.with_oa_conv_cuts = True
+        self.trust_region_fails = False
+        self.early_lb_milp = False
+
+    def warmstart(self, nlpdata: MinlpData):
+        """Warmstart with new data."""
+        relaxed = self.stats.relaxed
+        if relaxed:
+            self.add_solutions(relaxed, True)
+
+        self.add_solutions(nlpdata)

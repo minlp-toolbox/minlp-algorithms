@@ -57,8 +57,8 @@ class BendersMasterMILP(SolverClass):
     def warmstart(self, data):
         """Warmstart algorithm."""
         for solution in data.best_solutions:
-            self.add_cut(
-                data, solution['w'], solution['lam_g'],
+            self.add_solution(
+                data, solution['x'], solution['lam_g'],
                 solution['lam_x'], True
             )
 
@@ -127,7 +127,7 @@ class BendersMasterMILP(SolverClass):
 
         return g_k
 
-    def add_cut(self, nlpdata, x_sol, lam_g_sol, lam_x_sol, prev_feasible):
+    def add_solution(self, nlpdata, x_sol, lam_g_sol, lam_x_sol, prev_feasible):
         """Create cut."""
         g_k = self._generate_cut_equation(
             self._x, x_sol[:self.nr_x_orig], x_sol[self.idx_x_bin],
@@ -145,7 +145,7 @@ class BendersMasterMILP(SolverClass):
         """solve."""
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
         if not integers_relaxed:
-            self.add_cut(
+            self.add_solution(
                 nlpdata, nlpdata.x_sol, nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.solved
             )
 
