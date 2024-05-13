@@ -544,7 +544,7 @@ class BendersRegionMasters(BendersMasterMILP):
                     self._lowerapprox_oa(sol['x'], nlpdata)
                     needs_trust_region_update = True
                     if float(sol['f']) + self.settings.EPS < self.y_N_val:
-                        sol['x'] = sol['x'][:self.nr_g_orig]
+                        sol['x'] = sol['x'][:self.nr_x_orig]
                         self.update_sol(sol)
                     colored(
                         f"Regular Cut {float(sol['f']):.3f} - {nonzero}.", "blue")
