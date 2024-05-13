@@ -48,8 +48,8 @@ class GenericDecomposition(MiSolverClass):
             data = self.master.solve(data, integers_relaxed=True)
 
         while (not self.termination_condition(
-            self.stats, self.settings, self.stats['lb'], self.stats['ub'], self._get_x_star(), x_hat
-        )) and feasible:
+                self.stats, self.settings, self.stats['lb'], self.stats['ub'],
+                self._get_x_star(), x_hat)) and feasible:
             # Solve NLP(y^k)
             data = self.nlp.solve(data, set_x_bin=True)
 

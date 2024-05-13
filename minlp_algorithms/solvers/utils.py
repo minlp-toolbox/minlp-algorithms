@@ -129,7 +129,8 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
     def max_time(ret, s, stats):
         done = False
         if s.TIME_LIMIT_SOLVER_ONLY:
-            done = (stats["t_solver_total"] > s.TIME_LIMIT or toc() > s.TIME_LIMIT * 3)
+            done = (stats["t_solver_total"] >
+                    s.TIME_LIMIT or toc() > s.TIME_LIMIT * 3)
         else:
             done = (toc() > s.TIME_LIMIT)
 
