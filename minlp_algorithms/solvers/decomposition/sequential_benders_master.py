@@ -439,7 +439,9 @@ class BendersRegionMasters(BendersMasterMILP):
             if solved:
                 # check if new best solution found
                 if np.isinf(self.internal_lb) or self.internal_lb > float(sol['f']):
-                    # self.sol_best['x'] = sol['x'][:self.nr_x_orig]  # warm start with relaxed solution
+                    if self.settings.USE_RELAXED_AS_WARMSTART:
+                        # warm start with relaxed solution
+                        self.sol_best['x'] = sol['x'][:self.nr_x_orig]
                     self.internal_lb = float(sol['f'])
             else:
                 raise ValueError("The relaxed NLP is not feasible.")

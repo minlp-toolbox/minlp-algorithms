@@ -62,7 +62,7 @@ class BendersMasterMILP(SolverClass):
                 solution['lam_x'], True
             )
 
-    def setup_common(self, problem: MinlpProblem, s):
+    def setup_common(self, problem: MinlpProblem, s: Settings):
         """Set up common data."""
         self.settings = s
         self.options = regularize_options(s.MIP_SETTINGS, {}, s)

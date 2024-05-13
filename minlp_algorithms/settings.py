@@ -92,6 +92,7 @@ class Settings:
     LBMILP_GAP: float = 1e-4
     RHO_AMPLIFICATION: float = 1.5
     ALPHA_KRONQVIST: float = 0.5
+    USE_RELAXED_AS_WARMSTART = False
     # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
 
     PUMP_MAX_STEP_IMPROVEMENTS = 5
