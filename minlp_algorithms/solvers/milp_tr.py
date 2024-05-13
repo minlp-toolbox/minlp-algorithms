@@ -95,7 +95,7 @@ class MILPTrustRegion(SolverClass):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
                  options=None, with_lin_bounds=True):
         """Create benders master MILP."""
-        super(MILPTrustRegion, self).__init___(problem, stats, s)
+        super(MILPTrustRegion, self).__init__(problem, stats, s)
 
         self.f = ca.Function(
             "f", [problem.x, problem.p], [problem.f],

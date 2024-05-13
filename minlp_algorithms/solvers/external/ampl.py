@@ -1,17 +1,15 @@
+# TODO: Refactor or remove
 import casadi as ca
 from minlp_algorithms.settings import Settings
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData
 
 
 class AmplSolver(SolverClass):
-    """Create MINLP solver (using bonmin)."""
+    """Create AMPL dump."""
 
-    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings, algo_type="B-BB"):
-        """Create MINLP problem.
-
-        :param algo_type: Algorithm type, options: B-BB, B-OA, B-QG, or B-Hyb
-        """
-        super(AmplSolver, self).__init___(problem, stats, s)
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
+        """Create MINLP problem."""
+        super(AmplSolver, self).__init__(problem, stats, s)
         options = s.AMPL_EXPORT_SETTINGS.copy()
         options.update({
             "solver": "python3 -m minlp_algorithms copy /tmp/out.nl"

@@ -92,7 +92,13 @@ class Settings:
     LBMILP_GAP: float = 1e-4
     RHO_AMPLIFICATION: float = 1.5
     ALPHA_KRONQVIST: float = 0.5
+    USE_RELAXED_AS_WARMSTART = False
     # WITH_DEFAULT_SETTINGS = to_bool(environ.get("DEFAULT", True))
+
+    PUMP_MAX_STEP_IMPROVEMENTS = 5
+    PUMP_MAX_ITER = 1000
+    PUMP_MAX_TRY = 10
+    PARALLEL_SOLUTIONS = 5
 
     AMPL_EXPORT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {})
     IPOPT_SETTINGS: Dict[str, Any] = field(default_factory=lambda: {

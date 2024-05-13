@@ -18,7 +18,7 @@ class NlpSolver(SolverClass):
 
     def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create NLP problem."""
-        super(NlpSolver, self).__init___(problem, stats, s)
+        super(NlpSolver, self).__init__(problem, stats, s)
         options = regularize_options(s.IPOPT_SETTINGS, {
             "calc_multipliers": True,
             "ipopt.expect_infeasible_problem": "yes",

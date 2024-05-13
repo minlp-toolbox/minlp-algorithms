@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class SolverClass(ABC):
     """Create solver class."""
 
-    def __init___(self, problem: MinlpProblem, stats: Stats, s: Settings):
+    def __init__(self, problem: MinlpProblem, stats: Stats, s: Settings):
         """Create a solver class."""
         self.settings = s
         self.stats = stats
@@ -67,23 +67,44 @@ class SolverClass(ABC):
 
 class MiSolverClass(SolverClass):
 
-    def update_best_solutions(self, data, itr, ub, x_star, best_iter, settings):
+    def __init__(self, problem, data, stats, settings):
+        """Create a generic MiSolverClass."""
+        SolverClass.__init__(self, problem, stats, settings)
+        self.stats['lb'] = -ca.inf
+        self.stats['ub'] = ca.inf
+        self.stats['iter_nr'] = 0
+        self.stats['best_iter'] = -1
+        self.best_solutions = []
+
+    def update_best_solutions(self, data: MinlpData):
         """Update best solutions,"""
         if np.any(data.solved_all):
             for i, success in enumerate(data.solved_all):
                 obj_val = float(data.prev_solutions[i]['f'])
                 if success:
-                    if obj_val + settings.EPS < ub:
-                        logger.info(f"Decreased UB from {ub} to {obj_val}")
-                        ub = obj_val
-                        x_star = data.prev_solutions[i]['x']
-                        data.best_solutions.append(x_star)
-                        best_iter = itr
-                    elif obj_val - settings.EPS < ub:
-                        data.best_solutions.append(
-                            data.prev_solutions[i]['x']
-                        )
-        return ub, x_star, best_iter
+                    if obj_val + self.settings.EPS < self.stats['ub']:
+                        logger.info(
+                            f"Decreased UB from {self.stats['ub']} to {obj_val}")
+                        self.stats['ub'] = obj_val
+                        self.best_solutions.append(data.prev_solutions[i])
+                        self.stats['best_iter'] = self.stats['iter_nr']
+                    elif obj_val - self.settings.EPS < self.stats['ub']:
+                        self.best_solutions.append(data.prev_solutions[i])
+
+        if len(self.best_solutions) > 0:
+            return self.best_solutions[-1]
+        else:
+            return None
+
+    def get_best_solutions(self, data: MinlpData):
+        """Get best solutions."""
+        data.best_solutions = self.best_solutions
+        if len(data.best_solutions) > 0:
+            data.prev_solutions = [data.best_solutions[-1]]
+            data.solved_all = [True]
+        else:
+            data.solved_all = [False] * len(data.solutions_all)
+        return data
 
     @abstractmethod
     def solve(self, nlpdata: MinlpData) -> MinlpData:
@@ -92,6 +113,10 @@ class MiSolverClass(SolverClass):
     @abstractmethod
     def reset(self, nlpdata: MinlpData):
         """Reset problem data."""
+
+    @abstractmethod
+    def warmstart(self, nlpdata: MinlpData):
+        """Warmstart the algorithm."""
 
 
 def regularize_options(options, default, s: Settings):

@@ -7,7 +7,7 @@ parts where the main part is only solving the integer variables.
 
 import casadi as ca
 import numpy as np
-from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
+from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     get_idx_linear_bounds, get_idx_linear_bounds_binary_x, regularize_options, \
     get_idx_inverse, extract_bounds
 from minlp_algorithms.settings import GlobalSettings, Settings
@@ -16,13 +16,13 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class BendersMasterMILP(MiSolverClass):
+class BendersMasterMILP(SolverClass):
     """Create benders master problem."""
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats,
                  s: Settings, with_lin_bounds=True):
         """Create benders master MILP."""
-        super(BendersMasterMILP, self).__init___(problem, stats, s)
+        super(BendersMasterMILP, self).__init__(problem, stats, s)
         self.setup_common(problem, s)
         self.jac_g_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
@@ -54,7 +54,15 @@ class BendersMasterMILP(MiSolverClass):
 
         self.cut_id = 0
 
-    def setup_common(self, problem: MinlpProblem, s):
+    def warmstart(self, data):
+        """Warmstart algorithm."""
+        for solution in data.best_solutions:
+            self.add_solution(
+                data, solution['x'], solution['lam_g'],
+                solution['lam_x'], True
+            )
+
+    def setup_common(self, problem: MinlpProblem, s: Settings):
         """Set up common data."""
         self.settings = s
         self.options = regularize_options(s.MIP_SETTINGS, {}, s)
@@ -119,21 +127,27 @@ class BendersMasterMILP(MiSolverClass):
 
         return g_k
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
+    def add_solution(self, nlpdata, x_sol, lam_g_sol, lam_x_sol, prev_feasible):
+        """Create cut."""
+        g_k = self._generate_cut_equation(
+            self._x, x_sol[:self.nr_x_orig], x_sol[self.idx_x_bin],
+            lam_g_sol, lam_x_sol, nlpdata.p,
+            nlpdata.lbg, nlpdata.ubg, prev_feasible
+        )
+        self.cut_id += 1
+
+        self._g = ca.vertcat(self._g, g_k)
+        self._ubg.append(0)
+        self._lbg.append(-ca.inf)
+        self.nr_g += 1
+
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """solve."""
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
         if not integers_relaxed:
-            g_k = self._generate_cut_equation(
-                self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
-                nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
-                nlpdata.lbg, nlpdata.ubg, prev_feasible
+            self.add_solution(
+                nlpdata, nlpdata.x_sol, nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.solved
             )
-            self.cut_id += 1
-
-            self._g = ca.vertcat(self._g, g_k)
-            self._ubg.append(0)
-            self._lbg.append(-ca.inf)
-            self.nr_g += 1
 
         solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", self.settings.MIP_SOLVER, {
             "f": self._nu, "g": self._g,
@@ -170,14 +184,14 @@ class BendersMasterMIQP(BendersMasterMILP):
             {"jit": self.settings.WITH_JIT}
         )
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, integers_relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """solve."""
         x_bin_star = nlpdata.x_sol[self.idx_x_bin]
         if not integers_relaxed:
             g_k = self._generate_cut_equation(
                 self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
                 nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
-                nlpdata.lbg, nlpdata.ubg, prev_feasible
+                nlpdata.lbg, nlpdata.ubg, nlpdata.solved
             )
             self.cut_id += 1
             self._g = ca.vertcat(self._g, g_k)
@@ -273,12 +287,12 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         self.best_data = None
         self.x_sol_best = data.x0
 
-    def solve(self, nlpdata: MinlpData, prev_feasible=True, relaxed=False) -> MinlpData:
+    def solve(self, nlpdata: MinlpData, relaxed=False) -> MinlpData:
         """Solve."""
         # Update with the lowest upperbound and the corresponding best solution:
         if relaxed:
             self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
-        elif nlpdata.obj_val < self.y_N_val and prev_feasible:
+        elif nlpdata.obj_val < self.y_N_val and nlpdata.solved:
             self.y_N_val = nlpdata.obj_val
             self.x_sol_best = nlpdata.x_sol[:self.nr_x_orig]
             self.best_data = nlpdata._sol
@@ -289,7 +303,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         g_k = self._generate_cut_equation(
             self._x[self.idx_x_bin], x_sol_prev, x_sol_prev[self.idx_x_bin],
             nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
-            nlpdata.lbg, nlpdata.ubg, prev_feasible
+            nlpdata.lbg, nlpdata.ubg, nlpdata.solved
         )
         self.cut_id += 1
 

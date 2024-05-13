@@ -89,6 +89,7 @@ def create_ocp_unstable_system(p_val=[0.9, 0.7]):
     problem.meta = meta
     data = dsc.get_data()
     s = Settings()
+    s.USE_RELAXED_AS_WARMSTART = False
     s.CONSTRAINT_INT_TOL = 1e-5
     s.MIP_SETTINGS_ALL["gurobi"].update(
         {"gurobi.FeasibilityTol": s.CONSTRAINT_INT_TOL,

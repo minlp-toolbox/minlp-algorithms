@@ -3,10 +3,11 @@ from minlp_algorithms.stats import Stats
 from minlp_algorithms.settings import Settings
 from minlp_algorithms.problem import MinlpProblem
 from minlp_algorithms.data import MinlpData
-from minlp_algorithms.solvers.decomposition.benders import GeneralizedBenders, GeneralizedBendersQP
-from minlp_algorithms.solvers.decomposition.outer_approximation import OuterApproximation, OuterApproximationQP, OuterApproximationImproved, OuterApproximationQPImproved
-from minlp_algorithms.solvers.decomposition.sequential_voronoi_based_miqp import SequentialVoronoiMIQP
-from minlp_algorithms.solvers.decomposition.sequential_benders_based_miqp import SequentialBendersMIQP
+from minlp_algorithms.solvers.decomposition import GeneralizedBenders, GeneralizedBendersQP, \
+    OuterApproximation, OuterApproximationQP, OuterApproximationImproved, OuterApproximationQPImproved, \
+    SequentialVoronoiMIQP, SequentialBendersMIQP
+from minlp_algorithms.solvers.external.bonmin import BonminSolver
+from minlp_algorithms.solvers.pumps import FeasibilityPump, ObjectiveFeasibilityPump, RandomObjectiveFeasibilityPump
 
 SOLVER_MODES = {
     "gbd": GeneralizedBenders,
@@ -17,7 +18,24 @@ SOLVER_MODES = {
     "oa-qp-i": OuterApproximationQPImproved,
     "s-v-miqp": SequentialVoronoiMIQP,
     "s-b-miqp": SequentialBendersMIQP,
+    "fp": FeasibilityPump,
+    "ofp": ObjectiveFeasibilityPump,
+    "rofp": RandomObjectiveFeasibilityPump,
+    "bonmin": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-BB"),
+    "bonmin-bb": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-BB"),
+    "bonmin-oa": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-OA"),
+    "bonmin-qg": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-QG"),
+    "bonmin-hyb": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-Hyb"),
+    "bonmin-ifp": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-iFP"),
 }
+
+
+def as_list(item, nr):
+    """Make list if it is not a list yet."""
+    if isinstance(item, list):
+        return item
+    else:
+        return [item] * nr
 
 
 class MinlpSolver(MiSolverClass):
@@ -36,24 +54,47 @@ class MinlpSolver(MiSolverClass):
 
         self.stats = stats
         self.settings = settings
-        super(MinlpSolver, self).__init___(problem, stats, settings)
+        super(MinlpSolver, self).__init__(problem, data, stats, settings)
 
         # Create actual solver
         if name in SOLVER_MODES:
-            self._subsolver = SOLVER_MODES[name](
+            self._subsolvers = [SOLVER_MODES[name](
                 problem, data, stats, settings, *args
-            )
+            )]
+            return
+        elif "+" in name:
+            names = name.split("+")
+            for name in names:
+                if name not in SOLVER_MODES:
+                    raise Exception(f"Subsolver {name} does not exists")
+            self._subsolvers = [
+                SOLVER_MODES[subname](
+                    problem, data, stats, setting, *args
+                ) for subname, setting in zip(names, as_list(settings, len(names)))
+            ]
         else:
-            raise Exception(f"Solver mode {name} not implemented!")
+            raise Exception(
+                f"Solver mode {name} not implemented, options are:"
+                + ", ".join(SOLVER_MODES.keys())
+            )
 
     def solve(self, nlpdata: MinlpData, *args, **kwargs) -> MinlpData:
         """Solve the problem."""
-        return self._subsolver.solve(nlpdata, *args, **kwargs)
+        nlpdata = self._subsolvers[0].solve(nlpdata, *args, **kwargs)
+        for subsolver in self._subsolvers[1:]:
+            subsolver.warmstart(nlpdata)
+            nlpdata = subsolver.solve(nlpdata, *args, **kwargs)
+
+        return nlpdata
 
     def reset(self, nlpdata: MinlpData):
         """Reset the results."""
-        self._subsolver.reset()
-        self.stats.data = {}
+        [subsolver.reset() for subsolver in self._subsolvers]
+        self.stats.reset()
+
+    def warmstart(self, nlpdata: MinlpData):
+        """Warmstart."""
+        self._subsolver[0].warmstart(nlpdata)
 
     def collect_stats(self):
         """Return the statistics."""

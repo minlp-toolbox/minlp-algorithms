@@ -102,13 +102,13 @@ def compute_infeasibility(g, lbg, ubg):
 class BendersRegionMasters(BendersMasterMILP):
     """Mixing the idea from Moritz with a slightly altered version of benders masters."""
 
-    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings, with_benders_master=True, early_exit=False):
+    def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings,
+                 with_benders_master=True, early_exit=False):
         """Create the benders constraint MILP."""
         super(BendersRegionMasters, self).__init__(
             problem, data, stats, s, with_lin_bounds=False)
         # Settings
         self.alpha_kronqvist = s.ALPHA_KRONQVIST
-        self.trust_region_feasibility_strategy = TrustRegionStrategy.GRADIENT_AMPLIFICATION
         self.trust_region_feasibility_rho = s.RHO_AMPLIFICATION
 
         if s.WITH_DEBUG:
@@ -142,10 +142,6 @@ class BendersRegionMasters(BendersMasterMILP):
 
         self._x = GlobalSettings.CASADI_VAR.sym("x_benders", problem.x.numel())
         self._x_bin = self._x[problem.idx_x_bin]
-        self.g_lowerapprox = LowerApproximation(self._x_bin, self._nu)
-        self.g_lowerapprox_oa = LowerApproximation(self._x, self._nu)
-        self.g_infeasible = LowerApproximation(self._x_bin, 0)
-        self.g_infeasible_oa = LowerApproximation(self._x, 0)
         self.idx_g_conv = problem.idx_g_conv
 
         self.options.update({"discrete": [
@@ -158,18 +154,10 @@ class BendersRegionMasters(BendersMasterMILP):
         self.mipgap_miqp = s.BRMIQP_GAP
         self.mipgap_milp = s.LBMILP_GAP
         self.options_master['gurobi.MIPGap'] = self.mipgap_milp
-
-        self.internal_lb = -ca.inf
-        self.sol_best_feasible = False
-        self.obj_inf_sol = ca.inf
-        self.sol_best = data._sol  # take a point as initialization
-        self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
+        self.early_exit = early_exit
         self._with_lb_milp = with_benders_master
         self.hessian_not_psd = problem.hessian_not_psd
-        self.with_oa_conv_cuts = True
-        self.trust_region_fails = False
-        self.early_exit = early_exit
-        self.early_lb_milp = False
+        self.reset(data)
 
     def _check_cut_valid(self, g, grad_g, x_best, x_sol, x_sol_obj):
         """Check if the cut is valid."""
@@ -447,11 +435,13 @@ class BendersRegionMasters(BendersMasterMILP):
                     f"Expected Range lb={self.internal_lb}  ub={self.y_N_val}")
 
     def update_relaxed_solution(self, nlpdata: MinlpData):
-        for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
-            if prev_feasible:
+        for solved, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
+            if solved:
                 # check if new best solution found
                 if np.isinf(self.internal_lb) or self.internal_lb > float(sol['f']):
-                    # self.sol_best['x'] = sol['x'][:self.nr_x_orig]  # warm start with relaxed solution
+                    if self.settings.USE_RELAXED_AS_WARMSTART:
+                        # warm start with relaxed solution
+                        self.sol_best['x'] = sol['x'][:self.nr_x_orig]
                     self.internal_lb = float(sol['f'])
             else:
                 raise ValueError("The relaxed NLP is not feasible.")
@@ -496,6 +486,11 @@ class BendersRegionMasters(BendersMasterMILP):
 
         nlpdata = get_solutions_pool(nlpdata, success, stats, self.settings,
                                      solution, self.idx_x_bin)
+
+        if not need_lb_milp:
+            # Update obj val of br-miqp to internal_lb to avoid update in GenenericDecomposition
+            for i in range(len(nlpdata.prev_solutions)):
+                nlpdata.prev_solutions[i]["f"] = self.internal_lb
         return nlpdata
 
     def _solve_tr_only(self, nlpdata: MinlpData):
@@ -541,23 +536,22 @@ class BendersRegionMasters(BendersMasterMILP):
         self.early_benders = False
         colored(f"New upper bound: {self.y_N_val}", "green")
 
-    def solve(self, nlpdata: MinlpData, integers_relaxed=False, prev_feasible=True) -> MinlpData:
-        # NOTE prev_feasible argument needed only for compatibility with Generic Decomposition.
-        """Solve."""
+    def add_solutions(self, nlpdata: MinlpData, integers_relaxed=False):
+        """Add solutions."""
         if integers_relaxed:
             self.update_relaxed_solution(nlpdata)
         else:
             needs_trust_region_update = False
-            for prev_feasible, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
+            for solved, sol in zip(nlpdata.solved_all, nlpdata.prev_solutions):
                 # check if new best solution found
                 nonzero = np.count_nonzero(
                     (sol['x'][:self.nr_x_orig] - self.sol_best['x'])[self.idx_x_bin])
-                if prev_feasible:
+                if solved:
                     self._gradient_correction(sol['x'], sol['lam_x'], nlpdata)
                     self._lowerapprox_oa(sol['x'], nlpdata)
                     needs_trust_region_update = True
                     if float(sol['f']) + self.settings.EPS < self.y_N_val:
-                        sol['x'] = sol['x'][:self.nr_g_orig]
+                        sol['x'] = sol['x'][:self.nr_x_orig]
                         self.update_sol(sol)
                     colored(
                         f"Regular Cut {float(sol['f']):.3f} - {nonzero}.", "blue")
@@ -588,8 +582,36 @@ class BendersRegionMasters(BendersMasterMILP):
 
             if needs_trust_region_update:
                 self._gradient_amplification()
+
+    def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
+        """Solve."""
+        self.add_solutions(nlpdata, integers_relaxed)
+
         self.update_options(integers_relaxed)
         if self._with_lb_milp:
             return self._solve_mix(nlpdata)
         else:
             return self._solve_tr_only(nlpdata)
+
+    def reset(self, nlpdata: MinlpData):
+        """Reset data."""
+        self.g_lowerapprox = LowerApproximation(self._x_bin, self._nu)
+        self.g_lowerapprox_oa = LowerApproximation(self._x, self._nu)
+        self.g_infeasible = LowerApproximation(self._x_bin, 0)
+        self.g_infeasible_oa = LowerApproximation(self._x, 0)
+        self.internal_lb = -ca.inf
+        self.sol_best_feasible = False
+        self.obj_inf_sol = ca.inf
+        self.sol_best = nlpdata._sol  # take a point as initialization
+        self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
+        self.with_oa_conv_cuts = True
+        self.trust_region_fails = False
+        self.early_lb_milp = False
+
+    def warmstart(self, nlpdata: MinlpData):
+        """Warmstart with new data."""
+        relaxed = self.stats.relaxed
+        if relaxed:
+            self.add_solutions(relaxed, True)
+
+        self.add_solutions(nlpdata)

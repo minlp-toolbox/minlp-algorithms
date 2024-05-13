@@ -49,6 +49,9 @@ There is a wide list of solvers included:
 | oa-qp-i | Quadratic outer approximation improved with safeguard for nonlinear constraints| x |
 | s-v-miqp | Sequential Voronoi-based MIQP with exact or Gauss-Newton Hessian ([Ghezzi et al, 2023](https://publications.syscop.de/Ghezzi2023a.pdf)) |  |
 | s-b-miqp | Sequential Benders-based MIQP ([Ghezzi, Van Roy, et al, 2024](https://arxiv.org/pdf/2404.11786)) | x |
+| fp | Feasibility Pump for MINLP$^{3}$ |  |
+| ofp | Objective Feasibility Pump for MINLP $^{4}$ |  |
+| rofp | Random Objective Feasibility Pump | x |
 | ~~ | BELOW TO UPDATE | ~~ |
 | benders_old_tr | Benders Region without gradient corrections (old implementation) starting from an integer point | x |
 | benders_old_tr_rel | Sequential-MIQP with Benders Region without gradient corrections (old implementation) starting from the relaxed point | x |
@@ -65,9 +68,6 @@ There is a wide list of solvers included:
 | bonmin-qg | An outer-approximation based branch-and-cut algorithm  [[Quesada Grossmann 1994\]](http://dx.doi.org/10.1016/0098-1354(92)80028-8) |  |
 | bonmin-ifp | An iterated feasibility pump algorithm   [[Bonami Cornuéjols Lodi Margot 2009\]](http://dx.doi.org/10.1007/s10107-008-0212-2)  . |  |
 | relaxed | Relaxed solution using ipopt |  |
-| fp | Feasibility Pump for MINLP$^{3}$ |  |
-| ofp | Objective Feasibility Pump for MINLP $^{4}$ |  |
-| rofp | Random Objective Feasibility Pump | x |
 | cia | Combinatorial Integral Approximation using pycombina [[Burger A. et al., 2020]](https://link.springer.com/article/10.1007/s00186-011-0355-4) |  |
 | milp_tr | MILP-based trust region approach [[De Marchi, 2023]](https://doi.org/10.48550/arXiv.2310.17285) | |
 |  | **Other 'solver'-like options:** |  |

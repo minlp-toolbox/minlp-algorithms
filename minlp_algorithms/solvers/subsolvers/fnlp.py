@@ -13,7 +13,7 @@ class FeasibilityNlpSolver(SolverClass):
 
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, s: Settings):
         """Create benders master MILP."""
-        super(FeasibilityNlpSolver, self).__init___(problem, stats, s)
+        super(FeasibilityNlpSolver, self).__init__(problem, stats, s)
         options = regularize_options(s.IPOPT_SETTINGS, {}, s)
 
         g = []
