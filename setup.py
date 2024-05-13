@@ -11,7 +11,6 @@ setup(
         "pandas",
         "casadi",
         "scipy",
-        "gurobipy",
         "pytz",
         "matplotlib",
         "parameterized",
