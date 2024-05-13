@@ -486,6 +486,11 @@ class BendersRegionMasters(BendersMasterMILP):
 
         nlpdata = get_solutions_pool(nlpdata, success, stats, self.settings,
                                      solution, self.idx_x_bin)
+
+        if not need_lb_milp:
+            # Update obj val of br-miqp to internal_lb to avoid update in GenenericDecomposition
+            for i in range(len(nlpdata.prev_solutions)):
+                nlpdata.prev_solutions[i]["f"] = self.internal_lb
         return nlpdata
 
     def _solve_tr_only(self, nlpdata: MinlpData):
