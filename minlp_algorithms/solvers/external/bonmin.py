@@ -3,7 +3,7 @@
 
 import casadi as ca
 from minlp_algorithms.solvers import MiSolverClass, Stats, MinlpProblem, MinlpData, \
-        regularize_options
+    regularize_options
 from minlp_algorithms.settings import Settings
 
 
@@ -16,7 +16,7 @@ class BonminSolver(MiSolverClass):
 
         :param algo_type: Algorithm type, options: B-BB, B-OA, B-QG, or B-Hyb
         """
-        super(BonminSolver, self).__init__(problem, stats, s)
+        super(BonminSolver, self).__init__(problem, data, stats, s)
         options = regularize_options(s.BONMIN_SETTINGS, {}, s)
 
         self.nr_x = problem.x.shape[0]

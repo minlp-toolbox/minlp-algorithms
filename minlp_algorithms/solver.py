@@ -6,6 +6,7 @@ from minlp_algorithms.data import MinlpData
 from minlp_algorithms.solvers.decomposition import GeneralizedBenders, GeneralizedBendersQP, \
     OuterApproximation, OuterApproximationQP, OuterApproximationImproved, OuterApproximationQPImproved, \
     SequentialVoronoiMIQP, SequentialBendersMIQP
+from minlp_algorithms.solvers.external.bonmin import BonminSolver
 from minlp_algorithms.solvers.pumps import FeasibilityPump, ObjectiveFeasibilityPump, RandomObjectiveFeasibilityPump
 
 SOLVER_MODES = {
@@ -19,7 +20,13 @@ SOLVER_MODES = {
     "s-b-miqp": SequentialBendersMIQP,
     "fp": FeasibilityPump,
     "ofp": ObjectiveFeasibilityPump,
-    "rofp": RandomObjectiveFeasibilityPump
+    "rofp": RandomObjectiveFeasibilityPump,
+    "bonmin": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-BB"),
+    "bonmin-bb": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-BB"),
+    "bonmin-oa": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-OA"),
+    "bonmin-qg": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-QG"),
+    "bonmin-hyb": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-Hyb"),
+    "bonmin-ifp": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-iFP"),
 }
 
 
