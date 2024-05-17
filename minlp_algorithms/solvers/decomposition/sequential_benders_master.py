@@ -9,6 +9,8 @@ from minlp_algorithms.solvers.utils import Constraints, get_solutions_pool, any_
 from enum import Enum
 import logging
 
+from minlp_algorithms.utils.conversion import to_0d
+
 logger = logging.getLogger(__name__)
 
 
