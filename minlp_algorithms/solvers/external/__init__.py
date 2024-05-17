@@ -1,1 +1,1 @@
-# TODO: Add description
+"""Collection of external solvers."""

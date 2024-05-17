@@ -10,6 +10,8 @@ import casadi as ca
 import numpy as np
 import logging
 
+from minlp_algorithms.utils.conversion import to_0d
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,7 +28,7 @@ class SolverClass(ABC):
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         """Solve the problem."""
 
-    def collect_stats(self, algo_name, solver=None):
+    def collect_stats(self, algo_name, solver=None, sol=None):
         """Collect statistics."""
         logger.info(f"Solved {algo_name}")
         if solver is None:
@@ -62,6 +64,12 @@ class SolverClass(ABC):
         self.stats[f"{algo_name}.runs"] += 1
         self.stats["t_solver_total"] += max(t_wall, t_proc)
         self.stats["success"] = stats["success"]
+        self.stats["iter_type"] = algo_name
+        if sol is not None:
+            self.stats["sol_x"] = to_0d(sol["x"])
+            self.stats["sol_obj"] = float(sol["f"])
+        if self.settings.WITH_LOG_DATA:
+            self.stats.save()
         return stats["success"], stats
 
 

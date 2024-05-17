@@ -2,8 +2,8 @@
 
 import unittest
 import casadi as ca
-from benders_exp.defines import CASADI_VAR
-from benders_exp.solvers import MinlpProblem, get_idx_linear_bounds_binary_x, \
+from minlp_algorithms.settings import GlobalSettings
+from minlp_algorithms.solvers import MinlpProblem, get_idx_linear_bounds_binary_x, \
     get_idx_linear_bounds
 
 
@@ -12,7 +12,7 @@ class TestSolverUtils(unittest.TestCase):
 
     def test_get_idx_linear_bounds(self):
         """Get indices for linear bounds."""
-        x = CASADI_VAR.sym("x", 4)
+        x = GlobalSettings.CASADI_VAR.sym("x", 4)
         f = x[0] + x[1] + x[2] + x[3]
         g = [
             x[0] + x[2],  # Linear on binary variables
@@ -21,7 +21,7 @@ class TestSolverUtils(unittest.TestCase):
             x[0] - x[2],  # Linear on binary
             x[1] + x[3],  # Linear
         ]
-        p = CASADI_VAR.sym("p", 0)
+        p = GlobalSettings.CASADI_VAR.sym("p", 0)
 
         problem = MinlpProblem(
             f=f, g=ca.vcat(g), x=x, p=p, idx_x_bin=[0, 2]

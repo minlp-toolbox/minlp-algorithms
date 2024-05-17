@@ -110,7 +110,7 @@ class OuterApproxMILP(SolverClass):
         x_full = solution['x'].full()[:self.nr_x]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
-        nlpdata.solved, stats = self.collect_stats("OA-MILP", solver)
+        nlpdata.solved, stats = self.collect_stats("OA-MILP", solver, solution)
         return nlpdata
 
     def reset(self, nlpdata: MinlpData):
@@ -121,12 +121,13 @@ class OuterApproxMILP(SolverClass):
 
     def warmstart(self, nlpdata: MinlpData):
         """Warmstart cuts."""
-        relaxed = self.stats.relaxed
+        relaxed = self.stats.relaxed_solution
         if self.stats.relaxed:
             self.add_solution(nlpdata, True, relaxed.solutions_all[0], True)
 
-        for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
-            self.add_solution(nlpdata, solved, solution)
+        if not nlpdata.relaxed:
+            for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
+                self.add_solution(nlpdata, solved, solution)
 
 
 class OuterApproxMIQP(OuterApproxMILP):
@@ -178,7 +179,7 @@ class OuterApproxMIQP(OuterApproxMILP):
         x_full = solution['x'].full()[:self.nr_x]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
-        nlpdata.solved, stats = self.collect_stats("OA-MIQP", solver)
+        nlpdata.solved, stats = self.collect_stats("OA-MIQP", solver, solution)
         return nlpdata
 
 
@@ -242,7 +243,8 @@ class OuterApproxMILPImproved(OuterApproxMILP):
         x_full = solution['x'].full()[:self.nr_x]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
-        nlpdata.solved, stats = self.collect_stats("OAI-MILP", solver)
+        nlpdata.solved, stats = self.collect_stats(
+            "OAI-MILP", solver, solution)
         return nlpdata
 
 
@@ -328,5 +330,6 @@ class OuterApproxMIQPImproved(OuterApproxMILP):
         x_full = solution['x'].full()[:self.nr_x]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
-        nlpdata.solved, stats = self.collect_stats("OAI-MIQP", solver)
+        nlpdata.solved, stats = self.collect_stats(
+            "OAI-MIQP", solver, solution)
         return nlpdata

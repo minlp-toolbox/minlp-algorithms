@@ -176,7 +176,8 @@ class VoronoiTrustRegionMIQP(SolverClass):
         nlpdata.prev_solution = solver(
             x0=x_sol_best, lbx=nlpdata.lbx, ubx=nlpdata.ubx, lbg=lbg, ubg=ubg)
 
-        nlpdata.solved, stats = self.collect_stats("VTR-MIQP", solver)
+        nlpdata.solved, stats = self.collect_stats(
+            "VTR-MIQP", solver, solution)
         return nlpdata
 
     def reset(self, nlpdata: MinlpData):  # TODO: to update, just copy paste from outer approx
@@ -190,11 +191,12 @@ class VoronoiTrustRegionMIQP(SolverClass):
 
     def warmstart(self, nlpdata: MinlpData):
         """Warmstart algorithm."""
-        relaxed = self.stats.relaxed
+        relaxed = self.stats.relaxed_solution
         if relaxed:
             self.add_solution(nlpdata, True, relaxed.solutions_all[0], True)
-        for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
-            self.add_solution(nlpdata, solved, solution)
+        if not nlpdata.relaxed:
+            for solved, solution in zip(nlpdata.solved_all, nlpdata.solutions_all):
+                self.add_solution(nlpdata, solved, solution)
 
     def _generate_infeasible_cut(self, x, x_sol, lam_g, p):
         """Generate infeasibility cut."""

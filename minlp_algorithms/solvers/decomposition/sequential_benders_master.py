@@ -6,7 +6,6 @@ from minlp_algorithms.utils import colored
 from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.solvers.decomposition.benders_master import BendersMasterMILP
 from minlp_algorithms.solvers.utils import Constraints, get_solutions_pool, any_equal
-from minlp_algorithms.solvers.tighten import tighten_bounds_x
 from enum import Enum
 import logging
 
@@ -110,6 +109,7 @@ class BendersRegionMasters(BendersMasterMILP):
         # Settings
         self.alpha_kronqvist = s.ALPHA_KRONQVIST
         self.trust_region_feasibility_rho = s.RHO_AMPLIFICATION
+        self.sol_infeasibility = 0.0
 
         if s.WITH_DEBUG:
             self.problem = problem
@@ -368,7 +368,7 @@ class BendersRegionMasters(BendersMasterMILP):
             ubg=g_total.ub,
             p=[constraint]
         )
-        success, stats = self.collect_stats("BR-MIQP", solver)
+        success, stats = self.collect_stats("BR-MIQP", solver, solution)
         if (stats['return_status'] == "TIME_LIMIT" and not np.any(np.isnan(solution['x'].full()))):
             success = True
         return solution, success, stats
@@ -407,7 +407,7 @@ class BendersRegionMasters(BendersMasterMILP):
             ubx=ca.vertcat(nlpdata.ubx, self.y_N_val),
             lbg=lbg, ubg=ubg
         )
-        success, stats = self.collect_stats("LB-MILP", solver)
+        success, stats = self.collect_stats("LB-MILP", solver, solution)
         if not success:
             if not self.sol_best_feasible:
                 raise Exception(
@@ -447,11 +447,6 @@ class BendersRegionMasters(BendersMasterMILP):
                 raise ValueError("The relaxed NLP is not feasible.")
 
         self._gradient_corrections_old_cuts()
-
-    def _tighten(self, nlpdata: MinlpData):
-        """Tighten bounds."""
-        tighten_bounds_x(nlpdata, self.g_lowerapprox.to_generic(nu=self.y_N_val),
-                         self.idx_x_bin, self._x, self.nr_x_orig)
 
     def _solve_mix(self, nlpdata: MinlpData):
         """Preparation for solving both Benders region master problem (BR-MIQP) and lower bound master problem (LB-MILP)."""
@@ -610,8 +605,9 @@ class BendersRegionMasters(BendersMasterMILP):
 
     def warmstart(self, nlpdata: MinlpData):
         """Warmstart with new data."""
-        relaxed = self.stats.relaxed
+        relaxed = self.stats.relaxed_solution
         if relaxed:
             self.add_solutions(relaxed, True)
 
-        self.add_solutions(nlpdata)
+        if not nlpdata.relaxed:
+            self.add_solutions(nlpdata)

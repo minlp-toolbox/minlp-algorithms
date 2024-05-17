@@ -36,12 +36,12 @@ class PumpBase(MiSolverClass):
 
     def solve(self, nlpdata: MinlpData, integers_relaxed: bool = False) -> MinlpData:
         """Solve the problem."""
-        if self.stats.relaxed is None:
+        if self.stats.relaxed_solution is None:
             if not integers_relaxed:
                 nlpdata = self.nlp.solve(nlpdata)
-            self.stats.relaxed = nlpdata
+            self.stats.relaxed_solution = nlpdata
         else:
-            nlpdata = self.stats.relaxed
+            nlpdata = self.stats.relaxed_solution
 
         relaxed_value = nlpdata.obj_val
         prev_x = []
@@ -93,4 +93,5 @@ class PumpBase(MiSolverClass):
 
     def warmstart(self, nlpdata: MinlpData):
         """Warmstart."""
-        self.update_best_solutions(nlpdata)
+        if not nlpdata.relaxed:
+            self.update_best_solutions(nlpdata)

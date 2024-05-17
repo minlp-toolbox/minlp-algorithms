@@ -8,7 +8,6 @@ import numpy as np
 import casadi as ca
 import logging
 from time import perf_counter
-from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.problems import MinlpData, MinlpProblem, MetaDataOcp
 
 logger = logging.getLogger(__name__)
@@ -25,9 +24,6 @@ except Exception:
         logger.info(text)
 
 perf_ti = None
-CALLBACK_INPUTS = dict()
-for i, label in enumerate(ca.nlpsol_out()):
-    CALLBACK_INPUTS[label] = i
 
 
 def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
@@ -191,82 +187,3 @@ def plot_trajectory(
 
     plt.tight_layout()
     return fig, axs
-
-
-class DebugCallBack(ca.Callback):
-    """
-    Create a debug callback.
-
-    Usage:
-        options = {}
-        mycallback = DebugCallBack('Name', nx, ng, np, options)
-        mycallback.add_to_solver_opts(options)
-        ... Construct your solver as usual with options 'options' ...
-
-        Every few iterations, the values for x will be written to a file in
-        the datafolder.
-
-    :param name: name of the callback function
-    :param nx: Nr of x variables
-    :param ng: Nr of g constraints
-    :param np: Nr of parameters p
-    :param opts: Additional options
-    """
-
-    def __init__(self, name, nx: int, ng: int, np: int, opts=None):
-        """Create the debug call back for casadi."""
-        ca.Callback.__init__(self)
-        if opts is None:
-            opts = {}
-
-        self.nx = nx
-        self.ng = ng
-        self.np = np
-        self.iter_nr = 0
-        self.name = name
-        # Initialize internal objects
-        self.construct(name, opts)
-
-    def add_to_solver_opts(self, options, iter_per_callback=50):
-        """
-        Add to the solver options.
-
-        :param options: options of the nlp
-        :param iter_per_callback: nr of iters per callback
-        """
-        options["iteration_callback"] = self
-        options['iteration_callback_step'] = iter_per_callback
-        return options
-
-    def get_n_in(self):
-        """Get number of inputs."""
-        return ca.nlpsol_n_out()
-
-    def get_n_out(self):
-        """Get number of outputs."""
-        return 1
-
-    def get_sparsity_in(self, i):
-        """Get sparsity of matrices."""
-        n = ca.nlpsol_out(i)
-        if n == 'f':
-            return ca.Sparsity.scalar()
-        elif n in ('x', 'lam_x'):
-            return ca.Sparsity.dense(self.nx)
-        elif n in ('g', 'lam_g'):
-            return ca.Sparsity.dense(self.ng)
-        elif n in ('p', 'lam_p'):
-            return ca.Sparsity.dense(self.np)
-        else:
-            return ca.Sparsity(0, 0)
-
-    def save(self, x):
-        """Save the x variable."""
-        self.iter_nr += 1
-        np.save(GlobalSettings.DATA_FOLDER + f"/x_{self.name}_{self.iter}", x.full())
-
-    def eval(self, arg):
-        """Evaluate the callback."""
-        x = arg[CALLBACK_INPUTS["x"]]
-        self.save(x)
-        return [0]

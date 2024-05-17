@@ -2,10 +2,14 @@
 
 import casadi as ca
 import numpy as np
+import logging
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData, \
     regularize_options
 from minlp_algorithms.settings import GlobalSettings, Settings
+from minlp_algorithms.utils import colored
 from minlp_algorithms.utils.conversion import to_0d
+
+logger = logging.getLogger(__name__)
 
 
 class NlpSolver(SolverClass):
@@ -60,14 +64,14 @@ class NlpSolver(SolverClass):
                 lbx[self.idx_x_bin] = x_bin_var
                 ubx[self.idx_x_bin] = x_bin_var
 
-            new_sol = self.solver(
+            sol_new = self.solver(
                 p=nlpdata.p, x0=nlpdata.x0,
                 lbx=lbx, ubx=ubx,
                 lbg=nlpdata.lbg,
                 ubg=nlpdata.ubg
             )
 
-            success, stats = self.collect_stats("NLP")
+            success, stats = self.collect_stats("NLP", sol=sol_new)
             if not success:
                 return_status_ok = stats["return_status"] in [
                     "Search_Direction_Becomes_Too_Small", "Maximum_Iterations_Exceeded",
@@ -76,14 +80,14 @@ class NlpSolver(SolverClass):
                     "Not_Enough_Degrees_Of_Freedom", "Insufficient_Memory"
                 ]
                 if return_status_ok:
-                    gk = self.g(new_sol['x'], nlpdata.p).full()
+                    gk = self.g(sol_new['x'], nlpdata.p).full()
                     if np.all(gk <= nlpdata.ubg) and np.all(gk >= nlpdata.lbg):
                         success = True
             if not success:
-                print("NLP not solved")
+                logger.warning(colored("NLP not solved.", "yellow"))
 
             success_out.append(success)
-            sols_out.append(new_sol)
+            sols_out.append(sol_new)
 
         nlpdata.prev_solutions = sols_out
         nlpdata.solved_all = success_out
