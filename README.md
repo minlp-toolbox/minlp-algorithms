@@ -58,6 +58,13 @@ You can enable or change options using environmental variables:
 |ampl | Export to ampl format (experimental) |  |
 |test | Test a problem by listing all objective values around the relaxed solution for every perturbation of 1 variables (making it integer) together with the gradient value | |
 
+### Warm starting
+It is possible to warm start every solver with the solution of another by concatenating the desired solvers when executing `python3 minlp_algorithms`.
+For instance, to combine use the solution of the feasibility pump as a warm start to sequential Benders-based MIQP, execute the following:
+```
+python3 minlp_algorithms <mode> fp+s-b-miqp <problem>
+
+```
 
 ## Install pycombina
 

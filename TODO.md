@@ -16,7 +16,7 @@
 [x] check stats \
 [x] adapt tests \
 [ ] update readme \
-[ ] add example file \
+[x] add example file \
 [x] external/ampl it works? --> added disclaimer \
 [ ] delete old files \
 [ ] add license header everywhere \
