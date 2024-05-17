@@ -30,7 +30,8 @@ class RandomDirectionProjection(SolverClass):
         x_bin_var = problem.x[self.idx_x_bin]
         self.nr_x_bin = x_bin_var.shape[0]
         penalty = GlobalSettings.CASADI_VAR.sym("penalty", self.nr_x_bin)
-        rounded_value = GlobalSettings.CASADI_VAR.sym("rounded_value", x_bin_var.shape[0])
+        rounded_value = GlobalSettings.CASADI_VAR.sym(
+            "rounded_value", x_bin_var.shape[0])
         alpha = GlobalSettings.CASADI_VAR.sym("alpha", 1)
         self.alpha = 1.0
         self.alpha_reduction = 0.9
@@ -39,10 +40,12 @@ class RandomDirectionProjection(SolverClass):
 
         self.max_rounding_error = x_bin_var.shape[0]
         if norm == 1:
-            penalty_term = ca.sum1(ca.fabs(x_bin_var - rounded_value) * penalty)
+            penalty_term = ca.sum1(
+                ca.fabs(x_bin_var - rounded_value) * penalty)
             self.int_error_calc = lambda x, y: float(ca.norm_1((x - y)))
         else:
-            penalty_term = ca.norm_2((x_bin_var - rounded_value) * penalty) ** 2
+            penalty_term = ca.norm_2(
+                (x_bin_var - rounded_value) * penalty) ** 2
             self.int_error_calc = lambda x, y: float(ca.norm_2((x - y)) ** 2)
 
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
@@ -66,7 +69,8 @@ class RandomDirectionProjection(SolverClass):
 
             penalty = np.random.rand(len(self.idx_x_bin))
             total = float(ca.sum1(penalty)) / self.nr_x_bin
-            logger.info(f"{nlpdata.obj_val=:.3} rounding error={int_error:.3f} " f"- weight {float(self.alpha):.3e}")
+            logger.info(
+                f"{nlpdata.obj_val=:.3} rounding error={int_error:.3f} " f"- weight {float(self.alpha):.3e}")
             if self.alpha < 1e-4:
                 self.alpha = 0
 
@@ -76,7 +80,7 @@ class RandomDirectionProjection(SolverClass):
                     [self.alpha / total, int_error, nlpdata.obj_val])),
             )
 
-            success, _ = self.collect_stats("RNLP")
+            success, _ = self.collect_stats("RNLP", sol=new_sol)
             if not success:
                 logger.debug("Infeasible solution!")
             success_out.append(success)

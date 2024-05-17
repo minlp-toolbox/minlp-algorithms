@@ -22,14 +22,15 @@ class MinlpData:
     _ubx: ca.DM
     _lbg: ca.DM
     _ubg: ca.DM
-    prev_solutions: Optional[List[Dict[str, Any]]] = None
+    _prev_solutions: Optional[List[Dict[str, Any]]] = None
     solved_all: List[bool] = field(default_factory=lambda: [True])
     best_solutions: Optional[list] = field(default_factory=lambda: [])
+    relaxed: bool = False
 
     @property
     def nr_sols(self):
-        if self.prev_solutions:
-            return len(self.prev_solutions)
+        if self._prev_solutions:
+            return len(self._prev_solutions)
         else:
             return 1
 
@@ -44,15 +45,15 @@ class MinlpData:
     @property
     def _sol(self):
         """Get safely previous solution."""
-        if self.prev_solutions is not None:
-            return self.prev_solutions[0]
+        if self._prev_solutions is not None:
+            return self._prev_solutions[0]
         else:
             return {"f": -ca.inf, "x": ca.DM(self.x0)}
 
     @property
     def solutions_all(self):
-        if self.prev_solutions is not None:
-            return self.prev_solutions
+        if self._prev_solutions is not None:
+            return self._prev_solutions
         else:
             return [{"f": -ca.inf, "x": ca.DM(self.x0)}]
 
@@ -84,6 +85,17 @@ class MinlpData:
     @prev_solution.setter
     def prev_solution(self, value):
         self.prev_solutions = [value]
+        self.relaxed = False
+
+    @property
+    def prev_solutions(self):
+        """Get all previous solutions."""
+        return self._prev_solutions
+
+    @prev_solutions.setter
+    def prev_solutions(self, value):
+        self._prev_solutions = value
+        self.relaxed = False
 
     @property
     def lbx(self):

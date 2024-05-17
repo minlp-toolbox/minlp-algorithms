@@ -88,7 +88,7 @@ class FeasibilityNlpSolver(SolverClass):
                     lambda_g_req[idx] = sgn * lg
                 sol_new['lam_g'] = ca.DM(lambda_g_req)
 
-                success, _ = self.collect_stats("F-NLP")
+                success, _ = self.collect_stats("F-NLP", sol=sol_new)
                 if not success:
                     print("FNLP not solved")
                     raise Exception()

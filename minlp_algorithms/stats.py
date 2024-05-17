@@ -15,7 +15,7 @@ from minlp_algorithms.data import MinlpData
 @dataclass()
 class Stats:
     """
-    Collecting statsistics
+    Collecting statistics
 
 
     There are some shared properties between the algorithms:
@@ -49,13 +49,13 @@ class Stats:
         self.data[key] = value
 
     @property
-    def relaxed(self):
+    def relaxed_solution(self):
         """Relaxed value."""
         return deepcopy(self._relaxed)
 
-    @relaxed.setter
-    def relaxed(self, value):
-        """Set relaxed value."""
+    @relaxed_solution.setter
+    def relaxed_solution(self, value):
+        """Set relaxed solution value."""
         self._relaxed = deepcopy(value)
 
     def print(self):

@@ -1,6 +1,6 @@
 import numpy as np
 import casadi as ca
-from minlp_algorithms.settings import GlobalSettings
+from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.problems import MinlpProblem, MinlpData, \
     MetaDataOcp
 from minlp_algorithms.problems.dsc import Description
@@ -66,7 +66,12 @@ def particle_trajectory():
         n_continuous_control=1,
         n_discrete_control=0,
         idx_state=np.vstack(dsc.get_indices("x")),
-        idx_control=np.vstack(dsc.get_indices("u"))[:,0],
+        idx_control=np.vstack(dsc.get_indices("u"))[:, 0],
     )
     data = dsc.get_data()
-    return problem, data
+    s = Settings()
+    s.MIP_SETTINGS_ALL["gurobi"].update({
+        "gurobi.PoolSearchMode": 1,
+        "gurobi.PoolSolutions": 3,
+    })
+    return problem, data, s

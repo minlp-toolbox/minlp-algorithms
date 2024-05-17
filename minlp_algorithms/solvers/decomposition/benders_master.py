@@ -56,11 +56,12 @@ class BendersMasterMILP(SolverClass):
 
     def warmstart(self, data):
         """Warmstart algorithm."""
-        for solution in data.best_solutions:
-            self.add_solution(
-                data, solution['x'], solution['lam_g'],
-                solution['lam_x'], True
-            )
+        if not data.relaxed:
+            for solution in data.best_solutions:
+                self.add_solution(
+                    data, solution['x'], solution['lam_g'],
+                    solution['lam_x'], True
+                )
 
     def setup_common(self, problem: MinlpProblem, s: Settings):
         """Set up common data."""
@@ -81,8 +82,8 @@ class BendersMasterMILP(SolverClass):
         self._nu = GlobalSettings.CASADI_VAR.sym("nu", 1)
         self.nr_g_orig = problem.g.shape[0]
         self.nr_x_orig = problem.x.shape[0]
-        self.options["discrete"] = [
-            1 if i in self.idx_x_bin else 0 for i in range(self.nr_x_orig)]
+        self.options["discrete"] = np.ones_like(
+            problem.idx_x_bin).tolist() + [0]
 
     def _generate_cut_equation(self, x, x_sol, x_sol_sub_set, lam_g, lam_x, p, lbg, ubg, prev_feasible):
         r"""
@@ -148,7 +149,6 @@ class BendersMasterMILP(SolverClass):
             self.add_solution(
                 nlpdata, nlpdata.x_sol, nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.solved
             )
-
         solver = ca.qpsol(f"benders_with_{self.nr_g}_cut", self.settings.MIP_SOLVER, {
             "f": self._nu, "g": self._g,
             "x": ca.vertcat(self._x, self._nu),
@@ -166,7 +166,8 @@ class BendersMasterMILP(SolverClass):
         x_full[self.idx_x_bin] = solution['x'][:-1]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
-        nlpdata.solved, stats = self.collect_stats("BENDERS-MILP", solver)
+        nlpdata.solved, stats = self.collect_stats(
+            "BENDERS-MILP", solver, solution)
         return nlpdata
 
 
@@ -223,7 +224,8 @@ class BendersMasterMIQP(BendersMasterMILP):
         x_full[self.idx_x_bin] = solution['x'][:-1]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
-        nlpdata.solved, stats = self.collect_stats("BENDERS-MIQP", solver)
+        nlpdata.solved, stats = self.collect_stats(
+            "BENDERS-MIQP", solver, solution)
         return nlpdata
 
 
@@ -353,7 +355,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
             p=[self.y_N_val - 1e-4]
         )
 
-        nlpdata.solved, stats = self.collect_stats("BTR-MIP", solver)
+        nlpdata.solved, stats = self.collect_stats("BTR-MIP", solver, sol)
         if nlpdata.solved:
             nlpdata.prev_solution = sol
         else:

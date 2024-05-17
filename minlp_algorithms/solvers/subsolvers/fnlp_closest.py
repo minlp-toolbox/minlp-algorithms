@@ -63,7 +63,7 @@ class FindClosestNlpSolver(SolverClass):
                 else:
                     distance = ca.dot(x_best - x_bin_var, x_best - x_bin_var)
 
-                new_sol = self.solver(
+                sol_new = self.solver(
                     x0=nlpdata.x0,
                     lbx=lbx, ubx=ubx,
                     lbg=ca.vertcat(
@@ -79,16 +79,16 @@ class FindClosestNlpSolver(SolverClass):
 
                     )
                 )
-                new_sol['x_infeasible'] = sol['x']
-                success, _ = self.collect_stats("FC-NLP")
+                sol_new['x_infeasible'] = sol['x']
+                success, _ = self.collect_stats("FC-NLP", sol=sol_new)
                 if not success:
                     print("FC-NLP not solved")
-                if float(new_sol['f']) < self.settings.CONSTRAINT_INT_TOL**2:
+                if float(sol_new['f']) < self.settings.CONSTRAINT_INT_TOL**2:
                     success_out.append(True)
                     sols_out.append(sol)
                 else:
                     success_out.append(False)
-                    sols_out.append(new_sol)
+                    sols_out.append(sol_new)
 
         nlpdata.prev_solutions = sols_out
         nlpdata.solved_all = success_out

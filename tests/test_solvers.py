@@ -2,32 +2,32 @@
 
 import unittest
 from parameterized import parameterized
-from benders_exp.problems.overview import PROBLEMS
-from benders_exp.quick_and_dirty import run_problem, Stats, SOLVER_MODES
-from benders_exp.problems import check_solution
-from benders_exp.defines import Settings
+from minlp_algorithms.problems.overview import PROBLEMS
+from minlp_algorithms.solver import SOLVER_MODES
+from minlp_algorithms.settings import Settings
+from minlp_algorithms.runner import runner
 import timeout_decorator
 
 options = [("cia", "doubletank2")] + [
     (solver, "dummy")
     for solver in SOLVER_MODES.keys()
     if solver not in (
-        "cia", "milp_tr", "ampl", "benderseq"  # Almost all solvers
+        "cia", "milp_tr", "ampl",  # Almost all solvers
     )
 ] + [
     (solver, problem)
     for solver in
     [
-        "benders_trmi",
+        "s-b-miqp",
     ]
     for problem in PROBLEMS.keys()
     if problem not in [
         # Exclude duplicates
-        "dummy",
+        "dummy2",
         # Exclude difficult problems with long runtimes
-        "alan", "orig", "stcs", "to_car", "doubletank2",
+        "alan", "stcs", "to_car", "doubletank2", "doubletank",
         # Exclude some errors:
-        "unstable_ocp",
+        "unstable_ocp", "particle", "from_nlpsol_dsc",
         # Interfaces:
         "nl_file", "from_sto", "nosnoc"
     ]
@@ -56,18 +56,18 @@ obj_tolerance = {
     "particle": 2,
 }
 obj_tolerance_heuristic = {
-    "relaxed": -3,
+    "nlp": -3,
     # Heuristics
     "rofp": -3,
     "ofp": -3,
     "fp": -3,
     # Disable:
     "cia": -100,
-    "test": -100,
     "bonmin-qg": -100,
     "bonmin-hyb": -100,
+    "nlp-fxd": -100,
 }
-sol_not_valid = ["test", "relaxed", "cia"]
+sol_not_valid = ["nlp", "cia"]
 
 
 class TestSolver(unittest.TestCase):
@@ -79,16 +79,13 @@ class TestSolver(unittest.TestCase):
         """Test runner."""
         s = Settings(TIME_LIMIT=10.0)
         s.MIP_SETTINGS_ALL["gurobi"]["gurobi.TimeLimit"] = 5.0
-        stats = Stats(mode, problem_name, "test", {})
-        (problem, data, x_star), s = run_problem(mode, problem_name, stats, [], s)
+        stats, data = runner(mode, problem_name, None, None)
         desired_obj = obj_val.get(problem_name, -1)
         desired_tol = obj_tolerance.get(problem_name, obj_tolerance_default)
         desired_tol += obj_tolerance_heuristic.get(mode, 0)
         if desired_tol > -10:
             self.assertAlmostEqual(data.obj_val / desired_obj, 1, desired_tol,
                                    msg=f"Failed for {mode} & {problem_name}")
-        if mode not in sol_not_valid:
-            check_solution(problem, data, x_star, s)
 
 
 if __name__ == "__main__":

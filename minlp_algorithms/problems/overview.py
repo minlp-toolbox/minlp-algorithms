@@ -527,8 +527,8 @@ def create_from_sto(file, with_uptime=True):
     return problem, data
 
 
-def create_from_nlp(file):
-    """Create a problem from nlp."""
+def create_from_nlpsol_description(file):
+    """Create a problem from casadi nlpsol description."""
     from minlp_algorithms.utils.data import load_pickle
 
     data = load_pickle(file)
@@ -570,7 +570,7 @@ PROBLEMS = {
     "nl_file": create_from_nl_file,
     "nosnoc": create_from_nosnoc,
     "from_sto": create_from_sto,
-    "nlp": create_from_nlp,
+    "from_nlpsol_dsc": create_from_nlpsol_description,
     "to_car": time_opt_car,
     "particle": particle_trajectory
 }
@@ -582,17 +582,17 @@ if __name__ == '__main__':
     from minlp_algorithms.utils import plot_trajectory
     from minlp_algorithms.utils.conversion import to_0d
     import matplotlib.pyplot as plt
-    from minlp_algorithms.solvers.voronoi import VoronoiTrustRegionMILP
+    from minlp_algorithms.solvers.decomposition.voronoi_master import VoronoiTrustRegionMIQP
 
-    stats = Stats({})
-    prob, data = create_ocp_unstable_system()
+    stats = Stats(mode='custom', problem_name='unstable_ocp')
+    prob, data, settings = create_ocp_unstable_system()
 
-    nlp = NlpSolver(prob, stats)
+    nlp = NlpSolver(prob, stats, settings)
     data = nlp.solve(data, set_x_bin=False)
     print(f"Relaxed  {data.obj_val=}")
 
     # Solve MIQP around MINLP solution
-    miqp = VoronoiTrustRegionMILP(prob, data, stats)
+    miqp = VoronoiTrustRegionMIQP(prob, data, stats, settings)
     data = miqp.solve(data, prev_feasible=True, is_qp=True)
 
     data = nlp.solve(data, set_x_bin=True)

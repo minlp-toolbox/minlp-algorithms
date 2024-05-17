@@ -116,7 +116,8 @@ class PycombinaSolver(SolverClass):
             else:
                 raise NotImplementedError()
         else:
-            time_array = np.arange(0, N*self.meta.dt, self.meta.dt)  # Assumes uniform grid
+            # Assumes uniform grid
+            time_array = np.arange(0, N*self.meta.dt, self.meta.dt)
         binapprox = BinApprox(time_array, b_rel)
 
         value_set = False
@@ -124,7 +125,8 @@ class PycombinaSolver(SolverClass):
             value_set = True
             if isinstance(self.meta.min_downtime, np.ndarray):
                 if self.meta.min_downtime.shape[0] == self.meta.n_discrete_control:
-                    min_downtimes = np.concatenate([self.meta.min_downtime, np.zeros(1)])
+                    min_downtimes = np.concatenate(
+                        [self.meta.min_downtime, np.zeros(1)])
                     binapprox.set_min_down_times(min_downtimes)
             else:
                 binapprox.set_min_down_times(
@@ -134,7 +136,8 @@ class PycombinaSolver(SolverClass):
             value_set = True
             if isinstance(self.meta.min_uptime, np.ndarray):
                 if self.meta.min_uptime.shape[0] == self.meta.n_discrete_control:
-                    min_uptimes = np.concatenate([self.meta.min_uptime, np.zeros(1)])
+                    min_uptimes = np.concatenate(
+                        [self.meta.min_uptime, np.zeros(1)])
                     binapprox.set_min_down_times(min_uptimes)
             else:
                 binapprox.set_min_up_times(
@@ -149,7 +152,8 @@ class PycombinaSolver(SolverClass):
         combina = CombinaBnB(binapprox)
         combina.solve()
         b_bin = binapprox.b_bin[:-1, :].T.flatten()
-        idx_bin_control = np.array(self.meta.idx_bin_control).flatten().tolist()
+        idx_bin_control = np.array(
+            self.meta.idx_bin_control).flatten().tolist()
         nlpdata.x_sol[idx_bin_control] = b_bin
 
         return nlpdata

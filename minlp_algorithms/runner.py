@@ -103,10 +103,7 @@ def runner(solver_name, problem_name, target_file, args):
     logger.info(f"Start mode {solver_name}")
     data = solver.solve(data)
     solved, stats = solver.collect_stats()
-
     stats.print()
-    if settings.WITH_LOG_DATA:
-        stats.save()
 
     if target_file is not None:
         if isinstance(problem.meta, MetaDataOcp) and problem.meta.dump_solution is not None:

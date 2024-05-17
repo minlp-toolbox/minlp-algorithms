@@ -45,7 +45,8 @@ class BonminSolver(MiSolverClass):
             lbg=nlpdata.lbg, ubg=nlpdata.ubg,
             p=nlpdata.p,
         )
-        nlpdata.solved, stats = self.collect_stats("MINLP")
+        nlpdata.solved, stats = self.collect_stats(
+            "MINLP", sol=nlpdata.prev_solutions[-1])
         return nlpdata
 
     def reset(self, nlpdata: MinlpData):

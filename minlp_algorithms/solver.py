@@ -8,6 +8,8 @@ from minlp_algorithms.solvers.decomposition import GeneralizedBenders, Generaliz
     SequentialVoronoiMIQP, SequentialBendersMIQP
 from minlp_algorithms.solvers.external.bonmin import BonminSolver
 from minlp_algorithms.solvers.pumps import FeasibilityPump, ObjectiveFeasibilityPump, RandomObjectiveFeasibilityPump
+from minlp_algorithms.solvers.approximation import CiaSolver
+from minlp_algorithms.solvers.relaxation import NlpSolver
 
 SOLVER_MODES = {
     "gbd": GeneralizedBenders,
@@ -27,6 +29,9 @@ SOLVER_MODES = {
     "bonmin-qg": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-QG"),
     "bonmin-hyb": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-Hyb"),
     "bonmin-ifp": lambda *args, **kwargs: BonminSolver(*args, **kwargs, algo_type="B-iFP"),
+    "cia": CiaSolver,
+    "nlp": lambda *args, **kwargs: NlpSolver(*args, **kwargs, set_bin=False),
+    "nlp-fxd": lambda *args, **kwargs: NlpSolver(*args, **kwargs, set_bin=True),
 }
 
 

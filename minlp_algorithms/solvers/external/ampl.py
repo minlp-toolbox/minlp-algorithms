@@ -1,4 +1,5 @@
-# TODO: Refactor or remove
+# DISCLAIMER: this implementation is experimental and in general it does not work!
+
 import casadi as ca
 from minlp_algorithms.settings import Settings
 from minlp_algorithms.solvers import SolverClass, Stats, MinlpProblem, MinlpData
