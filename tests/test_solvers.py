@@ -12,7 +12,7 @@ options = [("cia", "doubletank2")] + [
     (solver, "dummy")
     for solver in SOLVER_MODES.keys()
     if solver not in (
-        "cia", "milp_tr", "ampl",  # Almost all solvers
+        "cia", "s-tr-milp", "ampl",  # Almost all solvers
     )
 ] + [
     (solver, problem)
