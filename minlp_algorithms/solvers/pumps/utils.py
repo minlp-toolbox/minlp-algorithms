@@ -31,14 +31,6 @@ def create_rounded_data(data: MinlpData, idx_x_bin):
     return datarounded
 
 
-def any_equal(x_current, x_best, idx_x_bin):
-    for x in x_best:
-        if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=1e-2):
-            logging.info("Terminated - all close within 1e-2")
-            return True
-    return False
-
-
 def perturbe_x(x_current, idx_x_bin):
     """
     Perturbe x as described in:

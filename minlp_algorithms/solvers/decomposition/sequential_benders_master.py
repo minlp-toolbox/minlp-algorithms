@@ -469,7 +469,7 @@ class BendersRegionMasters(BendersMasterMILP):
                 self.early_lb_milp = True
 
             if success:
-                if any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin):
+                if any_equal(solution['x'], [sol['x'] for sol in nlpdata.best_solutions], self.idx_x_bin):
                     colored("BR-MIQP stagnates, need LB-MILP problem.", "yellow")
                     need_lb_milp = True
             else:
