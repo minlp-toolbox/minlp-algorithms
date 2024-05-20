@@ -159,7 +159,11 @@ class BendersRegionMasters(BendersMasterMILP):
 
         self.mipgap_miqp = s.BRMIQP_GAP
         self.mipgap_milp = s.LBMILP_GAP
-        self.options_master['gurobi.MIPGap'] = self.mipgap_milp
+        if self.settings.MIP_SOLVER == "gurobi":
+            self.mipgap_options_str = "gurobi.MIPGap"
+        elif self.settings.MIP_SOLVER == "highs":
+            self.mipgap_options_str = 'highs.mip_rel_gap'
+        self.options_master[self.mipgap_options_str] = self.mipgap_milp
         self.early_exit = early_exit
         self._with_lb_milp = with_benders_master
         self.hessian_not_psd = problem.hessian_not_psd
@@ -434,9 +438,9 @@ class BendersRegionMasters(BendersMasterMILP):
 
         if relaxed:
             # self.options['gurobi.MIPGap'] = 1.0
-            self.options['gurobi.MIPGap'] = self.mipgap_miqp
+            self.options[self.mipgap_options_str] = self.mipgap_miqp
         else:
-            self.options['gurobi.MIPGap'] = self.mipgap_miqp
+            self.options[self.mipgap_options_str] = self.mipgap_miqp
         logger.info(f"MIP Gap set to {self.mipgap_miqp} - "
                     f"Expected Range lb={self.internal_lb}  ub={self.y_N_val}")
 
@@ -502,7 +506,7 @@ class BendersRegionMasters(BendersMasterMILP):
         else:
             constraint = self.y_N_val * 0.99
 
-        self.options['gurobi.MIPGap'] = self.mipgap_miqp
+        self.options[self.mipgap_options_str] = self.mipgap_miqp
         solution, success, stats = self._solve_br_miqp_problem(
             nlpdata, constraint)
         if not success:
