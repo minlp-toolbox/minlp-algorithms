@@ -56,8 +56,6 @@ You can enable or change options using environmental variables:
 | cia | Combinatorial Integral Approximation ([Sager, et al, 2011](https://link.springer.com/article/10.1007/s00186-011-0355-4)) using `pycombina` ([Buerger, et al, 2020](https://publications.syscop.de/Buerger2020a.pdf)) -- installation instructions below|  |  |
 | nlp | Solve the canonical relaxation of the MINLP (integers are relaxed to continuous variables) |  |  |
 | nlp-fxd | Fix the integer variables of the MINLP and solve the corresponding NLP|  |  |
-| ~~ | BELOW TO UPDATE | ~~ |
-| benderseq | *Experimental version based on GBD where a solution with a cost equal to the relaxed solution cost is searched* | x |
 
 #### Warm starting
 It is possible to warm start every solver with the solution of another one by concatenating with a `+` the desired solvers when executing `python3 minlp_algorithms`.
