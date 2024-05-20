@@ -2,7 +2,7 @@
 Ambient conditions model.
 
 Adrian Buerger, 2022
-Adapted by Wim Van Roy, 2023
+Adapted by Wim Van Roy and Andrea Ghezzi, 2023
 """
 
 from dataclasses import dataclass
@@ -17,11 +17,12 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class Timing:
     dt_day = 900
-    earliest_sunrise_time_UTC = (4,30)
-    latest_sunset_time_UTC = (21,30)
+    earliest_sunrise_time_UTC = (4, 30)
+    latest_sunset_time_UTC = (21, 30)
 
     def __post_init__(self):
         self.dt_night = 2 * Timing.dt_day
@@ -57,7 +58,8 @@ class Ambient:
     def _compute_load_forecast(self):
         """Compute load forecast."""
         self._df_ambient["Qdot_c"] = 9e2 * (self._df_ambient["T_amb"] - 18.0)
-        self._df_ambient.loc[self._df_ambient["Qdot_c"] <= 0.0, ["Qdot_c"]] = 0.0
+        self._df_ambient.loc[self._df_ambient["Qdot_c"]
+                             <= 0.0, ["Qdot_c"]] = 0.0
         self._df_ambient["Qdot_c"] += 1e3
 
     def _fill_remaining_nan_values(self):
@@ -74,7 +76,8 @@ class Ambient:
 
     def _set_time_steps(self):
         # TODO make it general, based on csv file!
-        self.time_steps =  [timedelta(seconds=self.timing.dt_day) if idx < self.timing.N_day+2 else timedelta(seconds=self.timing.dt_night) for idx in range(self.timing.N)]
+        self.time_steps = [timedelta(seconds=self.timing.dt_day) if idx < self.timing.N_day +
+                           2 else timedelta(seconds=self.timing.dt_night) for idx in range(self.timing.N)]
 
     def interpolate(self, value: datetime):
         """Interpolate a value."""
@@ -125,4 +128,3 @@ if __name__ == "__main__":
     # ax2.legend(loc="upper right")
 
     # plt.show()
-

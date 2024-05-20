@@ -1,8 +1,8 @@
 """
 Solar Thermal Climate System (STCS) at Karsruhe University of Applied Sciences.
 
-# Adrian Buerger, 2022
-# Adapted by Wim Van Roy, 2023
+Adrian Buerger, 2022
+Adapted by Wim Van Roy and Andrea Ghezzi, 2023
 """
 
 import numpy as np

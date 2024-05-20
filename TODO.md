@@ -22,4 +22,4 @@
 [ ] add license header everywhere \
 
 ----> Publish v0.0.1\
-[ ] add algorithm from Alberto
+[X] add algorithm from Alberto
