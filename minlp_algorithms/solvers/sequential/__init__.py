@@ -34,7 +34,6 @@ class SequentialTrustRegionMILP(MiSolverClass):
         while True:
             data_p = self.tr_milp.solve(deepcopy(nlpdata), self.delta)
             logger.info(colored(f"TR-MILP {data_p.x_sol=}"))
-            breakpoint()
             # Possible gain:
             psi_k = -data_p.obj_val
             # Make feasible if possible:
