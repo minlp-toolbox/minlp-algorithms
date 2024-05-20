@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import logging
 from copy import deepcopy
 from minlp_algorithms.data import MinlpData

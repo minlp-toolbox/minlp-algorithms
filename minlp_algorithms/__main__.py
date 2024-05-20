@@ -1,6 +1,10 @@
 #!/usr/bin/python3
 # PYTHON_ARGCOMPLETE_OK
 
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from sys import argv
 from shutil import copyfile
 from argparse import ArgumentParser

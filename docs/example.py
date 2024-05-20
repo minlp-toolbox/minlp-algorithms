@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 from minlp_algorithms.solver import MinlpSolver, MinlpProblem, MinlpData, Settings, Stats
 from minlp_algorithms.settings import GlobalSettings
 

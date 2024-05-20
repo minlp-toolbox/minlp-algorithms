@@ -1,9 +1,13 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import numpy as np
 import casadi as ca
 from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.problems import MetaDataOcp
 from minlp_algorithms.problems.dsc import Description
-from minlp_algorithms.problems.utils import integrate_rk4
+from minlp_algorithms.utils.integrators import integrate_rk4
 
 
 def time_opt_car():

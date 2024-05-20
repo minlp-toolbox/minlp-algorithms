@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Test if all combinations work."""
 
 import unittest
@@ -12,7 +16,7 @@ options = [("cia", "doubletank2")] + [
     (solver, "dummy")
     for solver in SOLVER_MODES.keys()
     if solver not in (
-        "cia", "milp_tr", "ampl",  # Almost all solvers
+        "cia", "s-tr-milp", "ampl",  # Almost all solvers
     )
 ] + [
     (solver, problem)

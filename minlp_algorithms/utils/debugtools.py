@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 import casadi as ca
 import numpy as np
 from minlp_algorithms.solvers import MinlpProblem, MinlpData
@@ -105,7 +109,8 @@ class DebugCallBack(ca.Callback):
     def save(self, x):
         """Save the x variable."""
         self.iter_nr += 1
-        np.save(GlobalSettings.DATA_FOLDER + f"/x_{self.name}_{self.iter}", x.full())
+        np.save(GlobalSettings.DATA_FOLDER +
+                f"/x_{self.name}_{self.iter}", x.full())
 
     def eval(self, arg):
         """Evaluate the callback."""

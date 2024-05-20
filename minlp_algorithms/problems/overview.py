@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Overview of all problems."""
 
 from minlp_algorithms.settings import Settings, GlobalSettings
@@ -7,7 +11,7 @@ import casadi as ca
 import numpy as np
 from minlp_algorithms.problems.dsc import Description
 from minlp_algorithms.solvers import Stats
-from minlp_algorithms.problems.utils import integrate_rk4  # integrate_ee
+from minlp_algorithms.utils.integrators import integrate_rk4  # integrate_ee
 from minlp_algorithms.problems.double_tank import create_double_tank_problem2
 from minlp_algorithms.problems.solarsys import create_stcs_problem
 from minlp_algorithms.problems.gearbox import create_simple_gearbox, create_gearbox, \

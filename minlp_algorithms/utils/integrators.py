@@ -1,6 +1,8 @@
-"""Set of utilities to model a problem."""
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
 
-# TODO: Move to utils folder
+"""Set of utilities to model a problem."""
 
 from typing import Union
 from minlp_algorithms.settings import GlobalSettings as GS

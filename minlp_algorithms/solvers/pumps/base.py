@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Base algorithm for feasibility pumps."""
 
 from copy import deepcopy
@@ -54,7 +58,8 @@ class PumpBase(MiSolverClass):
                 new_x = to_0d(sol["x"])
                 perturbe_remaining = self.settings.PARALLEL_SOLUTIONS
                 while any_equal(new_x, prev_x, self.idx_x_bin) and perturbe_remaining > 0:
-                    new_x = perturbe_x(to_0d(nlpdata.solutions_all[i]["x"]), self.idx_x_bin)
+                    new_x = perturbe_x(
+                        to_0d(nlpdata.solutions_all[i]["x"]), self.idx_x_bin)
                     perturbe_remaining -= 1
 
                 datarounded.prev_solutions[i]["x"] = new_x
@@ -64,20 +69,24 @@ class PumpBase(MiSolverClass):
                 prev_x.append(new_x)
 
             if not require_restart:
-                data = self.pump.solve(datarounded, int_error=distances[-1], obj_val=relaxed_value)
+                data = self.pump.solve(
+                    datarounded, int_error=distances[-1], obj_val=relaxed_value)
                 distances.append(integer_error(data.x_sol[self.idx_x_bin]))
 
             if (
                 len(distances) > self.settings.PUMP_MAX_STEP_IMPROVEMENTS
                 and distances[-self.settings.PUMP_MAX_STEP_IMPROVEMENTS - 1] < distances[-1]
             ) or require_restart:
-                data.prev_solutions[0]["x"] = random_perturbe_x(data.x_sol, self.idx_x_bin)
-                data = self.pump.solve(data, int_error=distances[-1], obj_val=relaxed_value)
+                data.prev_solutions[0]["x"] = random_perturbe_x(
+                    data.x_sol, self.idx_x_bin)
+                data = self.pump.solve(
+                    data, int_error=distances[-1], obj_val=relaxed_value)
                 distances.append(integer_error(data.x_sol[self.idx_x_bin]))
 
             # Added heuristic, not present in the original implementation
             if distances[-1] < self.settings.CONSTRAINT_INT_TOL:
-                datarounded = self.nlp.solve(create_rounded_data(data, self.idx_x_bin), True)
+                datarounded = self.nlp.solve(
+                    create_rounded_data(data, self.idx_x_bin), True)
                 if self.update_best_solutions(datarounded):
                     return self.get_best_solutions(datarounded)
 

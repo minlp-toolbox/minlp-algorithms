@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Base algorithm for random feasibility pumps."""
 
 from copy import deepcopy
@@ -51,9 +55,11 @@ class PumpBaseRandom(MiSolverClass):
             random_obj_f = float(self.pump.f(nlpdata.x_sol, nlpdata.p))
             lb = min(random_obj_f, lb)
 
-            colored(f"Current random NLP objective: {random_obj_f:.3e}", "blue")
+            colored(
+                f"Current random NLP objective: {random_obj_f:.3e}", "blue")
             if random_obj_f < best_obj:
-                datarounded = self.nlp.solve(create_rounded_data(nlpdata, self.idx_x_bin), set_x_bin=True)
+                datarounded = self.nlp.solve(create_rounded_data(
+                    nlpdata, self.idx_x_bin), set_x_bin=True)
                 if datarounded.solved:
                     logger.debug(
                         f"NLP f={datarounded.obj_val:.3e} (iter {self.stats['iter_nr']}) "
@@ -72,11 +78,13 @@ class PumpBaseRandom(MiSolverClass):
             done = int_error < self.settings.CONSTRAINT_INT_TOL or (
                 not np.isinf(best_obj)
                 and (
-                    (self.stats["iter_nr"] > self.settings.PUMP_MAX_STEP_IMPROVEMENTS and best_obj < random_obj_f)
+                    (self.stats["iter_nr"] >
+                     self.settings.PUMP_MAX_STEP_IMPROVEMENTS and best_obj < random_obj_f)
                     or self.stats["iter_nr"] > self.settings.PUMP_MAX_STEP_IMPROVEMENTS + self.stats["best_iter"]
                 )
             )
-            retry = self.stats["iter_nr"] - last_restart > self.settings.PUMP_MAX_TRY and prev_int_error < int_error
+            retry = self.stats["iter_nr"] - \
+                last_restart > self.settings.PUMP_MAX_TRY and prev_int_error < int_error
             prev_int_error = int_error
             if not nlpdata.solved or retry:
                 if len(self.best_solutions) > 0:
@@ -86,7 +94,8 @@ class PumpBaseRandom(MiSolverClass):
                     self.pump.alpha = 1.0
                     # If progress is frozen (unsolvable), try to fix it!
                     nlpdata = self.pump.solve(self.stats.relaxed)
-                    logger.info(f"Current random NLP (restoration): f={random_obj_f:.3e}")
+                    logger.info(
+                        f"Current random NLP (restoration): f={random_obj_f:.3e}")
             if self.stats["iter_nr"] > self.settings.PUMP_MAX_ITER:
                 if len(self.best_solutions) > 0:
                     done = True

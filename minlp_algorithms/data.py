@@ -1,10 +1,6 @@
-"""
-Data for a given problem.
-
-This file contains the data of a problem. This includes lower and upper
-bounds of the variables and equations, an initial value and
-the previous solution if existing.
-"""
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional
@@ -14,7 +10,17 @@ from copy import deepcopy
 
 @dataclass
 class MinlpData:
-    """Nlp data."""
+    """
+    Collection of the data defining a MINLP.
+
+    It is required to fill in:
+    - p: list of parameters of the problem
+    - x0: initial guess of the problem
+    - _lbx: lower bound on the optimization variable x
+    - _ubx: upper bound on the optimization variable x
+    - _lbg: lower bound on the constraint vector g
+    - _ubg: upper bound on the constraint vector g
+    """
 
     p: List[float]
     x0: ca.DM

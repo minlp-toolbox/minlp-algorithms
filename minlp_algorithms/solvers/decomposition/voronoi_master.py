@@ -1,4 +1,8 @@
-"""Set of solvers based on Voronoi trust region."""
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Master problem of the sequential Voronoi-based MIQP algorithm."""
 
 import logging
 import casadi as ca

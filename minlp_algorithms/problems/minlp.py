@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Problems from the MINLP lib."""
 
 from minlp_algorithms.problems.dsc import Description
@@ -15,7 +19,8 @@ def alan():
     b7 = dsc.sym_bool("b7", 1, 0)
     b8 = dsc.sym_bool("b8", 1, 0)
 
-    dsc.f = x1 * (4 * x1 + 3 * x2 - x3) + x2 * (3 * x1 + 6 * x2 + x3) + x3 * (-x1 + x2 + 10 * x3)
+    dsc.f = x1 * (4 * x1 + 3 * x2 - x3) + x2 * (3 * x1 +
+                                                6 * x2 + x3) + x3 * (-x1 + x2 + 10 * x3)
     dsc.eq(x1 + x2 + x3 + x4, 1)
     dsc.eq(8 * x1 + 9 * x2 + 12 * x3 + 7 * x4, 10)
     dsc.leq(x1 - b5, 0)

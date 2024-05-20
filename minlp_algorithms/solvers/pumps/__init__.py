@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
 Collection of Pumps.
 
@@ -33,7 +37,8 @@ class FeasibilityPump(PumpBase):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, settings: Settings, nlp=None):
         """Create a solver class."""
         pump = LinearProjection(problem, stats, settings)
-        super(FeasibilityPump, self).__init__(problem, data, stats, settings, pump, nlp=nlp)
+        super(FeasibilityPump, self).__init__(
+            problem, data, stats, settings, pump, nlp=nlp)
 
 
 class ObjectiveFeasibilityPump(PumpBase):
@@ -47,7 +52,8 @@ class ObjectiveFeasibilityPump(PumpBase):
     def __init__(self, problem: MinlpProblem, data: MinlpData, stats: Stats, settings: Settings, nlp=None):
         """Create a solver class."""
         pump = ObjectiveLinearProjection(problem, stats, settings)
-        super(ObjectiveFeasibilityPump, self).__init__(problem, data, stats, settings, pump, nlp=nlp)
+        super(ObjectiveFeasibilityPump, self).__init__(
+            problem, data, stats, settings, pump, nlp=nlp)
 
 
 class RandomObjectiveFeasibilityPump(PumpBaseRandom):
@@ -63,4 +69,5 @@ class RandomObjectiveFeasibilityPump(PumpBaseRandom):
         """Create a solver class."""
         pump = RandomDirectionProjection(
             problem, stats, settings, norm=norm, penalty_scaling=penalty_scaling)
-        super(RandomObjectiveFeasibilityPump, self).__init__(problem, data, stats, settings, pump, nlp=nlp)
+        super(RandomObjectiveFeasibilityPump, self).__init__(
+            problem, data, stats, settings, pump, nlp=nlp)
