@@ -27,6 +27,7 @@ class SequentialTrustRegionMILP(MiSolverClass):
         self.p = 0.5  # Monotonicity parameter
 
     def solve(self, nlpdata: MinlpData, with_nlp_improvement: bool = False):
+        self.reset()
         nlpdata = self.nlp.solve(nlpdata, set_x_bin=True)
         phi = nlpdata.obj_val
         logger.info(f"Initial start {phi=}")
@@ -80,7 +81,10 @@ class SequentialTrustRegionMILP(MiSolverClass):
                 )
 
     def reset(self):
-        pass
+        """Reset."""
+        self.delta = 1.0
 
     def warmstart(self, nlpdata: MinlpData):
-        pass
+        """Warmstart."""
+        logger.info(colored(
+            "s-tr-milp warmstarting is automatic, new linearization point inherited from previous solver.", "yellow"))
