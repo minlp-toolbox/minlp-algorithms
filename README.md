@@ -39,7 +39,7 @@ You can enable or change options using environmental variables:
 | oa-qp-i | Quadratic outer approximation improved with safeguard for nonlinear constraints| x |  |
 | s-v-miqp | Sequential Voronoi-based MIQP with exact or Gauss-Newton Hessian ([Ghezzi et al, 2023](https://publications.syscop.de/Ghezzi2023a.pdf)) |  |  |
 | s-b-miqp | Sequential Benders-based MIQP ([Ghezzi, Van Roy, et al, 2024](https://arxiv.org/pdf/2404.11786)) | x | x |
-| s-tr-milp | Sequential MILP trust region approach ([De Marchi, 2023](https://doi.org/10.48550/arXiv.2310.17285)) | |
+| s-tr-milp | Sequential MILP trust region approach ([De Marchi, 2023](https://doi.org/10.48550/arXiv.2310.17285)) *Accept only linear constraints!*| |
 | fp | Feasibility Pump for MINLP ([Bertacco, et al, 2007](https://doi.org/10.1016/j.disopt.2006.10.001)) |  |  |
 | ofp | Objective Feasibility Pump for MINLP ([Sharma, et al, 2016](https://doi.org/10.1007/s10589-015-9792-y)) |  |  |
 | rofp | Random Objective Feasibility Pump | x |  |
