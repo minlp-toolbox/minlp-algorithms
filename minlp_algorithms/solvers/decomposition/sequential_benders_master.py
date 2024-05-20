@@ -1,4 +1,8 @@
-"""A mix of solvers."""
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+"""Master solver used in sequential Benders-baded MIQP algorithm."""
 import numpy as np
 import casadi as ca
 from minlp_algorithms.solvers import Stats, MinlpProblem, MinlpData

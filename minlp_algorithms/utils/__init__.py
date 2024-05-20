@@ -1,3 +1,7 @@
+# This file is part of minlp-algorithms
+# Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """Set of utilities for MINLP optimization and visualization."""
 
 from math import sqrt
@@ -132,7 +136,8 @@ def plot_trajectory(
     if isinstance(s_collection, np.ndarray):
         s_collection = [s_collection]
     if isinstance(meta.scaling_coeff_control, type(None)):
-        meta.scaling_coeff_control = [1 for _ in range(a_collection[0].shape[0])]
+        meta.scaling_coeff_control = [
+            1 for _ in range(a_collection[0].shape[0])]
 
     N = a_collection[0].shape[0]
     dt = meta.dt
@@ -169,7 +174,8 @@ def plot_trajectory(
                 a_traj = a_traj[..., np.newaxis]
             axs[meta.n_state + a].step(
                 time_array,
-                meta.scaling_coeff_control[a] * np.append([a_traj[0, a]], a_traj[:, a]),
+                meta.scaling_coeff_control[a] *
+                np.append([a_traj[0, a]], a_traj[:, a]),
                 alpha=alpha,
                 color="tab:orange",
                 marker='.',
