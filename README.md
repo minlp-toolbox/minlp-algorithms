@@ -1,4 +1,8 @@
-# Usage
+# Algorithms for solving mixed-integer nonlinear programs (MINLPs)
+
+This software package provides a Python/CasADi-based implementation of several algorithms for solving MINLPs.
+
+## Installation and usage
 
 Set up and activate a fresh Python virtual environment (Python >= 3.7 should work)
 
@@ -24,7 +28,7 @@ You can enable or change options using environmental variables:
 
 
 
-## Available MINLP solvers/algorithms
+### Available MINLP solvers/algorithms
 
 **New?**: the algorithm is novel and created by the authors of this software.\
 **CVX guarantee?**: the algorithm converge to the global optimum when a *convex* MINLP is given.
@@ -54,19 +58,16 @@ You can enable or change options using environmental variables:
 | nlp-fxd | Fix the integer variables of the MINLP and solve the corresponding NLP|  |  |
 | ~~ | BELOW TO UPDATE | ~~ |
 | benderseq | *Experimental version based on GBD where a solution with a cost equal to the relaxed solution cost is searched* | x |
-|  | **Other 'solver'-like options:** |  |
-|ampl | Export to ampl format (experimental) |  |
-|test | Test a problem by listing all objective values around the relaxed solution for every perturbation of 1 variables (making it integer) together with the gradient value | |
 
-### Warm starting
+#### Warm starting
 It is possible to warm start every solver with the solution of another one by concatenating with a `+` the desired solvers when executing `python3 minlp_algorithms`.
-For instance, to combine use the solution of the feasibility pump as a warm start to sequential Benders-based MIQP, execute the following:
+For instance, to use the solution of the feasibility pump as a warm start to sequential Benders-based MIQP, execute the following:
 ```
-python3 minlp_algorithms <mode> fp+s-b-miqp <problem>
+python3 minlp_algorithms run fp+s-b-miqp <problem>
 
 ```
 
-## Install pycombina
+### Install pycombina
 
 - Install gcc
 
@@ -81,7 +82,7 @@ python3 minlp_algorithms <mode> fp+s-b-miqp <problem>
         git submodule update
         python setup.py install
 
-# Docs
+## Docs
 
 In the folder `docs/` we provide two python scripts `example.py` and `stats_analysis.py`.
 - `example.py` shows how to a user can define its own MINLP and call one of the algorithm implemented in this library to solve it.
@@ -89,7 +90,7 @@ In the folder `docs/` we provide two python scripts `example.py` and `stats_anal
   **Note that:** to save stats set the env variable `LOG_DATA=1` by runnning `export LOG_DATA=1` from a terminal console.
 
 
-# Citing
+## Citing
 
 If you find this project useful, please consider giving it a :star: or citing it if your work is scientific:
 ```bibtex
@@ -97,15 +98,15 @@ If you find this project useful, please consider giving it a :star: or citing it
   author = {Ghezzi, Andrea and Van Roy, Wim},
   license = {GPL-3.0},
   month = may,
-  title = {minlp-algorithms: {P}ython-{C}as{AD}i-based package containing several algorithms for solving mixed-integer nonlinear programs ({MINLP}s)},
+  title = {minlp-algorithms: {P}ython-{C}as{AD}i-based package implementing algorithms for solving mixed-integer nonlinear programs ({MINLP}s)},
   url = {https://github.com/minlp-toolbox/minlp-algorithms},
   version = {0.0.1},
   year = {2024}
 }
 ```
 
-# Contributing
+## Contributing
 Contributions and feedback are welcomed via GitHub PR and issues!
 
-# License
-This software is under xxx, please check xxxx, for more details.
+## License
+This software is under GPL-3.0 license, please check [LICENSE](https://github.com/minlp-toolbox/minlp-algorithms/blob/main/LICENSE) for more details.

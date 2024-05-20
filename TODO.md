@@ -15,11 +15,13 @@
 [x] how to save stats? \
 [x] check stats \
 [x] adapt tests \
-[ ] update readme \
 [x] add example file \
 [x] external/ampl it works? --> added disclaimer \
-[ ] delete old files \
-[ ] add license header everywhere \
+[x] delete old files \
+[x] add license header everywhere \
+[x] add algorithm from Alberto \
+[ ] update readme \
+[ ] remove file `benders_lbqp_master.py` from the public version
+[ ] create a branch `public` for tracking the public GitHub version, keep the current syscop_gitlab main for developing.
 
-----> Publish v0.0.1\
-[X] add algorithm from Alberto
+----> Publish v0.0.1 \
