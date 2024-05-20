@@ -90,7 +90,7 @@ def bin_equal(sol1, sol2, idx_x_bin):
 def any_equal(sol, refs, idx_x_bin):
     """Check if any is equal."""
     for ref in refs:
-        if bin_equal(sol, ref, idx_x_bin):
+        if bin_equal(sol, ref['x'], idx_x_bin):
             return True
     return False
 

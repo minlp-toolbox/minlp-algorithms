@@ -6,7 +6,8 @@ from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
 from minlp_algorithms.stats import Stats
 from minlp_algorithms.data import MinlpData
 from minlp_algorithms.problem import MinlpProblem
-from minlp_algorithms.solvers.pumps.utils import integer_error, create_rounded_data, perturbe_x, any_equal, \
+from minlp_algorithms.solvers.utils import any_equal
+from minlp_algorithms.solvers.pumps.utils import integer_error, create_rounded_data, perturbe_x, \
         random_perturbe_x
 from minlp_algorithms.utils import toc, logging
 from minlp_algorithms.utils.conversion import to_0d

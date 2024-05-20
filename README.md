@@ -39,6 +39,7 @@ You can enable or change options using environmental variables:
 | oa-qp-i | Quadratic outer approximation improved with safeguard for nonlinear constraints| x |  |
 | s-v-miqp | Sequential Voronoi-based MIQP with exact or Gauss-Newton Hessian ([Ghezzi et al, 2023](https://publications.syscop.de/Ghezzi2023a.pdf)) |  |  |
 | s-b-miqp | Sequential Benders-based MIQP ([Ghezzi, Van Roy, et al, 2024](https://arxiv.org/pdf/2404.11786)) | x | x |
+| s-tr-milp | Sequential MILP trust region approach ([De Marchi, 2023](https://doi.org/10.48550/arXiv.2310.17285)) *Accept only linear constraints!*| |
 | fp | Feasibility Pump for MINLP ([Bertacco, et al, 2007](https://doi.org/10.1016/j.disopt.2006.10.001)) |  |  |
 | ofp | Objective Feasibility Pump for MINLP ([Sharma, et al, 2016](https://doi.org/10.1007/s10589-015-9792-y)) |  |  |
 | rofp | Random Objective Feasibility Pump | x |  |
@@ -52,12 +53,18 @@ You can enable or change options using environmental variables:
 | nlp | Solve the canonical relaxation of the MINLP (integers are relaxed to continuous variables) |  |  |
 | nlp-fxd | Fix the integer variables of the MINLP and solve the corresponding NLP|  |  |
 | ~~ | BELOW TO UPDATE | ~~ |
-| milp-tr | MILP-based trust region approach ([De Marchi, 2023](https://doi.org/10.48550/arXiv.2310.17285)) | |
 | benderseq | *Experimental version based on GBD where a solution with a cost equal to the relaxed solution cost is searched* | x |
 |  | **Other 'solver'-like options:** |  |
 |ampl | Export to ampl format (experimental) |  |
 |test | Test a problem by listing all objective values around the relaxed solution for every perturbation of 1 variables (making it integer) together with the gradient value | |
 
+### Warm starting
+It is possible to warm start every solver with the solution of another one by concatenating with a `+` the desired solvers when executing `python3 minlp_algorithms`.
+For instance, to combine use the solution of the feasibility pump as a warm start to sequential Benders-based MIQP, execute the following:
+```
+python3 minlp_algorithms <mode> fp+s-b-miqp <problem>
+
+```
 
 ## Install pycombina
 

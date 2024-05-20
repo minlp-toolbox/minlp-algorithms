@@ -9,6 +9,8 @@ from minlp_algorithms.solvers.utils import Constraints, get_solutions_pool, any_
 from enum import Enum
 import logging
 
+from minlp_algorithms.utils.conversion import to_0d
+
 logger = logging.getLogger(__name__)
 
 
@@ -467,7 +469,7 @@ class BendersRegionMasters(BendersMasterMILP):
                 self.early_lb_milp = True
 
             if success:
-                if any_equal(solution['x'], nlpdata.best_solutions, self.idx_x_bin):
+                if any_equal(solution['x'], [sol['x'] for sol in nlpdata.best_solutions], self.idx_x_bin):
                     colored("BR-MIQP stagnates, need LB-MILP problem.", "yellow")
                     need_lb_milp = True
             else:

@@ -6,6 +6,7 @@ from minlp_algorithms.data import MinlpData
 from minlp_algorithms.solvers.decomposition import GeneralizedBenders, GeneralizedBendersQP, \
     OuterApproximation, OuterApproximationQP, OuterApproximationImproved, OuterApproximationQPImproved, \
     SequentialVoronoiMIQP, SequentialBendersMIQP
+from minlp_algorithms.solvers.sequential import SequentialTrustRegionMILP
 from minlp_algorithms.solvers.external.bonmin import BonminSolver
 from minlp_algorithms.solvers.pumps import FeasibilityPump, ObjectiveFeasibilityPump, RandomObjectiveFeasibilityPump
 from minlp_algorithms.solvers.approximation import CiaSolver
@@ -20,6 +21,7 @@ SOLVER_MODES = {
     "oa-qp-i": OuterApproximationQPImproved,
     "s-v-miqp": SequentialVoronoiMIQP,
     "s-b-miqp": SequentialBendersMIQP,
+    "s-tr-milp": SequentialTrustRegionMILP,
     "fp": FeasibilityPump,
     "ofp": ObjectiveFeasibilityPump,
     "rofp": RandomObjectiveFeasibilityPump,

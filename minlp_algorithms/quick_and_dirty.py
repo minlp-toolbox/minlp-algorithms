@@ -19,7 +19,7 @@ from minlp_algorithms.solvers.subsolvers.nlp import NlpSolver
 from minlp_algorithms.solvers.subsolvers.fnlp import FeasibilityNlpSolver
 from minlp_algorithms.solvers.subsolvers.fnlp_closest import FindClosestNlpSolver
 from minlp_algorithms.solvers.decomposition.benders_master import BendersMasterMILP, BendersTrustRegionMIP, \
-        BendersMasterMIQP
+    BendersMasterMIQP
 from minlp_algorithms.solvers.decomposition.sequential_benders_master import BendersTRandMaster
 from minlp_algorithms.solvers.decomposition.oa_master import OuterApproxMILP, OuterApproxMILPImproved
 from minlp_algorithms.solvers.external.bonmin import BonminSolver
@@ -27,7 +27,7 @@ from minlp_algorithms.solvers.decomposition.voronoi_master import VoronoiTrustRe
 from benders_exp.solvers.pumps import random_objective_feasibility_pump, \
     feasibility_pump, objective_feasibility_pump
 from minlp_algorithms.solvers.approximation.cia import cia_decomposition_algorithm
-from minlp_algorithms.solvers.milp_tr import milp_tr
+from minlp_algorithms.solvers.sequential.milp_tr import milp_tr
 from minlp_algorithms.solvers.decomposition.benders_lbqp_master import BendersTRLB
 from minlp_algorithms.utils.debugtools import CheckNoDuplicate
 from minlp_algorithms.utils.validate import check_solution
@@ -316,7 +316,8 @@ def benders_tr_master(
     feasible = True
     x_star = np.nan * np.empty(problem.x.shape[0])
     x_hat = -np.nan * np.empty(problem.x.shape[0])
-    stats["last_benders"] = True  # only for doing at least one iteration of the while-loop
+    # only for doing at least one iteration of the while-loop
+    stats["last_benders"] = True
     termination_met = False
     old_sol = x_star[problem.idx_x_bin]
 
@@ -330,7 +331,8 @@ def benders_tr_master(
                 data, 0, stats["ub"], x_star, stats["best_iter"], s
             )
 
-        data, stats["last_benders"] = master_problem.solve(data, relaxed=is_relaxed)
+        data, stats["last_benders"] = master_problem.solve(
+            data, relaxed=is_relaxed)
     elif first_relaxed:
         stats['total_time_loading'] = toc(reset=True)
         logger.info("Solver initialized.")
@@ -371,7 +373,8 @@ def benders_tr_master(
 
             old_sol = to_0d(data.x_sol)[problem.idx_x_bin]
             logger.info(f"Adding {data.nr_sols} solutions")
-            logger.debug(f"NLP {data.obj_val=}, {stats['ub']=}, {stats['lb']=}")
+            logger.debug(
+                f"NLP {data.obj_val=}, {stats['ub']=}, {stats['lb']=}")
             stats["solutions_all"] = data.solutions_all
             stats["solved_all"] = data.solved_all
             if s.WITH_LOG_DATA:
@@ -387,7 +390,8 @@ def benders_tr_master(
                     stats["lb"] = data.obj_val
                 else:
                     stats["lb"] = max(data.obj_val, stats["lb"])
-            logger.debug(f"MIP {data.obj_val=}, {stats['ub']=}, {stats['lb']=}")
+            logger.debug(
+                f"MIP {data.obj_val=}, {stats['ub']=}, {stats['lb']=}")
 
             x_hat = data.x_sol
             stats['iter_nr'] += 1
@@ -581,7 +585,8 @@ def batch_nl_runner(mode_name, target, nl_files):
             total_stats.append([
                 i, nl_file, data.obj_val,
                 stats["total_time_loading"], stats["total_time_calc"],
-                stats['t_solver_total'], stats["iter_nr"], len(problem.idx_x_bin)
+                stats['t_solver_total'], stats["iter_nr"], len(
+                    problem.idx_x_bin)
             ])
         except Exception as e:
             print(f"{e}")
