@@ -1,7 +1,5 @@
 """Set of utilities to model a problem."""
 
-# TODO: Move to utils folder
-
 from typing import Union
 from minlp_algorithms.settings import GlobalSettings as GS
 import casadi as ca

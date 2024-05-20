@@ -7,7 +7,7 @@ import casadi as ca
 import numpy as np
 from minlp_algorithms.problems.dsc import Description
 from minlp_algorithms.solvers import Stats
-from minlp_algorithms.problems.utils import integrate_rk4  # integrate_ee
+from minlp_algorithms.utils.integrators import integrate_rk4  # integrate_ee
 from minlp_algorithms.problems.double_tank import create_double_tank_problem2
 from minlp_algorithms.problems.solarsys import create_stcs_problem
 from minlp_algorithms.problems.gearbox import create_simple_gearbox, create_gearbox, \

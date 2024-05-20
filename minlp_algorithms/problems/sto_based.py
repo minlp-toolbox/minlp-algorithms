@@ -4,7 +4,7 @@ from minlp_algorithms.settings import GlobalSettings, Settings
 from minlp_algorithms.problems import MinlpProblem, MinlpData, \
     MetaDataOcp
 from minlp_algorithms.problems.dsc import Description
-from minlp_algorithms.problems.utils import integrate_ee, integrate_ie
+from minlp_algorithms.utils.integrators import integrate_ie
 
 
 def particle_trajectory():

@@ -5,7 +5,7 @@ from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.problems import MinlpProblem, MinlpData, \
     MetaDataOcp
 from minlp_algorithms.problems.dsc import Description
-from minlp_algorithms.problems.utils import integrate_rk4
+from minlp_algorithms.utils.integrators import integrate_rk4
 from minlp_algorithms.solvers import inspect_problem, set_constraint_types
 from minlp_algorithms.utils.cache import cache_data
 import numpy as np
@@ -50,7 +50,8 @@ def create_double_tank_problem2(p_val=[2, 2.5], single_shooting=False) -> Union[
         if Uprev is not None and min_uptime > 0:
             # Implementation details: you can switch OFF only there are
             # no switch UP happened in the last "min_uptime -1" steps
-            Suk = dsc.sym("Suk", 1, lb=0, ub=1, w0=0, discrete=True)  # switching up variable
+            Suk = dsc.sym("Suk", 1, lb=0, ub=1, w0=0,
+                          discrete=True)  # switching up variable
             dsc.eq(Uk[0] - Uprev[0] - Suk, [0])  # switch up detection
 
             # retrieve the indexes of Suk for window [k-min_uptime+1, k]
@@ -77,9 +78,10 @@ def create_double_tank_problem2(p_val=[2, 2.5], single_shooting=False) -> Union[
     problem = dsc.get_problem()
     meta = MetaDataOcp(
         dt=dt, n_state=nx, n_continuous_control=nu-1, n_discrete_control=1,
-        initial_state=p_val, idx_control=np.vstack(dsc.get_indices("Uk"))[:,1],
+        initial_state=p_val, idx_control=np.vstack(
+            dsc.get_indices("Uk"))[:, 1],
         idx_state=np.hstack(dsc.get_indices("Xk")),
-        idx_bin_control=np.vstack(dsc.get_indices("Uk"))[:,0],
+        idx_bin_control=np.vstack(dsc.get_indices("Uk"))[:, 0],
         scaling_coeff_control=[gamma, 1], min_uptime=min_uptime
     )
     problem.meta = meta

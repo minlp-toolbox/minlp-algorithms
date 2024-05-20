@@ -3,7 +3,7 @@ import casadi as ca
 from minlp_algorithms.settings import GlobalSettings
 from minlp_algorithms.problems import MetaDataOcp
 from minlp_algorithms.problems.dsc import Description
-from minlp_algorithms.problems.utils import integrate_rk4
+from minlp_algorithms.utils.integrators import integrate_rk4
 
 
 def time_opt_car():
