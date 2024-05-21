@@ -31,7 +31,7 @@ You can enable or change options using environmental variables:
 ### Available MINLP solvers/algorithms
 
 **New?**: the algorithm is novel and created by the authors of this software.\
-**CVX guarantee?**: the algorithm converge to the global optimum when a *convex* MINLP is given.
+**CVX guarantee?**: the algorithm converges to the global optimum when a *convex* MINLP is given.
 
 | Solvers | Description                                                  | New?                                              | CVX guarantee? |
 | -------------- | ------------------------------------------------------------ | ------------------------------------------------------------ | --------- |
