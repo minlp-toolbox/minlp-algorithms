@@ -15,6 +15,7 @@ from minlp_algorithms.solvers.external.bonmin import BonminSolver
 from minlp_algorithms.solvers.pumps import FeasibilityPump, ObjectiveFeasibilityPump, RandomObjectiveFeasibilityPump
 from minlp_algorithms.solvers.approximation import CiaSolver
 from minlp_algorithms.solvers.relaxation import NlpSolver
+from minlp_algorithms.solvers.mip import MipSolver
 
 SOLVER_MODES = {
     "gbd": GeneralizedBenders,
@@ -38,6 +39,7 @@ SOLVER_MODES = {
     "cia": CiaSolver,
     "nlp": lambda *args, **kwargs: NlpSolver(*args, **kwargs, set_bin=False),
     "nlp-fxd": lambda *args, **kwargs: NlpSolver(*args, **kwargs, set_bin=True),
+    "mip": MipSolver,
 }
 
 
