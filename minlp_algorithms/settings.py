@@ -66,6 +66,15 @@ class _GlobalSettings:
         """Set output dir directory."""
         self._CACHE_FOLDER = value
 
+    @property
+    def DATA_FOLDER(self):
+        return create_and_return(self._DATA_FOLDER)
+
+    @DATA_FOLDER.setter
+    def DATA_FOLDER(self, value):
+        """Set output dir directory."""
+        self._DATA_FOLDER = value
+
 
 GlobalSettings = _GlobalSettings()
 
