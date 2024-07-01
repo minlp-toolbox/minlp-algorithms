@@ -19,7 +19,7 @@ def create_and_return(folder):
 @dataclass
 class _GlobalSettings:
     _lock: bool = False
-    _CASADI_VAR: Any = ca.MX
+    _CASADI_VAR: Any = ca.SX
     SOURCE_FOLDER: str = path.dirname(path.abspath(__file__))
     _DATA_FOLDER: str = path.join(SOURCE_FOLDER, "../data")
     _IMG_DIR: str = path.join(SOURCE_FOLDER, "../results/figures")
@@ -65,6 +65,15 @@ class _GlobalSettings:
     def CACHE_FOLDER(self, value):
         """Set output dir directory."""
         self._CACHE_FOLDER = value
+
+    @property
+    def DATA_FOLDER(self):
+        return create_and_return(self._DATA_FOLDER)
+
+    @DATA_FOLDER.setter
+    def DATA_FOLDER(self, value):
+        """Set output dir directory."""
+        self._DATA_FOLDER = value
 
 
 GlobalSettings = _GlobalSettings()

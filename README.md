@@ -56,6 +56,7 @@ You can enable or change options using environmental variables:
 | cia | Combinatorial Integral Approximation ([Sager, et al, 2011](https://link.springer.com/article/10.1007/s00186-011-0355-4)) using `pycombina` ([Buerger, et al, 2020](https://publications.syscop.de/Buerger2020a.pdf)) -- installation instructions below|  |  |
 | nlp | Solve the canonical relaxation of the MINLP (integers are relaxed to continuous variables) |  |  |
 | nlp-fxd | Fix the integer variables of the MINLP and solve the corresponding NLP|  |  |
+| mip | Solve the given MILP/MIQP |  | (x) |
 
 #### Warm starting
 It is possible to warm start every solver with the solution of another one by concatenating with a `+` the desired solvers when executing `python3 minlp_algorithms`.
@@ -64,6 +65,15 @@ For instance, to use the solution of the feasibility pump as a warm start to seq
 python3 minlp_algorithms run fp+s-b-miqp <problem>
 
 ```
+
+#### Issues with CasADi function eval
+Some examples we provided make use of CasADi subroutines (e.g., `bspline`) which only accept `casadi MX` symbolics.\
+If you experience the following error (or similar)
+```
+.../casadi/core/function_internal.cpp:2013: 'eval_sx' not defined for BSplineInterpolant
+```
+Please goto `settings.py` and update the default value for `_CASADI_VAR` to `ca.MX`.
+
 
 ### Install pycombina
 
