@@ -68,9 +68,15 @@ class Stats:
         for k, v in sorted(self.data.items()):
             if k not in [
                 "iterate_data", "solutions_all", "solved_all", "solutions", "mip_solutions_all",
-                "mip_solved_all", "x_sol"
+                "mip_solved_all"
             ]:
-                print(f"\t{k}: {v}")
+                if k == 'sol_x':
+                    if len(self.data['sol_x']) < 10:
+                        print(f"\t{k}: {v}")
+                    else:
+                        print(f"\t{k}: {v[:5]}, ...")
+                else:
+                    print(f"\t{k}: {v}")
 
     def reset(self):
         """Reset the statistics."""
