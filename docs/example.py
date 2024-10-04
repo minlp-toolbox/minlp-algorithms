@@ -5,35 +5,53 @@
 from minlp_algorithms.solver import MinlpSolver, MinlpProblem, MinlpData, Settings, Stats
 from minlp_algorithms.settings import GlobalSettings
 
-# An example
+# A minimal example to show how effortless is to call the algorithms
+# in this toolbox if you already have a CasADi description.
+# Illustrations of this minimal example are available in the paper (Section 2.7) https://arxiv.org/pdf/2404.11786
+
 import casadi as ca
 import numpy as np
 
 x0 = np.array([0, 4, 100])
 lbx = np.array([0, 0, 0])
 ubx = np.array([4, 4, np.inf])
-x = GlobalSettings.CASADI_VAR.sym("x", 3)
-p = GlobalSettings.CASADI_VAR.sym("p", 2)
+# The first two variables are integer, the last one is continuous
+x = ca.SX.sym("x", 3)
+p = ca.SX.sym("p", 2)
 p_val = np.array([1000, 3])
 f = (x[0] - 4.1)**2 + (x[1] - 4.0)**2 + x[2] * p[0]
 ubg = np.array([ca.inf, ca.inf])
 lbg = np.array([0, 0])
 g = ca.vertcat(x[2], -(x[0]**2 + x[1]**2 - x[2] - p[1]**2))
 
-problem = MinlpProblem(f, g, x, p, idx_x_bin=[0, 1])
+# ------------------- Solving MINLP within CasADi -------------------
+# To solve the above MINLP in CasADi, you can use the solver Bonmin interfaced via `nlpsol` as follows.
+
+# The way to declare integer variables for CasADi nlpsol
+is_integer = [1, 1, 0]
+myminlp = ca.nlpsol("myminlp", "bonmin", {
+                    "f": f, "g": g, "x": x, "p": p},
+                    {"discrete": is_integer, "bonmin.algorithm": "B-OA"})
+solution = myminlp(x0=x0, lbx=lbx, ubx=ubx, lbg=lbg, ubg=ubg, p=p_val)
+
+print(f"Bonmin solution: x={solution['x']}, objective value={solution['f']}")
+# NOTE: We used Bonmin outer approximation (B-OA) because this problem cannot be solved
+# with the default Bonmin nonlinear branch-and-bound solver.
+
+# ------------------- Solving MINLP within minlp-algorithms -------------------
+# The following is required to use the MINLP algorithms implemented in our package.
+# Notice that we require the exact information needed for CasADi nlpsol, the only
+# difference is in how integer variables are denoted. CasADi requires a list with
+# same length of the variable vector with 0 if the corresponding variable is 0, 1 if
+# integer. We simply pass the indexes corresponding to integer variable.
+
+# If you have the CasADi representation you can obtain the indexes as:
+idx_integer_vars = [i for i in range(len(is_integer)) if is_integer[i] == 1]
+
+problem = MinlpProblem(f, g, x, p, idx_x_bin=idx_integer_vars)
 data = MinlpData(p_val, x0, _lbg=lbg, _ubg=ubg, _lbx=lbx, _ubx=ubx)
 settings = Settings()
 stats = Stats("s-b-miqp", "example-problem")
-
-solver = MinlpSolver('s-b-miqp', problem, data, stats, settings)
-result = solver.solve(data)
-solver.stats.print()
-
-# A template to fill-in
-problem = MinlpProblem()
-data = MinlpData()
-settings = Settings()
-stats = Stats()
 
 solver = MinlpSolver('s-b-miqp', problem, data, stats, settings)
 result = solver.solve(data)
