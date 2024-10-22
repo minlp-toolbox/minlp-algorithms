@@ -60,7 +60,7 @@ class VoronoiTrustRegionMIQP(SolverClass):
         )
         self.jac_g_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
-            [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
+            [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_integer]],
             {"jit": s.WITH_JIT}
         )
         self.idx_g_lin = get_idx_linear_bounds(problem)
@@ -81,7 +81,7 @@ class VoronoiTrustRegionMIQP(SolverClass):
         )
 
         self._x = GlobalSettings.CASADI_VAR.sym("x_voronoi", problem.x.numel())
-        self.idx_x_bin = problem.idx_x_bin
+        self.idx_x_integer = problem.idx_x_integer
         self.nr_g_orig = problem.g.shape[0]
         self.nr_x = problem.x.shape[0]
         # Copy the linear constraints in g
@@ -90,7 +90,7 @@ class VoronoiTrustRegionMIQP(SolverClass):
         )
 
         self.options["discrete"] = [
-            1 if i in self.idx_x_bin else 0 for i in range(self.nr_x)]
+            1 if i in self.idx_x_integer else 0 for i in range(self.nr_x)]
 
         # Initialization for algorithm iterates
         self.ub = 1e15  # UB
@@ -136,7 +136,7 @@ class VoronoiTrustRegionMIQP(SolverClass):
 
         # Create a new voronoi cut
         g_voronoi, lbg_voronoi, ubg_voronoi = self._generate_voronoi_tr(
-            self._x[self.idx_x_bin], nlpdata.p)
+            self._x[self.idx_x_integer], nlpdata.p)
 
         dx = self._x - x_sol_best
 
@@ -188,7 +188,7 @@ class VoronoiTrustRegionMIQP(SolverClass):
         """Reset."""
         if self.idx_g_lin.numel() > 0:
             self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
-                self.problem, nlpdata, self.idx_g_lin, self._x, self.problem.idx_x_bin
+                self.problem, nlpdata, self.idx_g_lin, self._x, self.problem.idx_x_integer
             )
         else:
             self.nr_g, self._g, self._lbg, self._ubg = 0, [], [], []
@@ -207,7 +207,7 @@ class VoronoiTrustRegionMIQP(SolverClass):
         h_k = self.g(x_sol, p)
         jac_h_k = self.jac_g_bin(x_sol, p)
         g_k = lam_g.T @ (h_k + jac_h_k @
-                         (x[self.idx_x_bin] - x_sol[self.idx_x_bin]))
+                         (x[self.idx_x_integer] - x_sol[self.idx_x_integer]))
         return g_k, -ca.inf, 0.0
 
     def _generate_voronoi_tr(self, x_bin, p):
@@ -220,10 +220,10 @@ class VoronoiTrustRegionMIQP(SolverClass):
         lbg_k = []
         ubg_k = []
 
-        x_sol_bin_best = self.x_sol_list[self.idx_best_x_sol][self.idx_x_bin]
+        x_sol_bin_best = self.x_sol_list[self.idx_best_x_sol][self.idx_x_integer]
         x_sol_bin_best_norm2_squared = x_sol_bin_best.T @ x_sol_bin_best
         for x_sol, is_feas in zip(self.x_sol_list, self.feasible_x_sol_list):
-            x_sol_bin = x_sol[self.idx_x_bin]
+            x_sol_bin = x_sol[self.idx_x_integer]
             if is_feas and not np.allclose(x_sol_bin, x_sol_bin_best):
                 a = ca.DM(2 * (x_sol_bin - x_sol_bin_best))
                 b = ca.DM(x_sol_bin.T @ x_sol_bin -

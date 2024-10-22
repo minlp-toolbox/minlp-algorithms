@@ -86,20 +86,20 @@ class Constraints:
         return out
 
 
-def bin_equal(sol1, sol2, idx_x_bin):
+def bin_equal(sol1, sol2, idx_x_integer):
     """Binary variables equal."""
-    return np.allclose(sol1[idx_x_bin], sol2[idx_x_bin], equal_nan=False, atol=1e-2)
+    return np.allclose(sol1[idx_x_integer], sol2[idx_x_integer], equal_nan=False, atol=1e-2)
 
 
-def any_equal(sol, refs, idx_x_bin):
+def any_equal(sol, refs, idx_x_integer):
     """Check if any is equal."""
     for ref in refs:
-        if bin_equal(sol, ref['x'], idx_x_bin):
+        if bin_equal(sol, ref['x'], idx_x_integer):
             return True
     return False
 
 
-def get_solutions_pool(nlpdata, success, stats, s: Settings, solution, idx_x_bin):
+def get_solutions_pool(nlpdata, success, stats, s: Settings, solution, idx_x_integer):
     """Get pool of solutions if exists."""
     if s.USE_SOLUTION_POOL and stats and "pool_sol_nr" in stats:
         sols = [solution]
@@ -107,7 +107,7 @@ def get_solutions_pool(nlpdata, success, stats, s: Settings, solution, idx_x_bin
 
         for i in range(1, stats["pool_sol_nr"]):
             x = ca.DM(stats['pool_solutions'][i])
-            if not any_equal(x, x_sols, idx_x_bin):
+            if not any_equal(x, x_sols, idx_x_integer):
                 sols.append({"f": stats["pool_obj_val"][i], "x": x})
                 x_sols.append(x)
         nlpdata.prev_solutions = sols
@@ -144,7 +144,7 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
         return ret
 
     if termination_type == 'gradient':
-        idx_x_bin = problem.idx_x_bin
+        idx_x_integer = problem.idx_x_integer
         f_fn = ca.Function("f", [problem.x, problem.p], [
                            problem.f], {"jit": s.WITH_JIT})
         grad_f_fn = ca.Function("gradient_f_x", [problem.x, problem.p], [ca.gradient(problem.f, problem.x)],
@@ -153,26 +153,26 @@ def get_termination_condition(termination_type, problem: MinlpProblem, data: Min
         def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
             ret = to_0d(
                 f_fn(x_current, data.p)
-                + grad_f_fn(x_current, data.p)[idx_x_bin].T @ (
-                    x_current[idx_x_bin] - x_best[idx_x_bin])
+                + grad_f_fn(x_current, data.p)[idx_x_integer].T @ (
+                    x_current[idx_x_integer] - x_best[idx_x_integer])
                 - f_fn(x_best, data.p)
             ) >= 0
             if ret:
                 logging.info("Terminated - gradient ok")
             return max_time(ret, s, stats)
     elif termination_type == 'equality':
-        idx_x_bin = problem.idx_x_bin
+        idx_x_integer = problem.idx_x_integer
 
         def func(stats: Stats, s: Settings, lb=None, ub=None, x_best=None, x_current=None):
             if isinstance(x_best, list):
                 for x in x_best:
-                    if np.allclose(x[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS):
+                    if np.allclose(x[idx_x_integer], x_current[idx_x_integer], equal_nan=False, atol=s.EPS):
                         logging.info(f"Terminated - all close within {s.EPS}")
                         return True
                 return max_time(False, s, stats)
             else:
                 ret = np.allclose(
-                    x_best[idx_x_bin], x_current[idx_x_bin], equal_nan=False, atol=s.EPS)
+                    x_best[idx_x_integer], x_current[idx_x_integer], equal_nan=False, atol=s.EPS)
                 if ret:
                     logging.info(f"Terminated - all close within {s.EPS}")
                 return max_time(ret, s, stats)

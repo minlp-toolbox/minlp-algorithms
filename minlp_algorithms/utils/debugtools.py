@@ -18,7 +18,7 @@ class CheckNoDuplicate:
 
     def __init__(self, problem: MinlpProblem, s: Settings):
         """Check if no duplicates pass through."""
-        self.idx_x_bin = problem.idx_x_bin
+        self.idx_x_integer = problem.idx_x_integer
         self.s = s
         self.old = []
         self.count = 0
@@ -28,7 +28,7 @@ class CheckNoDuplicate:
         if nlpdata.prev_solutions is None:
             return
         for sol in nlpdata.prev_solutions:
-            new = sol['x'][self.idx_x_bin]
+            new = sol['x'][self.idx_x_integer]
             for el in self.old:
                 if np.allclose(el, new, equal_nan=False, atol=self.s.EPS):
                     print("Duplicate!")

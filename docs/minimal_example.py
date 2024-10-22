@@ -48,7 +48,7 @@ print(f"Bonmin solution: x={solution['x']}, objective value={solution['f']}")
 # If you have the CasADi representation you can obtain the indexes as:
 idx_integer_vars = [i for i in range(len(is_integer)) if is_integer[i] == 1]
 
-problem = MinlpProblem(f, g, x, p, idx_x_bin=idx_integer_vars)
+problem = MinlpProblem(f, g, x, p, idx_x_integer=idx_integer_vars)
 data = MinlpData(p_val, x0, _lbg=lbg, _ubg=ubg, _lbx=lbx, _ubx=ubx)
 settings = Settings()
 stats = Stats("s-b-miqp", "example-problem")

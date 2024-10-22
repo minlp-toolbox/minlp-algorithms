@@ -22,7 +22,7 @@ class AmplSolver(SolverClass):
 
         self.nr_x = problem.x.shape[0]
         discrete = [0] * self.nr_x
-        for i in problem.idx_x_bin:
+        for i in problem.idx_x_integer:
             discrete[i] = 1
         # options.update({
         #     "discrete": discrete,

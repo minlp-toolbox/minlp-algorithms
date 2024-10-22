@@ -146,7 +146,7 @@ def regularize_options(options, default, s: Settings):
 def inspect_problem(problem: MinlpProblem, data: MinlpData):
     """Inspect problem for linear and convex bounds."""
     x_cont_idx = [
-        i for i in range(problem.x.shape[0]) if i not in problem.idx_x_bin
+        i for i in range(problem.x.shape[0]) if i not in problem.idx_x_integer
     ]
     g_expr = ca.Function("g_func", [problem.x, problem.p], [problem.g])
     sp = np.array(g_expr.sparsity_jac(0, 0))
@@ -185,14 +185,14 @@ def get_idx_linear_bounds_binary_x(problem: MinlpProblem):
     """Get the indices for the linear bounds that are purely on the binary x."""
     if problem.idx_g_lin_bin is None:
         x_cont_idx = [
-            i for i in range(problem.x.shape[0]) if i not in problem.idx_x_bin
+            i for i in range(problem.x.shape[0]) if i not in problem.idx_x_integer
         ]
         g_expr = ca.Function("g_func", [problem.x, problem.p], [problem.g])
         sp = np.array(g_expr.sparsity_jac(0, 0))
 
         iterator = get_idx_linear_bounds(problem)
         problem.idx_g_lin_bin = np.array(list(
-            filter(lambda i: (sum(sp[i, problem.idx_x_bin]) > 0
+            filter(lambda i: (sum(sp[i, problem.idx_x_integer]) > 0
                               and sum(sp[i, x_cont_idx]) == 0),
                    iterator)
         ))

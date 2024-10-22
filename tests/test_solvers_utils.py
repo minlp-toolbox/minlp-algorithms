@@ -28,7 +28,7 @@ class TestSolverUtils(unittest.TestCase):
         p = GlobalSettings.CASADI_VAR.sym("p", 0)
 
         problem = MinlpProblem(
-            f=f, g=ca.vcat(g), x=x, p=p, idx_x_bin=[0, 2]
+            f=f, g=ca.vcat(g), x=x, p=p, idx_x_integer=[0, 2]
         )
         idx_lin_bin = get_idx_linear_bounds_binary_x(problem)
         self.assertEqual(idx_lin_bin.tolist(), [0, 3])

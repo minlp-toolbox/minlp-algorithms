@@ -27,7 +27,7 @@ class PumpBaseRandom(MiSolverClass):
         """Create a solver class."""
         super(PumpBaseRandom, self).__init__(problem, data, stats, settings)
         self.pump = pump
-        self.idx_x_bin = problem.idx_x_bin
+        self.idx_x_integer = problem.idx_x_integer
         if nlp is None:
             nlp = NlpSolver(problem, stats, settings)
         self.nlp = nlp
@@ -59,7 +59,7 @@ class PumpBaseRandom(MiSolverClass):
                 f"Current random NLP objective: {random_obj_f:.3e}", "blue")
             if random_obj_f < best_obj:
                 datarounded = self.nlp.solve(create_rounded_data(
-                    nlpdata, self.idx_x_bin), set_x_bin=True)
+                    nlpdata, self.idx_x_integer), set_x_bin=True)
                 if datarounded.solved:
                     logger.debug(
                         f"NLP f={datarounded.obj_val:.3e} (iter {self.stats['iter_nr']}) "
@@ -71,7 +71,7 @@ class PumpBaseRandom(MiSolverClass):
             else:
                 colored("Not better than best found yet")
 
-            int_error = integer_error(nlpdata.x_sol[self.idx_x_bin])
+            int_error = integer_error(nlpdata.x_sol[self.idx_x_integer])
 
             self.stats["ub"] = best_obj
             self.stats["iter_nr"] += 1

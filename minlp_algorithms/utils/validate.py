@@ -40,7 +40,7 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, s: Settings, 
         msg.append("Ubg < g(x*,p) for indices:\n"
                    f"{np.nonzero(ubg < g_val)}")
 
-    check_integer_feasible(problem.idx_x_bin, x_star, s, throws=throws)
+    check_integer_feasible(problem.idx_x_integer, x_star, s, throws=throws)
     if msg:
         msg = "\n".join(msg)
         if throws:
@@ -49,9 +49,9 @@ def check_solution(problem: MinlpProblem, data: MinlpData, x_star, s: Settings, 
             print(msg)
 
 
-def check_integer_feasible(idx_x_bin, x_star, s: Settings, throws=True):
+def check_integer_feasible(idx_x_integer, x_star, s: Settings, throws=True):
     """Check if the solution is integer feasible."""
-    x_bin = np.array(x_star)[idx_x_bin].squeeze()
+    x_bin = np.array(x_star)[idx_x_integer].squeeze()
     x_bin_rounded = np.round(x_bin)
     if np.any(np.abs(x_bin_rounded - x_bin) > s.CONSTRAINT_TOL):
         idx = np.nonzero(np.abs(x_bin_rounded - x_bin) > s.CONSTRAINT_INT_TOL)

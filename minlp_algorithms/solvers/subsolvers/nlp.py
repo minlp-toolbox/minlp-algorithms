@@ -33,7 +33,7 @@ class NlpSolver(SolverClass):
             "error_on_fail": False
         }, s)
 
-        self.idx_x_bin = problem.idx_x_bin
+        self.idx_x_integer = problem.idx_x_integer
         # self.callback = DebugCallBack(
         #     'mycallback', problem.x.shape[0],
         #     problem.g.shape[0], problem.p.shape[0]
@@ -64,9 +64,9 @@ class NlpSolver(SolverClass):
             ubx = nlpdata.ubx
             if set_x_bin:
                 # Remove integer errors
-                x_bin_var = np.round(to_0d(sol['x'][self.idx_x_bin]))
-                lbx[self.idx_x_bin] = x_bin_var
-                ubx[self.idx_x_bin] = x_bin_var
+                x_bin_var = np.round(to_0d(sol['x'][self.idx_x_integer]))
+                lbx[self.idx_x_integer] = x_bin_var
+                ubx[self.idx_x_integer] = x_bin_var
 
             sol_new = self.solver(
                 p=nlpdata.p, x0=nlpdata.x0,
