@@ -5,8 +5,7 @@
 from minlp_algorithms.solver import MinlpSolver, MinlpProblem, MinlpData, Settings, Stats
 from minlp_algorithms.settings import GlobalSettings
 
-# A minimal example to show how effortless is to call the algorithms
-# in this toolbox if you already have a CasADi description.
+# A minimal example to show how effortless is to call the algorithms in this toolbox if you already have a CasADi description.
 # Illustrations of this minimal example are available in the paper (Section 2.7) https://arxiv.org/pdf/2404.11786
 
 import casadi as ca
@@ -38,21 +37,16 @@ print(f"Bonmin solution: x={solution['x']}, objective value={solution['f']}")
 # NOTE: We used Bonmin outer approximation (B-OA) because this problem cannot be solved
 # with the default Bonmin nonlinear branch-and-bound solver.
 
-# ------------------- Solving MINLP within minlp-algorithms -------------------
+# ------------------- Solving MINLP within CAMINO -------------------
 # The following is required to use the MINLP algorithms implemented in our package.
-# Notice that we require the exact information needed for CasADi nlpsol, the only
-# difference is in how integer variables are denoted. CasADi requires a list with
-# same length of the variable vector with 0 if the corresponding variable is 0, 1 if
-# integer. We simply pass the indexes corresponding to integer variable.
+# Notice that we require the exact information needed for CasADi nlpsol.
 
-# If you have the CasADi representation you can obtain the indexes as:
-idx_integer_vars = [i for i in range(len(is_integer)) if is_integer[i] == 1]
-
-problem = MinlpProblem(f, g, x, p, idx_x_integer=idx_integer_vars)
+problem = MinlpProblem(f, g, x, p, idx_x_integer=is_integer)
 data = MinlpData(p_val, x0, _lbg=lbg, _ubg=ubg, _lbx=lbx, _ubx=ubx)
 settings = Settings()
-stats = Stats("s-b-miqp", "example-problem")
+settings.MIP_SOLVER = 'highs'  # gurobi
+stats = Stats("oa", "example-problem")
 
-solver = MinlpSolver('s-b-miqp', problem, data, stats, settings)
+solver = MinlpSolver('oa', problem, data, stats, settings)
 result = solver.solve(data)
 solver.stats.print()

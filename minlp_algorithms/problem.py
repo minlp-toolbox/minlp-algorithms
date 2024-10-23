@@ -98,3 +98,16 @@ class MinlpProblem:
 
     # Meta data of the problem
     meta: MetaData = MetaData()
+
+    def __post_init__(self):
+        # Detect if integer vars are denoted using the casadi convention
+        if len(self.idx_x_integer) == self.x.shape[0]:
+            unique_elm_of_idx_x_integer = [i for i in set(self.idx_x_integer)]
+            if unique_elm_of_idx_x_integer == [1]:
+                self.idx_x_integer = [
+                    i for i in range(len(self.idx_x_integer))]
+            elif unique_elm_of_idx_x_integer == [0]:
+                self.idx_x_integer = []
+            else:
+                self.idx_x_integer = [i for i in range(
+                    len(self.idx_x_integer)) if self.idx_x_integer[i] == 1]
