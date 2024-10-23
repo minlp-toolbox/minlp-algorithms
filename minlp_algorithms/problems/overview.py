@@ -84,7 +84,7 @@ def create_ocp_unstable_system(p_val=[0.9, 0.7]):
         dt=dt, n_state=1, n_discrete_control=1, n_continuous_control=0,
         initial_state=p_val[0], idx_control=np.hstack(dsc.get_indices("Uk")),
         idx_state=np.hstack(dsc.get_indices("Xk")),
-        idx_bin_control=problem.idx_x_bin,
+        idx_bin_control=problem.idx_x_integer,
         scaling_coeff_control=[1],
         min_uptime=min_uptime,
         min_downtime=min_uptime,
@@ -107,7 +107,7 @@ def create_check_sign_lagrange_problem():
     p = GlobalSettings.CASADI_VAR.sym("p")
 
     problem = MinlpProblem(
-        x=x, f=(x - 2)**2, g=ca.vcat([x]), p=p, idx_x_bin=[0])
+        x=x, f=(x - 2)**2, g=ca.vcat([x]), p=p, idx_x_integer=[0])
     data = MinlpData(
         x0=np.array([0]), _ubx=np.array([np.inf]), _lbx=np.array([-np.inf]),
         _ubg=np.array([-1]), _lbg=np.array([-7]), p=np.array([0]))
@@ -127,7 +127,7 @@ def create_dummy_problem(p_val=[1000, 3]):
     lbx = np.array([0, 0, 0])
     ubx = np.array([4, 4, np.inf])
     x = opti.sym("x", shape=3, lb=lbx, ub=ubx, w0=x0, discrete=[1, 1, 0])
-    # idx_x_bin = [0, 1]
+    # idx_x_integer = [0, 1]
     p = opti.add_parameters("p", shape=2, values=p_val)
     opti.f = (x[0] - 4.1)**2 + (x[1] - 4.0)**2 + x[2] * p[0]
     ubg = np.array([ca.inf, ca.inf])
@@ -143,7 +143,7 @@ def create_dummy_problem_2():
     """Create a dummy problem."""
     x = GlobalSettings.CASADI_VAR.sym("x", 2)
     x0 = np.array([2, 4])
-    idx_x_bin = [0]
+    idx_x_integer = [0]
     p = GlobalSettings.CASADI_VAR.sym("p", 1)
     f = x[0]**2 + x[1]
     g = ca.vertcat(
@@ -155,7 +155,7 @@ def create_dummy_problem_2():
     lbx = -np.inf * np.ones((2,))
     ubx = np.array([ca.inf, ca.inf])
 
-    problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
+    problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_integer=idx_x_integer)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
                      _ubg=ubg, _lbg=lbg, p=[100])
     return problem, data
@@ -167,7 +167,7 @@ def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
     z = GlobalSettings.CASADI_VAR.sym("z", 2)  # continuous
     x0 = np.array([1, 0, 0])
     x = ca.vertcat(*[y, z])
-    idx_x_bin = [0]
+    idx_x_integer = [0]
 
     alpha = GlobalSettings.CASADI_VAR.sym("alpha", 2)
     r = GlobalSettings.CASADI_VAR.sym("r", 1)
@@ -184,7 +184,7 @@ def create_double_pipe_problem(p_val=[1, 5, 1, 10]):
     lbx = np.array([0, 0, -ca.inf])
     ubx = np.array([1, ca.inf, ca.inf])
 
-    problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_bin=idx_x_bin)
+    problem = MinlpProblem(x=x, f=f, g=g, p=p, idx_x_integer=idx_x_integer)
     data = MinlpData(x0=x0, _ubx=ubx, _lbx=lbx,
                      _ubg=ubg, _lbg=lbg, p=p_val)
     return problem, data
@@ -229,7 +229,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
     lbg = []
     ubg = []
     p = []
-    idx_x_bin = []
+    idx_x_integer = []
     idx_state = []
     idx_control = []
     idx_var = 0
@@ -243,7 +243,7 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         lbw += [0, 0]
         ubw += [1, gamma]
         w0 += [0.5, 0.5]
-        idx_x_bin.append(np.arange(idx_var-nu, idx_var-1))
+        idx_x_integer.append(np.arange(idx_var-nu, idx_var-1))
         idx_control.append(np.arange(idx_var-nu+1, idx_var))
 
         # Integrate till the end of the interval
@@ -269,12 +269,12 @@ def create_double_tank_problem(p_val=[2, 2.5]):
         dt=dt, n_state=nx, n_continuous_control=1, n_discrete_control=1,
         initial_state=p_val,
         idx_control=np.hstack(idx_control),
-        idx_bin_control=np.hstack(idx_x_bin),
+        idx_bin_control=np.hstack(idx_x_integer),
         idx_state=np.hstack(idx_state),
         scaling_coeff_control=scaling_coeff
     )
     problem = MinlpProblem(x=ca.vcat(w), f=J, g=ca.vcat(
-        g), p=x_0, idx_x_bin=np.hstack(idx_x_bin), meta=meta)
+        g), p=x_0, idx_x_integer=np.hstack(idx_x_integer), meta=meta)
     data = MinlpData(x0=ca.vcat(w0), _ubx=ca.vcat(ubw), _lbx=ca.vcat(lbw),
                      _ubg=np.array(ubg), _lbg=np.array(lbg), p=p_val)
     return problem, data
@@ -287,7 +287,7 @@ def counter_example_nonconvexity():
 
     f = ca.atan(x-0.3)**2 + x/10 + x**2/50 + y**2
     problem = MinlpProblem(x=ca.vcat([x, y]), f=f, g=ca.MX(
-        []), p=ca.MX([]), idx_x_bin=[0])
+        []), p=ca.MX([]), idx_x_integer=[0])
     data = MinlpData(x0=np.array([-4, 2]), _lbx=np.array([-5, -5]), _ubx=np.array([5, 5]),
                      _ubg=[], _lbg=[], p=[])
     return problem, data
@@ -319,14 +319,14 @@ def create_from_nl_file(file, compiled=True):
                 ca.Function("f", [x], [nl.f])))(x),
             g=CachedFunction(f"g_{key}", return_func(
                 ca.Function("g", [x], [ca.vcat(nl.g)])))(x),
-            idx_x_bin=idx[0].tolist(),
+            idx_x_integer=idx[0].tolist(),
             p=[]
         )
     else:
         problem = MinlpProblem(
             x=ca.vcat(nl.x),
             f=nl.f, g=ca.vcat(nl.g),
-            idx_x_bin=idx[0].tolist(),
+            idx_x_integer=idx[0].tolist(),
             p=[]
         )
     if nl.f.is_constant():
@@ -400,10 +400,10 @@ def create_from_nosnoc(file, compiled=False):
         g = data['g'](x, p)
 
     print("Loaded Functions")
-    idx_x_bin = reduce_list(data['ind_bool'])
+    idx_x_integer = reduce_list(data['ind_bool'])
     problem = MinlpProblem(
         x=x, p=p, f=f, g=g,
-        idx_x_bin=idx_x_bin,
+        idx_x_integer=idx_x_integer,
         hessian_not_psd=True
     )
     if to_bool(compiled):
@@ -413,7 +413,7 @@ def create_from_nosnoc(file, compiled=False):
         # Probably this is just overkill, set them to 0
         problem.idx_g_lin, problem.idx_g_lin_bin = [], []
 
-    data['w0'][idx_x_bin] = np.round(data['w0'][idx_x_bin])
+    data['w0'][idx_x_integer] = np.round(data['w0'][idx_x_integer])
     data = MinlpData(
         p=data['p0'], x0=data['w0'],
         _lbx=data['lbw'], _ubx=data['ubw'],
@@ -439,7 +439,7 @@ def create_from_sto(file, with_uptime=True):
     ubx, lbx = data['ubx'][1:], data['lbx'][1:]
     f = data['f'](ca.vertcat(p, x))
     g = data['g'](ca.vertcat(p, x))
-    idx_x_bin = np.where(data['int'][1:].full() == 1)[0].tolist()
+    idx_x_integer = np.where(data['int'][1:].full() == 1)[0].tolist()
     ub_idx = data['ub_idx'] - 1
     u_idx = data['u_idx']-1
     x_idx = data['x_idx']-1
@@ -494,7 +494,7 @@ def create_from_sto(file, with_uptime=True):
     lbx = ca.vertcat(lbx, -np.ones(switches.shape))
     ubx = ca.vertcat(ubx, np.ones(switches.shape))
     x0 = ca.vertcat(x0, np.zeros(switches.shape))
-    x0[idx_x_bin] = np.round(x0[idx_x_bin])
+    x0[idx_x_integer] = np.round(x0[idx_x_integer])
     lbg = ca.vertcat(data['lbg'], np.zeros(
         constraints_eq.shape), np.zeros(constraints_leq.shape))
     ubg = ca.vertcat(data['ubg'], np.zeros(
@@ -502,7 +502,7 @@ def create_from_sto(file, with_uptime=True):
 
     problem = MinlpProblem(
         x=x_total, p=p, f=f, g=g,
-        idx_x_bin=idx_x_bin,
+        idx_x_integer=idx_x_integer,
         hessian_not_psd=True
     )
     problem.idx_g_lin, problem.idx_g_lin_bin = [], []
@@ -541,15 +541,15 @@ def create_from_nlpsol_description(file):
     p = GlobalSettings.CASADI_VAR.sym("p", data['np'])
     f = data['f_fun'](x)
     g = data['g_fun'](x)
-    idx_x_bin = data['idx_x_bin']
+    idx_x_integer = data['idx_x_integer']
 
     problem = MinlpProblem(
         x=x, p=p, f=f, g=g,
-        idx_x_bin=idx_x_bin,
+        idx_x_integer=idx_x_integer,
         hessian_not_psd=True
     )
 
-    data['x0'][idx_x_bin] = np.round(data['x0'][idx_x_bin])
+    data['x0'][idx_x_integer] = np.round(data['x0'][idx_x_integer])
     data = MinlpData(
         p=data['p0'], x0=data['x0'],
         _lbx=data['lbx'], _ubx=data['ubx'],

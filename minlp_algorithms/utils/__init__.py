@@ -39,7 +39,7 @@ def make_bounded(problem: MinlpProblem, data: MinlpData, new_inf=1e3):
     # when constraints are one sided the convention is -inf <= g <= ubg
     g_extra, g_lb, g_ub = [], [], []
     for i in range(data.lbx.shape[0]):
-        if i in problem.idx_x_bin:
+        if i in problem.idx_x_integer:
             if lbx[i] < -new_inf:
                 lbx[i] = -new_inf
             if ubx[i] > new_inf:

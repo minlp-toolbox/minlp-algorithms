@@ -30,7 +30,7 @@ class BendersMasterMILP(SolverClass):
         self.setup_common(problem, s)
         self.jac_g_bin = ca.Function(
             "jac_g_bin", [problem.x, problem.p],
-            [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_bin]],
+            [ca.jacobian(problem.g, problem.x)[:, problem.idx_x_integer]],
             {"jit": s.WITH_JIT}
         )
         self._x = GlobalSettings.CASADI_VAR.sym("x_bin", self.nr_x_bin)
@@ -39,7 +39,7 @@ class BendersMasterMILP(SolverClass):
         if with_lin_bounds:
             self.idx_g_lin = get_idx_linear_bounds_binary_x(problem)
             self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
-                problem, data, self.idx_g_lin, self._x, problem.idx_x_bin
+                problem, data, self.idx_g_lin, self._x, problem.idx_x_integer
             )
         else:
             self.idx_g_lin = np.array([])
@@ -51,7 +51,7 @@ class BendersMasterMILP(SolverClass):
         """Reset."""
         if self.idx_g_lin.numel() > 0:
             self.nr_g, self._g, self._lbg, self._ubg = extract_bounds(
-                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_bin
+                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_integer
             )
         else:
             self.nr_g, self._g, self._lbg, self._ubg = 0, [], [], []
@@ -81,13 +81,13 @@ class BendersMasterMILP(SolverClass):
             {"jit": s.WITH_JIT}
         )
 
-        self.idx_x_bin = problem.idx_x_bin
-        self.nr_x_bin = len(problem.idx_x_bin)
+        self.idx_x_integer = problem.idx_x_integer
+        self.nr_x_bin = len(problem.idx_x_integer)
         self._nu = GlobalSettings.CASADI_VAR.sym("nu", 1)
         self.nr_g_orig = problem.g.shape[0]
         self.nr_x_orig = problem.x.shape[0]
         self.options["discrete"] = np.ones_like(
-            problem.idx_x_bin).tolist() + [0]
+            problem.idx_x_integer).tolist() + [0]
 
     def _generate_cut_equation(self, x, x_sol, x_sol_sub_set, lam_g, lam_x, p, lbg, ubg, prev_feasible):
         r"""
@@ -115,7 +115,7 @@ class BendersMasterMILP(SolverClass):
         :return: g_k the new cutting plane (should be > 0)
         """
         if prev_feasible:
-            lambda_k = -lam_x[self.idx_x_bin]
+            lambda_k = -lam_x[self.idx_x_integer]
             f_k = self.f(x_sol, p)
             g_k = (
                 f_k + lambda_k.T @ (x - x_sol_sub_set)
@@ -135,7 +135,7 @@ class BendersMasterMILP(SolverClass):
     def add_solution(self, nlpdata, x_sol, lam_g_sol, lam_x_sol, prev_feasible):
         """Create cut."""
         g_k = self._generate_cut_equation(
-            self._x, x_sol[:self.nr_x_orig], x_sol[self.idx_x_bin],
+            self._x, x_sol[:self.nr_x_orig], x_sol[self.idx_x_integer],
             lam_g_sol, lam_x_sol, nlpdata.p,
             nlpdata.lbg, nlpdata.ubg, prev_feasible
         )
@@ -148,7 +148,7 @@ class BendersMasterMILP(SolverClass):
 
     def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """solve."""
-        x_bin_star = nlpdata.x_sol[self.idx_x_bin]
+        x_bin_star = nlpdata.x_sol[self.idx_x_integer]
         if not integers_relaxed:
             self.add_solution(
                 nlpdata, nlpdata.x_sol, nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.solved
@@ -162,12 +162,12 @@ class BendersMasterMILP(SolverClass):
         solution = solver(
             x0=ca.vertcat(x_bin_star, nlpdata.obj_val),
             # NOTE harmonize lb with OA, here -1e5, in OA -1e8
-            lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -1e5),
-            ubx=ca.vertcat(nlpdata.ubx[self.idx_x_bin], ca.inf),
+            lbx=ca.vertcat(nlpdata.lbx[self.idx_x_integer], -1e5),
+            ubx=ca.vertcat(nlpdata.ubx[self.idx_x_integer], ca.inf),
             lbg=ca.vertcat(*self._lbg), ubg=ca.vertcat(*self._ubg)
         )
         x_full = nlpdata.x_sol.full()[:self.nr_x_orig]
-        x_full[self.idx_x_bin] = solution['x'][:-1]
+        x_full[self.idx_x_integer] = solution['x'][:-1]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
         nlpdata.solved, stats = self.collect_stats(
@@ -185,13 +185,13 @@ class BendersMasterMIQP(BendersMasterMILP):
             "hess_f_x_bin",
             [problem.x, problem.p], [ca.hessian(
                 problem.f, problem.x
-            )[0][problem.idx_x_bin, :][:, problem.idx_x_bin]],
+            )[0][problem.idx_x_integer, :][:, problem.idx_x_integer]],
             {"jit": self.settings.WITH_JIT}
         )
 
     def solve(self, nlpdata: MinlpData, integers_relaxed=False) -> MinlpData:
         """solve."""
-        x_bin_star = nlpdata.x_sol[self.idx_x_bin]
+        x_bin_star = nlpdata.x_sol[self.idx_x_integer]
         if not integers_relaxed:
             g_k = self._generate_cut_equation(
                 self._x, nlpdata.x_sol[:self.nr_x_orig], x_bin_star,
@@ -216,8 +216,8 @@ class BendersMasterMIQP(BendersMasterMILP):
         # This solver solves only to the binary variables (_x)!
         solution = solver(
             x0=ca.vertcat(x_bin_star, nlpdata.obj_val),
-            lbx=ca.vertcat(nlpdata.lbx[self.idx_x_bin], -1e5),
-            ubx=ca.vertcat(nlpdata.ubx[self.idx_x_bin], ca.inf),
+            lbx=ca.vertcat(nlpdata.lbx[self.idx_x_integer], -1e5),
+            ubx=ca.vertcat(nlpdata.ubx[self.idx_x_integer], ca.inf),
             lbg=ca.vertcat(*self._lbg), ubg=ca.vertcat(*self._ubg)
         )
         obj = solution['x'][-1].full()
@@ -225,7 +225,7 @@ class BendersMasterMIQP(BendersMasterMILP):
             raise Exception("Possible thougth mistake!")
         solution['f'] = obj
         x_full = nlpdata.x_sol.full()[:self.nr_x_orig]
-        x_full[self.idx_x_bin] = solution['x'][:-1]
+        x_full[self.idx_x_integer] = solution['x'][:-1]
         solution['x'] = x_full
         nlpdata.prev_solution = solution
         nlpdata.solved, stats = self.collect_stats(
@@ -285,7 +285,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         )
 
         self.options.update({
-            "discrete": [1 if elm in problem.idx_x_bin else 0 for elm in range(self._x.shape[0])],
+            "discrete": [1 if elm in problem.idx_x_integer else 0 for elm in range(self._x.shape[0])],
             "error_on_fail": False
         })
         self.y_N_val = 1e15  # Should be inf but can not at the moment ca.inf
@@ -307,7 +307,7 @@ class BendersTrustRegionMIP(BendersMasterMILP):
         # Create a new cut
         x_sol_prev = nlpdata.x_sol[:self.nr_x_orig]
         g_k = self._generate_cut_equation(
-            self._x[self.idx_x_bin], x_sol_prev, x_sol_prev[self.idx_x_bin],
+            self._x[self.idx_x_integer], x_sol_prev, x_sol_prev[self.idx_x_integer],
             nlpdata.lam_g_sol, nlpdata.lam_x_sol, nlpdata.p,
             nlpdata.lbg, nlpdata.ubg, nlpdata.solved
         )

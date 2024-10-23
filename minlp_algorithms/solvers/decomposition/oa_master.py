@@ -66,10 +66,10 @@ class OuterApproxMILP(SolverClass):
 
         self.nr_x = problem.x.shape[0]
         self.nr_g_orig = problem.g.shape[0]
-        self.idx_x_bin = problem.idx_x_bin
-        self.nr_x_bin = len(problem.idx_x_bin)
+        self.idx_x_integer = problem.idx_x_integer
+        self.nr_x_bin = len(problem.idx_x_integer)
         self.options["discrete"] = [
-            1 if i in self.idx_x_bin else 0 for i in range(self.nr_x)] + [0]
+            1 if i in self.idx_x_integer else 0 for i in range(self.nr_x)] + [0]
 
     def add_solution(self, nlpdata, solved, solution, integers_relaxed=False):
         """Add a cut."""
@@ -220,7 +220,7 @@ class OuterApproxMILPImproved(OuterApproxMILP):
         """Reset internal data."""
         if self.idx_g_lin.shape[0] > 0:
             _, self._g, self._lbg, self._ubg = extract_bounds(
-                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_bin
+                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_integer
             )
         else:
             _, self._g, self._lbg, self._ubg = 0, [], [], []
@@ -300,7 +300,7 @@ class OuterApproxMIQPImproved(OuterApproxMILP):
         """Reset internal data."""
         if self.idx_g_lin.shape[0] > 0:
             _, self._g, self._lbg, self._ubg = extract_bounds(
-                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_bin
+                self.problem, data, self.idx_g_lin, self._x, self.problem.idx_x_integer
             )
         else:
             _, self._g, self._lbg, self._ubg = 0, [], [], []

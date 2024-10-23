@@ -24,7 +24,7 @@ class NlpSolver(MiSolverClass):
     def solve(self, nlpdata: MinlpData) -> MinlpData:
         nlpdata = self.nlp.solve(nlpdata, set_x_bin=self.set_bin)
         nlpdata.relaxed = check_integer_feasible(
-            self.nlp.idx_x_bin, nlpdata.x_sol, self.settings, throws=False
+            self.nlp.idx_x_integer, nlpdata.x_sol, self.settings, throws=False
         )
         if not self.set_bin:
             self.stats.relaxed_solution = nlpdata

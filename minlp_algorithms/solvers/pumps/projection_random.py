@@ -30,8 +30,8 @@ class RandomDirectionProjection(SolverClass):
             s.IPOPT_SETTINGS, {"jit": s.WITH_JIT, "ipopt.max_iter": 5000}, s)
         self.penalty_scaling = penalty_scaling
 
-        self.idx_x_bin = problem.idx_x_bin
-        x_bin_var = problem.x[self.idx_x_bin]
+        self.idx_x_integer = problem.idx_x_integer
+        x_bin_var = problem.x[self.idx_x_integer]
         self.nr_x_bin = x_bin_var.shape[0]
         penalty = GlobalSettings.CASADI_VAR.sym("penalty", self.nr_x_bin)
         rounded_value = GlobalSettings.CASADI_VAR.sym(
@@ -67,11 +67,11 @@ class RandomDirectionProjection(SolverClass):
             lbx = nlpdata.lbx
             ubx = nlpdata.ubx
 
-            x_bin_var = to_0d(sol["x"][self.idx_x_bin])
+            x_bin_var = to_0d(sol["x"][self.idx_x_integer])
             x_rounded = np.round(x_bin_var).flatten()
             int_error = self.int_error_calc(x_bin_var, x_rounded)
 
-            penalty = np.random.rand(len(self.idx_x_bin))
+            penalty = np.random.rand(len(self.idx_x_integer))
             total = float(ca.sum1(penalty)) / self.nr_x_bin
             logger.info(
                 f"{nlpdata.obj_val=:.3} rounding error={int_error:.3f} " f"- weight {float(self.alpha):.3e}")

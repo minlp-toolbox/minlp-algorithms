@@ -97,7 +97,7 @@ def runner(solver_name, problem_name, target_file, args):
         new_inf = 1e3
     make_bounded(problem, data, new_inf=new_inf)
 
-    if len(problem.idx_x_bin) == 0:
+    if len(problem.idx_x_integer) == 0:
         solver_name = "relaxed"
 
     solver = MinlpSolver(

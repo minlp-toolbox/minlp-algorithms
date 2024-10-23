@@ -287,7 +287,7 @@ def create_stcs_problem(n_steps=None, with_slack=True):
     )
     prob.meta = meta
     data = dsc.get_data()
-    data.x0[prob.idx_x_bin] = to_0d(simulator.b_data).flatten().tolist()
+    data.x0[prob.idx_x_integer] = to_0d(simulator.b_data).flatten().tolist()
     s = Settings()
     s.BRMIQP_GAP = 0.15
     s.LBMILP_GAP = 0.15

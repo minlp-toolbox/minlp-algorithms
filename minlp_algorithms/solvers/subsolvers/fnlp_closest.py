@@ -29,17 +29,18 @@ class FindClosestNlpSolver(SolverClass):
                 "jit": s.WITH_JIT
             }, s)
 
-        self.idx_x_bin = problem.idx_x_bin
-        x_hat = GlobalSettings.CASADI_VAR.sym("x_hat", len(self.idx_x_bin))
-        x_best = GlobalSettings.CASADI_VAR.sym("x_best", len(self.idx_x_bin))
+        self.idx_x_integer = problem.idx_x_integer
+        x_hat = GlobalSettings.CASADI_VAR.sym("x_hat", len(self.idx_x_integer))
+        x_best = GlobalSettings.CASADI_VAR.sym(
+            "x_best", len(self.idx_x_integer))
 
-        f = ca.norm_2(problem.x[self.idx_x_bin] - x_hat)**2
+        f = ca.norm_2(problem.x[self.idx_x_integer] - x_hat)**2
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": f, "g": ca.vertcat(
                 problem.g,
                 ca.dot(
-                    problem.x[self.idx_x_bin] - x_best,
-                    problem.x[self.idx_x_bin] - x_best
+                    problem.x[self.idx_x_integer] - x_best,
+                    problem.x[self.idx_x_integer] - x_best
                 )
             ),
             "x": problem.x,
@@ -52,7 +53,7 @@ class FindClosestNlpSolver(SolverClass):
         sols_out = []
         has_best = len(nlpdata.best_solutions) >= 1
         if has_best:
-            x_best = nlpdata.best_solutions[-1][self.idx_x_bin]
+            x_best = nlpdata.best_solutions[-1][self.idx_x_integer]
         for success_prev, sol in zip(nlpdata.solved_all, nlpdata.solutions_all):
             if success_prev:
                 success_out.append(success_prev)
@@ -60,7 +61,7 @@ class FindClosestNlpSolver(SolverClass):
             else:
                 lbx = nlpdata.lbx
                 ubx = nlpdata.ubx
-                x_bin_var = to_0d(sol['x'][self.idx_x_bin])
+                x_bin_var = to_0d(sol['x'][self.idx_x_integer])
                 if not has_best:
                     x_best = x_bin_var
                     distance = 1e16

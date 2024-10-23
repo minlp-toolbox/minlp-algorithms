@@ -59,11 +59,11 @@ class TrustRegionMILP(SolverClass):
         )
 
         self.nr_x = problem.x.numel()
-        self.idx_x_c = get_idx_inverse(problem.idx_x_bin, self.nr_x)
+        self.idx_x_c = get_idx_inverse(problem.idx_x_integer, self.nr_x)
         self.nr_x_c = len(self.idx_x_c)
         self.x = GlobalSettings.CASADI_VAR.sym("x", self.nr_x)
         self.options["discrete"] = [
-            1 if i in problem.idx_x_bin else 0 for i in range(self.nr_x)]
+            1 if i in problem.idx_x_integer else 0 for i in range(self.nr_x)]
 
     def solve(self, nlpdata: MinlpData, delta=1) -> MinlpData:
         """Solve MILP with TR."""

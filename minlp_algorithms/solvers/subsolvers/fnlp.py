@@ -49,7 +49,7 @@ class FeasibilityNlpSolver(SolverClass):
         f = beta
         x = ca.vertcat(*[problem.x, beta])
         p = ca.vertcat(*[problem.p])
-        self.idx_x_bin = problem.idx_x_bin
+        self.idx_x_integer = problem.idx_x_integer
         options.update({"jit": s.WITH_JIT})
         self.solver = ca.nlpsol("nlpsol", "ipopt", {
             "f": f, "g": g, "x": x, "p": p
@@ -70,8 +70,8 @@ class FeasibilityNlpSolver(SolverClass):
                 success_out.append(success_prev)
                 sols_out.append(sol)
             else:
-                lbx[self.idx_x_bin] = to_0d(sol['x'][self.idx_x_bin])
-                ubx[self.idx_x_bin] = to_0d(sol['x'][self.idx_x_bin])
+                lbx[self.idx_x_integer] = to_0d(sol['x'][self.idx_x_integer])
+                ubx[self.idx_x_integer] = to_0d(sol['x'][self.idx_x_integer])
 
                 sol_new = self.solver(
                     x0=ca.vcat(

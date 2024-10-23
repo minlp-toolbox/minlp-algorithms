@@ -27,11 +27,11 @@ class MipSolver(MiSolverClass):
         super(MipSolver, self).__init__(problem, data, stats, s)
         self.options = regularize_options(s.MIP_SETTINGS, {}, s)
 
-        self.idx_x_bin = problem.idx_x_bin
+        self.idx_x_integer = problem.idx_x_integer
         self.nr_x = problem.x.shape[0]
 
         self.options["discrete"] = [
-            1 if i in self.idx_x_bin else 0 for i in range(self.nr_x)]
+            1 if i in self.idx_x_integer else 0 for i in range(self.nr_x)]
 
         self.solver = ca.qpsol(
             "mip_solver", self.settings.MIP_SOLVER, {

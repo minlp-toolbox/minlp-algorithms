@@ -28,8 +28,8 @@ class LinearProjection(SolverClass):
         options = regularize_options(
             s.IPOPT_SETTINGS, {"jit": s.WITH_JIT, "ipopt.max_iter": 5000}, s)
 
-        self.idx_x_bin = problem.idx_x_bin
-        x_bin_var = problem.x[self.idx_x_bin]
+        self.idx_x_integer = problem.idx_x_integer
+        x_bin_var = problem.x[self.idx_x_integer]
         self.nr_x_bin = x_bin_var.shape[0]
         rounded_value = GlobalSettings.CASADI_VAR.sym(
             "rounded_value", self.nr_x_bin)
@@ -57,7 +57,7 @@ class LinearProjection(SolverClass):
             lbx = nlpdata.lbx
             ubx = nlpdata.ubx
 
-            x_bin_var = to_0d(sol["x"][self.idx_x_bin])
+            x_bin_var = to_0d(sol["x"][self.idx_x_integer])
             new_sol = self.solver(
                 x0=ca.vertcat(nlpdata.x0, np.zeros(self.nr_x_bin)),
                 lbx=ca.vertcat(lbx, np.zeros(self.nr_x_bin)),
@@ -93,8 +93,8 @@ class ObjectiveLinearProjection(SolverClass):
         super(ObjectiveLinearProjection, self).__init__(problem, stats, s)
         options = regularize_options(s.IPOPT_SETTINGS, {}, s)
 
-        self.idx_x_bin = problem.idx_x_bin
-        x_bin_var = problem.x[self.idx_x_bin]
+        self.idx_x_integer = problem.idx_x_integer
+        x_bin_var = problem.x[self.idx_x_integer]
         self.nr_x_bin = x_bin_var.shape[0]
         rounded_value = GlobalSettings.CASADI_VAR.sym(
             "rounded_value", self.nr_x_bin)
@@ -129,7 +129,7 @@ class ObjectiveLinearProjection(SolverClass):
             lbx = nlpdata.lbx
             ubx = nlpdata.ubx
 
-            x_bin_var = to_0d(sol["x"][self.idx_x_bin])
+            x_bin_var = to_0d(sol["x"][self.idx_x_integer])
             new_sol = self.solver(
                 x0=ca.vertcat(nlpdata.x0, np.zeros(self.nr_x_bin)),
                 lbx=ca.vertcat(lbx, np.zeros(self.nr_x_bin)),

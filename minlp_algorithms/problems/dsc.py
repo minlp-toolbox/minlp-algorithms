@@ -254,13 +254,13 @@ class Description:
 
     def get_problem(self, with_gn=True) -> MinlpProblem:
         """Extract problem."""
-        idx_x_bin = [i for i, v in enumerate(self.discrete) if v == 1]
+        idx_x_integer = [i for i, v in enumerate(self.discrete) if v == 1]
         if self._r_exist() and with_gn:
             gn_hessian = self.get_gauss_newton_hessian()
         else:
             gn_hessian = None
         return MinlpProblem(f=self.f, g=vertcat(*self.g), h=self.h,
-                            x=vertcat(*self.w), idx_x_bin=idx_x_bin, p=vertcat(*self.p), gn_hessian=gn_hessian)
+                            x=vertcat(*self.w), idx_x_integer=idx_x_integer, p=vertcat(*self.p), gn_hessian=gn_hessian)
 
     def get_data(self) -> MinlpData:
         """Get data structure."""
