@@ -22,7 +22,7 @@ You can enable or change options using environmental variables:
 | Environmental variable |     Value    | Description                 |
 | ---------------------- | ------------ | ----------------------------|
 |         DEBUG          |  True/False  | Toggle debugging output     |
-|         LOG_DATA       |  True/False  | Toggle saving statistics     |
+|         LOG_DATA       |  True/False  | Toggle saving statistics    |
 |        MIP_SOLVER      | gurobi/highs | Configure MIP solver        |
 
 
@@ -101,13 +101,13 @@ In the folder `docs/` we provide two python scripts `example.py` and `stats_anal
 
 If you find this project useful, please consider giving it a :star: or citing it if your work is scientific:
 ```bibtex
-@software{minlp-algorithms,
+@software{camino,
   author = {Ghezzi, Andrea and Van Roy, Wim},
   license = {GPL-3.0},
-  month = may,
-  title = {minlp-algorithms: {P}ython-{C}as{AD}i-based package implementing algorithms for solving mixed-integer nonlinear programs ({MINLP}s)},
-  url = {https://github.com/minlp-toolbox/minlp-algorithms},
-  version = {0.0.1},
+  month = oct,
+  title = {CAMINO: Collection of Algorithms for Mixed-Integer Nonlinear Optimization},
+  url = {https://github.com/minlp-toolbox/CAMINO},
+  version = {0.1.1},
   year = {2024}
 }
 ```
@@ -116,4 +116,4 @@ If you find this project useful, please consider giving it a :star: or citing it
 Contributions and feedback are welcomed via GitHub PR and issues!
 
 ## License
-This software is under GPL-3.0 license, please check [LICENSE](https://github.com/minlp-toolbox/minlp-algorithms/blob/main/LICENSE) for more details.
+This software is under GPL-3.0 license, please check [LICENSE](https://github.com/minlp-toolbox/CAMINO/blob/main/LICENSE) for more details.

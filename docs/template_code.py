@@ -1,8 +1,8 @@
-# This file is part of minlp-algorithms
+# This file is part of CAMINO
 # Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from minlp_algorithms.solver import MinlpSolver, MinlpProblem, MinlpData, Settings, Stats
+from camino.solver import MinlpSolver, MinlpProblem, MinlpData, Settings, Stats
 
 
 # A template to fill-in

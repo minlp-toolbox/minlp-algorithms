@@ -1,4 +1,4 @@
-# This file is part of minlp-algorithms
+# This file is part of CAMINO
 # Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -6,8 +6,8 @@
 
 import unittest
 import casadi as ca
-from minlp_algorithms.settings import GlobalSettings
-from minlp_algorithms.solvers import MinlpProblem, get_idx_linear_bounds_binary_x, \
+from camino.settings import GlobalSettings
+from camino.solvers import MinlpProblem, get_idx_linear_bounds_binary_x, \
     get_idx_linear_bounds
 
 

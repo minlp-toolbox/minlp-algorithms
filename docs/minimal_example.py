@@ -1,9 +1,9 @@
-# This file is part of minlp-algorithms
+# This file is part of CAMINO
 # Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-from minlp_algorithms.solver import MinlpSolver, MinlpProblem, MinlpData, Settings, Stats
-from minlp_algorithms.settings import GlobalSettings
+from camino.solver import MinlpSolver, MinlpProblem, MinlpData, Settings, Stats
+from camino.settings import GlobalSettings
 
 # A minimal example to show how effortless is to call the algorithms in this toolbox if you already have a CasADi description.
 # Illustrations of this minimal example are available in the paper (Section 2.7) https://arxiv.org/pdf/2404.11786

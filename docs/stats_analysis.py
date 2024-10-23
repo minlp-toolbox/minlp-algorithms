@@ -1,10 +1,10 @@
-# This file is part of minlp-algorithms
+# This file is part of CAMINO
 # Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import os
 import pandas as pd
-from minlp_algorithms.settings import GlobalSettings
+from camino.settings import GlobalSettings
 import pickle
 
 filename = "2024-05-17_12:44:55_fp_particle_generic.pkl"
