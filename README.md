@@ -8,12 +8,18 @@ Set up and activate a fresh Python virtual environment (Python >= 3.7 should wor
 From the root of the repository
 ```
 pip3 install -e .
-python3 minlp_algorithms <mode> <solver> <problem>
+python3 camino <mode> <solver> <problem>
 ```
+
+**Example**: running outer approximation solver (`oa`) on the example `dummy`
+```
+python3 camino run oa dummy
+```
+
 
 More info by running
 ```
-python3 minlp_algorithms -h
+python3 camino -h
 ```
 
 
@@ -58,10 +64,10 @@ You can enable or change options using environmental variables:
 | mip | Solve the given MILP/MIQP |  | (x) |
 
 #### Warm starting
-It is possible to warm start every solver with the solution of another one by concatenating with a `+` the desired solvers when executing `python3 minlp_algorithms`.
+It is possible to warm start every solver with the solution of another one by concatenating with a `+` the desired solvers when executing `python3 camino`.
 For instance, to use the solution of the feasibility pump as a warm start to sequential Benders-based MIQP, execute the following:
 ```
-python3 minlp_algorithms run fp+s-b-miqp <problem>
+python3 camino run fp+s-b-miqp <problem>
 
 ```
 
