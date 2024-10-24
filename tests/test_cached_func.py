@@ -1,4 +1,4 @@
-# This file is part of minlp-algorithms
+# This file is part of CAMINO
 # Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -7,7 +7,7 @@
 import unittest
 from os import path, makedirs, listdir
 from shutil import rmtree
-from minlp_algorithms.utils.cache import CachedFunction, ca
+from camino.utils.cache import CachedFunction, ca
 
 
 FILE_DIR = ".test"

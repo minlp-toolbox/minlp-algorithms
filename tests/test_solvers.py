@@ -1,4 +1,4 @@
-# This file is part of minlp-algorithms
+# This file is part of CAMINO
 # Copyright (C) 2024  Andrea Ghezzi, Wim Van Roy, Sebastian Sager, Moritz Diehl
 # SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -6,10 +6,10 @@
 
 import unittest
 from parameterized import parameterized
-from minlp_algorithms.problems.overview import PROBLEMS
-from minlp_algorithms.solver import SOLVER_MODES
-from minlp_algorithms.settings import Settings
-from minlp_algorithms.runner import runner
+from camino.problems.overview import PROBLEMS
+from camino.solver import SOLVER_MODES
+from camino.settings import Settings
+from camino.runner import runner
 import timeout_decorator
 
 options = [("cia", "doubletank2")] + [
